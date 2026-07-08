@@ -870,6 +870,29 @@ export const getLogsColumns = ({
       },
     },
     {
+      key: COLUMN_KEYS.USER_AGENT,
+      title: 'User-Agent',
+      dataIndex: 'user_agent',
+      width: 220,
+      render: (text, record) => {
+        const other = getLogOther(record.other);
+        const userAgent = other?.user_agent;
+        return userAgent ? (
+          <Tooltip content={userAgent}>
+            <Typography.Paragraph
+              ellipsis={{ rows: 2 }}
+              style={{ maxWidth: 220, marginBottom: 0, cursor: 'pointer' }}
+              onClick={(event) => copyText(event, userAgent)}
+            >
+              {userAgent}
+            </Typography.Paragraph>
+          </Tooltip>
+        ) : (
+          <></>
+        );
+      },
+    },
+    {
       key: COLUMN_KEYS.RETRY,
       title: t('重试'),
       dataIndex: 'retry',

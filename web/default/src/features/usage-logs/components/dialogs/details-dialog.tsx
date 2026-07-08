@@ -658,6 +658,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
               </DetailSection>
             )}
 
+            {other?.user_agent && (
+              <DetailSection label='User-Agent'>
+                <DetailRow label='UA' value={other.user_agent} mono />
+              </DetailSection>
+            )}
+
             {/* Reject reason (admin only) */}
             {props.isAdmin && other?.reject_reason && (
               <DetailSection
