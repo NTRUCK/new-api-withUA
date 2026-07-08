@@ -364,6 +364,11 @@ func TokenAuth() func(c *gin.Context) {
 			logger.LogDebug(c, "Client IP %s passed the token IP restrictions check", clientIp)
 		}
 
+		if !token.IsUserAgentAllowed(c.Request.UserAgent()) {
+			abortWithOpenAiMessage(c, http.StatusForbidden, "当前客户端 User-Agent 不在令牌允许访问的列表中", types.ErrorCodeAccessDenied)
+			return
+		}
+
 		userCache, err := model.GetUserCache(token.UserId)
 		if err != nil {
 			common.SysLog(fmt.Sprintf("TokenAuth GetUserCache error for user %d: %v", token.UserId, err))

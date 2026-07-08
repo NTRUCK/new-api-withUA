@@ -111,6 +111,7 @@ export interface LogOtherData {
     admin_id?: number | string
   }
   request_path?: string
+  user_agent?: string
   request_conversion?: string[]
   ws?: boolean
   audio?: boolean

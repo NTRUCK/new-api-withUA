@@ -25,6 +25,7 @@ type Token struct {
 	ModelLimitsEnabled bool           `json:"model_limits_enabled"`
 	ModelLimits        string         `json:"model_limits" gorm:"type:text"`
 	AllowIps           *string        `json:"allow_ips" gorm:"default:''"`
+	AllowUserAgents   *string        `json:"allow_user_agents" gorm:"type:text;default:''"`
 	UsedQuota          int            `json:"used_quota" gorm:"default:0"` // used quota
 	Group              string         `json:"group" gorm:"default:''"`
 	CrossGroupRetry    bool           `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
@@ -76,6 +77,34 @@ func (token *Token) GetIpLimits() []string {
 		}
 	}
 	return ipLimits
+}
+
+func (token *Token) GetUserAgentLimits() []string {
+	limits := make([]string, 0)
+	if token.AllowUserAgents == nil {
+		return limits
+	}
+	cleanUserAgents := strings.ReplaceAll(*token.AllowUserAgents, "\r\n", "\n")
+	for _, userAgent := range strings.Split(cleanUserAgents, "\n") {
+		userAgent = strings.TrimSpace(userAgent)
+		if userAgent != "" {
+			limits = append(limits, userAgent)
+		}
+	}
+	return limits
+}
+
+func (token *Token) IsUserAgentAllowed(userAgent string) bool {
+	limits := token.GetUserAgentLimits()
+	if len(limits) == 0 {
+		return true
+	}
+	for _, limit := range limits {
+		if strings.Contains(userAgent, limit) {
+			return true
+		}
+	}
+	return false
 }
 
 func GetAllUserTokens(userId int, startIdx int, num int) ([]*Token, error) {

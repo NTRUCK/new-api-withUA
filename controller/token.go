@@ -219,6 +219,7 @@ func AddToken(c *gin.Context) {
 		ModelLimitsEnabled: token.ModelLimitsEnabled,
 		ModelLimits:        token.ModelLimits,
 		AllowIps:           token.AllowIps,
+		AllowUserAgents:   token.AllowUserAgents,
 		Group:              token.Group,
 		CrossGroupRetry:    token.CrossGroupRetry,
 	}
@@ -297,6 +298,7 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.ModelLimitsEnabled = token.ModelLimitsEnabled
 		cleanToken.ModelLimits = token.ModelLimits
 		cleanToken.AllowIps = token.AllowIps
+		cleanToken.AllowUserAgents = token.AllowUserAgents
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
 	}

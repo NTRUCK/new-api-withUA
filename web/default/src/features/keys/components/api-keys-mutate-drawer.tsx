@@ -570,6 +570,32 @@ export function ApiKeysMutateDrawer({
                         </FormItem>
                       )}
                     />
+
+                    <FormField
+                      control={form.control}
+                      name='allow_user_agents'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('User-Agent Whitelist')}</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              className='min-h-20 resize-none'
+                              placeholder={t(
+                                'One keyword per line (empty for no restriction)'
+                              )}
+                              rows={3}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {t(
+                              'Requests must contain at least one configured keyword in User-Agent.'
+                            )}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </CollapsibleContent>
               </SideDrawerSection>
