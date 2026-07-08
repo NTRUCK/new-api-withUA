@@ -34,7 +34,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/new-api-withua:user-agent-log
-            ghcr.io/${{ github.repository_owner }}/new-api-withua:latest
+            ghcr.io/ntruck/new-api-withua:user-agent-log
+            ghcr.io/ntruck/new-api-withua:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
