@@ -79,6 +79,7 @@ const EditTokenModal = (props) => {
     model_limits_enabled: false,
     model_limits: [],
     allow_ips: '',
+    allow_user_agents: '',
     group: '',
     cross_group_retry: false,
     tokenCount: 1,
@@ -635,6 +636,20 @@ const EditTokenModal = (props) => {
                       rows={1}
                       extraText={t(
                         '请勿过度信任此功能，IP可能被伪造，请配合nginx和cdn等网关使用',
+                      )}
+                      showClear
+                      style={{ width: '100%' }}
+                    />
+                  </Col>
+                  <Col span={24}>
+                    <Form.TextArea
+                      field='allow_user_agents'
+                      label={t('User-Agent白名单')}
+                      placeholder={t('允许的User-Agent关键词，一行一个，不填写则不限制')}
+                      autosize
+                      rows={1}
+                      extraText={t(
+                        '请求的User-Agent包含任意关键词时允许访问，User-Agent可被伪造，请仅作为基础限制和记录使用',
                       )}
                       showClear
                       style={{ width: '100%' }}
