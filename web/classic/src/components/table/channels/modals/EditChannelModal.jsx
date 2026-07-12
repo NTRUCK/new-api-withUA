@@ -3125,16 +3125,6 @@ const EditChannelModal = (props) => {
                                     {t('查看密钥')}
                                   </Button>
                                 )}
-                                {showConvertToMultiKeyButton && (
-                                  <Button
-                                    size='small'
-                                    type='warning'
-                                    theme='outline'
-                                    onClick={handleConvertToMultiKey}
-                                  >
-                                    {t('转为多 Key 渠道')}
-                                  </Button>
-                                )}
                                 {batchExtra}
                               </div>
                             }
@@ -3142,6 +3132,22 @@ const EditChannelModal = (props) => {
                           />
                         )}
                       </>
+                    )}
+
+                    {showConvertToMultiKeyButton && (
+                      <div className='flex items-center gap-2'>
+                        <Button
+                          size='small'
+                          type='primary'
+                          theme='outline'
+                          onClick={handleConvertToMultiKey}
+                        >
+                          {t('转为多 Key 渠道')}
+                        </Button>
+                        <Text type='tertiary' size='small'>
+                          {t('单向转换，原有密钥会作为第 1 个 Key 保留')}
+                        </Text>
+                      </div>
                     )}
 
                     {isEdit && isMultiKeyChannel && (
