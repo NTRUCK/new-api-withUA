@@ -233,6 +233,7 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.GET("/models_enabled", controller.EnabledListModels)
 			channelRoute.GET("/:id", controller.GetChannel)
 			channelRoute.POST("/:id/key", middleware.RootAuth(), middleware.CriticalRateLimit(), middleware.DisableCache(), controller.GetChannelKey)
+			channelRoute.POST("/:id/convert_multi_key", middleware.RootAuth(), middleware.CriticalRateLimit(), controller.ConvertChannelToMultiKey)
 			channelRoute.GET("/test", controller.TestAllChannels)
 			channelRoute.GET("/test/:id", controller.TestChannel)
 			channelRoute.GET("/update_balance", controller.UpdateAllChannelsBalance)

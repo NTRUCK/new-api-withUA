@@ -1230,6 +1230,29 @@ const EditChannelModal = (props) => {
     }
   };
 
+  const handleConvertToMultiKey = async () => {
+    Modal.confirm({
+      title: t('转为多 Key 渠道'),
+      content: t('此操作会把当前渠道转换为多 Key 模式，原有密钥会作为第 1 个 Key 保留。转换后不能在网页端切回单 Key，是否继续？'),
+      centered: true,
+      onOk: async () => {
+        try {
+          const res = await API.post(`/api/channel/${channelId}/convert_multi_key`);
+          if (res?.data?.success) {
+            showSuccess(t('转换成功'));
+            await loadChannel();
+          } else {
+            showError(res?.data?.message || t('转换失败'));
+          }
+        } catch (error) {
+          showError(error.message || t('转换失败'));
+        }
+      },
+    });
+  };
+
+  const showConvertToMultiKeyButton = isEdit && !isMultiKeyChannel && inputs.type !== 57;
+
   const handleCodexOAuthGenerated = (key) => {
     handleInputChange('key', key);
     formatJsonField('key');
@@ -3100,6 +3123,16 @@ const EditChannelModal = (props) => {
                                     onClick={handleShow2FAModal}
                                   >
                                     {t('查看密钥')}
+                                  </Button>
+                                )}
+                                {showConvertToMultiKeyButton && (
+                                  <Button
+                                    size='small'
+                                    type='warning'
+                                    theme='outline'
+                                    onClick={handleConvertToMultiKey}
+                                  >
+                                    {t('转为多 Key 渠道')}
                                   </Button>
                                 )}
                                 {batchExtra}

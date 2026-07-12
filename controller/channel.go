@@ -854,6 +854,74 @@ func DeleteChannelBatch(c *gin.Context) {
 	return
 }
 
+func ConvertChannelToMultiKey(c *gin.Context) {
+	channelId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	channel, err := model.GetChannelById(channelId, true)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if channel.ChannelInfo.IsMultiKey {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "该渠道已经是多密钥模式",
+		})
+		return
+	}
+	if channel.Type == constant.ChannelTypeCodex {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "该渠道类型不支持转换为多密钥模式",
+		})
+		return
+	}
+
+	keys := channel.GetKeys()
+	cleanKeys := make([]string, 0, len(keys))
+	for _, key := range keys {
+		key = strings.TrimSpace(key)
+		if key != "" {
+			cleanKeys = append(cleanKeys, key)
+		}
+	}
+	if len(cleanKeys) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "当前渠道没有可转换的密钥",
+		})
+		return
+	}
+
+	channel.Key = strings.Join(cleanKeys, "\n")
+	channel.ChannelInfo.IsMultiKey = true
+	channel.ChannelInfo.MultiKeySize = len(cleanKeys)
+	channel.ChannelInfo.MultiKeyStatusList = nil
+	channel.ChannelInfo.MultiKeyDisabledReason = nil
+	channel.ChannelInfo.MultiKeyDisabledTime = nil
+	channel.ChannelInfo.MultiKeyPollingIndex = 0
+	channel.ChannelInfo.MultiKeyMode = constant.MultiKeyModeRandom
+
+	if err := channel.Update(); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	model.InitChannelCache()
+	service.ResetProxyClientCache()
+	model.RecordLog(c.GetInt("id"), model.LogTypeSystem, fmt.Sprintf("将渠道转换为多密钥模式 (渠道ID: %d)", channelId))
+	channel.Key = ""
+	clearChannelInfo(channel)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "转换成功",
+		"data":    channel,
+	})
+}
+
 type PatchChannel struct {
 	model.Channel
 	MultiKeyMode *string `json:"multi_key_mode"`
