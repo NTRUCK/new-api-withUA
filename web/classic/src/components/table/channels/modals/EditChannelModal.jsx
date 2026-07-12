@@ -2999,9 +2999,7 @@ const EditChannelModal = (props) => {
                                     <Text type='tertiary' size='small'>
                                       {t('请输入完整的 JSON 格式密钥内容')}
                                     </Text>
-                                    {isEdit &&
-                                      isMultiKeyChannel &&
-                                      keyMode === 'append' && (
+                                    {isEdit && keyMode === 'append' && (
                                         <Text type='warning' size='small'>
                                           {t(
                                             '追加模式：新密钥将添加到现有密钥列表的末尾',
