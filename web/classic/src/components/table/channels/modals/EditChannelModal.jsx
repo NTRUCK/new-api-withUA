@@ -821,6 +821,9 @@ const EditChannelModal = (props) => {
 
   const loadChannel = async () => {
     setLoading(true);
+    setIsMultiKeyChannel(false);
+    setBatch(false);
+    setMultiToSingle(false);
     let res = await API.get(`/api/channel/${channelId}`);
     if (res === undefined) {
       return;
