@@ -3078,7 +3078,9 @@ const EditChannelModal = (props) => {
                             }
                             extraText={
                               <div className='flex items-center gap-2'>
-                                {isEdit && keyMode === 'append' && (
+                                {isEdit &&
+                                  isMultiKeyChannel &&
+                                  keyMode === 'append' && (
                                     <Text type='warning' size='small'>
                                       {t(
                                         '追加模式：新密钥将添加到现有密钥列表的末尾',
@@ -3104,7 +3106,7 @@ const EditChannelModal = (props) => {
                       </>
                     )}
 
-                    {isEdit && isMultiKeyChannel && (
+                    {isEdit && inputs.type !== 57 && (
                       <Form.Select
                         field='key_mode'
                         label={t('密钥更新模式')}
