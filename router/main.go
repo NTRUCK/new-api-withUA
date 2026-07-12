@@ -13,6 +13,7 @@ import (
 )
 
 func SetRouter(router *gin.Engine, assets ThemeAssets) {
+	SetMonitorRouter(router)
 	SetApiRouter(router)
 	SetDashboardRouter(router)
 	SetRelayRouter(router)

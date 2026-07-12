@@ -8,6 +8,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay/channel"
 	openaichannel "github.com/QuantumNous/new-api/relay/channel/openai"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
@@ -86,6 +87,7 @@ func chatCompletionsViaResponses(c *gin.Context, info *relaycommon.RelayInfo, ad
 			return nil, newAPIErrorFromParamOverride(err)
 		}
 	}
+	model.SetMonitorRequestBody(c, chatJSON)
 
 	var overriddenChatReq dto.GeneralOpenAIRequest
 	if err := common.Unmarshal(chatJSON, &overriddenChatReq); err != nil {

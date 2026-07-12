@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
@@ -99,10 +100,11 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 		if err != nil {
 			return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 		}
-		if common.DebugEnabled {
-			if debugBytes, bErr := storage.Bytes(); bErr == nil {
+		if debugBytes, bErr := storage.Bytes(); bErr == nil {
+			if common.DebugEnabled {
 				logger.LogDebug(c, "requestBody: %s", debugBytes)
 			}
+			model.SetMonitorRequestBody(c, debugBytes)
 		}
 		requestBody = common.ReaderOnly(storage)
 	} else {
@@ -174,6 +176,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 		}
 
 		logger.LogDebug(c, "text request body: %s", jsonData)
+		model.SetMonitorRequestBody(c, jsonData)
 
 		body, size, closer, err := relaycommon.NewOutboundJSONBody(jsonData)
 		if err != nil {
