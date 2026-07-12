@@ -3104,7 +3104,7 @@ const EditChannelModal = (props) => {
                       </>
                     )}
 
-                    {isEdit && inputs.type !== 57 && (
+                    {isEdit && isMultiKeyChannel && (
                       <Form.Select
                         field='key_mode'
                         label={t('密钥更新模式')}
