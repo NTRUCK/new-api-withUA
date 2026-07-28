@@ -454,7 +454,7 @@ export const useLogsData = () => {
           other?.is_model_mapped &&
           other?.upstream_model_name &&
           other?.upstream_model_name !== '';
-        if (modelMapped) {
+        if (isAdminUser && modelMapped) {
           expandDataLocal.push({
             key: t('请求并计费模型'),
             value: logs[i].model_name,
