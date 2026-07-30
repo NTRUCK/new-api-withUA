@@ -491,6 +491,38 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 	}
 }
 
+func BatchDisableUsers(userIds []int) (disabledIds []int, err error) {
+	if len(userIds) == 0 {
+		return disabledIds, nil
+	}
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		for _, userId := range userIds {
+			result := tx.Model(&User{}).
+				Where("id = ? AND id <> ? AND role < ? AND status = ?", userId, 1, common.RoleAdminUser, common.UserStatusEnabled).
+				Update("status", common.UserStatusDisabled)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 1 {
+				disabledIds = append(disabledIds, userId)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, userId := range disabledIds {
+		if cacheErr := InvalidateUserCache(userId); cacheErr != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", userId, cacheErr.Error()))
+		}
+		if cacheErr := InvalidateUserTokensCache(userId); cacheErr != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate token cache for user %d: %s", userId, cacheErr.Error()))
+		}
+	}
+	return disabledIds, nil
+}
+
 func (user *User) Update(updatePassword bool) error {
 	var err error
 	if updatePassword {

@@ -20,7 +20,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
 import { type Table } from '@tanstack/react-table'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useIsAdmin } from '@/hooks/use-admin'
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,7 @@ import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
 import type { CommonLogFilters } from '../types'
 import { CommonLogsStats } from './common-logs-stats'
+import { LogUsersDialog } from './dialogs/log-users-dialog'
 import { CompactDateTimeRangePicker } from './compact-date-time-range-picker'
 import {
   LogsFilterField,
@@ -79,6 +80,7 @@ export function CommonLogsFilterBar<TData>(
     return { startTime: start, endTime: end }
   })
   const [logType, setLogType] = useState<LogTypeValue>(LOG_TYPE_ALL_VALUE)
+  const [usersDialogOpen, setUsersDialogOpen] = useState(false)
 
   useEffect(() => {
     const { start, end } = getDefaultTimeRange()
@@ -203,6 +205,17 @@ export function CommonLogsFilterBar<TData>(
   const statsBar = (
     <div className='flex flex-wrap items-center gap-2'>
       <CommonLogsStats />
+      {isAdmin && (
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-7'
+          onClick={() => setUsersDialogOpen(true)}
+        >
+          <Users />
+          {t('Count Users')}
+        </Button>
+      )}
       <Tooltip>
         <TooltipTrigger
           render={
@@ -345,10 +358,11 @@ export function CommonLogsFilterBar<TData>(
   )
 
   return (
-    <LogsFilterToolbar
-      table={props.table}
-      stats={statsBar}
-      primaryFilters={
+    <>
+      <LogsFilterToolbar
+        table={props.table}
+        stats={statsBar}
+        primaryFilters={
         <>
           {dateRangeFilter}
           {modelFilter}
@@ -375,7 +389,15 @@ export function CommonLogsFilterBar<TData>(
       hasActiveFilters={hasAdditionalFilters}
       onSearch={handleApply}
       searchLoading={fetchingLogs > 0}
-      onReset={handleReset}
-    />
+        onReset={handleReset}
+      />
+      {isAdmin && (
+        <LogUsersDialog
+          open={usersDialogOpen}
+          onOpenChange={setUsersDialogOpen}
+          searchParams={searchParams}
+        />
+      )}
+    </>
   )
 }

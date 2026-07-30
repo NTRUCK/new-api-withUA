@@ -346,7 +346,7 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, userAgent string) (logs []*Log, total int64, err error) {
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, userAgent string, userId int) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB
@@ -383,6 +383,9 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	}
 	if tx, err = applyUserAgentFilter(tx, "logs.other", userAgent); err != nil {
 		return nil, 0, err
+	}
+	if userId != 0 {
+		tx = tx.Where("logs.user_id = ?", userId)
 	}
 	err = tx.Model(&Log{}).Count(&total).Error
 	if err != nil {
@@ -434,6 +437,98 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	}
 
 	return logs, total, err
+}
+
+type LogUserStat struct {
+	UserId        int    `json:"user_id"`
+	Username      string `json:"username"`
+	LogCount      int64  `json:"log_count"`
+	LastCreatedAt int64  `json:"last_created_at"`
+}
+
+func GetLogUserStats(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, userAgent string) (users []*LogUserStat, total int64, err error) {
+	tx := LOG_DB.Model(&Log{}).Where("logs.user_id > 0")
+	if logType != LogTypeUnknown {
+		tx = tx.Where("logs.type = ?", logType)
+	}
+	if tx, err = applyExplicitLogTextFilter(tx, "logs.model_name", modelName); err != nil {
+		return nil, 0, err
+	}
+	if tx, err = applyExplicitLogTextFilter(tx, "logs.username", username); err != nil {
+		return nil, 0, err
+	}
+	if tokenName != "" {
+		tx = tx.Where("logs.token_name = ?", tokenName)
+	}
+	if requestId != "" {
+		tx = tx.Where("logs.request_id = ?", requestId)
+	}
+	if upstreamRequestId != "" {
+		tx = tx.Where("logs.upstream_request_id = ?", upstreamRequestId)
+	}
+	if startTimestamp != 0 {
+		tx = tx.Where("logs.created_at >= ?", startTimestamp)
+	}
+	if endTimestamp != 0 {
+		tx = tx.Where("logs.created_at <= ?", endTimestamp)
+	}
+	if channel != 0 {
+		tx = tx.Where("logs.channel_id = ?", channel)
+	}
+	if group != "" {
+		tx = tx.Where("logs."+logGroupCol+" = ?", group)
+	}
+	if tx, err = applyUserAgentFilter(tx, "logs.other", userAgent); err != nil {
+		return nil, 0, err
+	}
+	if err = tx.Distinct("logs.user_id").Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err = tx.Select("logs.user_id, MAX(logs.username) AS username, COUNT(*) AS log_count, MAX(logs.created_at) AS last_created_at").
+		Group("logs.user_id").Order("log_count DESC, last_created_at DESC").Limit(num).Offset(startIdx).Scan(&users).Error
+	return users, total, err
+}
+
+func GetDistinctLogUserIds(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, requestId string, upstreamRequestId string, userAgent string) (userIds []int, err error) {
+	if strings.TrimSpace(userAgent) == "" {
+		return nil, errors.New("User-Agent 筛选不能为空")
+	}
+	tx := LOG_DB.Model(&Log{}).Where("logs.user_id > 0")
+	if logType != LogTypeUnknown {
+		tx = tx.Where("logs.type = ?", logType)
+	}
+	if tx, err = applyExplicitLogTextFilter(tx, "logs.model_name", modelName); err != nil {
+		return nil, err
+	}
+	if tx, err = applyExplicitLogTextFilter(tx, "logs.username", username); err != nil {
+		return nil, err
+	}
+	if tokenName != "" {
+		tx = tx.Where("logs.token_name = ?", tokenName)
+	}
+	if requestId != "" {
+		tx = tx.Where("logs.request_id = ?", requestId)
+	}
+	if upstreamRequestId != "" {
+		tx = tx.Where("logs.upstream_request_id = ?", upstreamRequestId)
+	}
+	if startTimestamp != 0 {
+		tx = tx.Where("logs.created_at >= ?", startTimestamp)
+	}
+	if endTimestamp != 0 {
+		tx = tx.Where("logs.created_at <= ?", endTimestamp)
+	}
+	if channel != 0 {
+		tx = tx.Where("logs.channel_id = ?", channel)
+	}
+	if group != "" {
+		tx = tx.Where("logs."+logGroupCol+" = ?", group)
+	}
+	if tx, err = applyUserAgentFilter(tx, "logs.other", userAgent); err != nil {
+		return nil, err
+	}
+	err = tx.Distinct("logs.user_id").Pluck("logs.user_id", &userIds).Error
+	return userIds, err
 }
 
 const logSearchCountLimit = 10000

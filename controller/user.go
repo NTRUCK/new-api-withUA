@@ -864,6 +864,56 @@ func CreateUser(c *gin.Context) {
 	return
 }
 
+type BatchDisableLogUsersRequest struct {
+	LogType           int    `json:"type"`
+	StartTimestamp    int64  `json:"start_timestamp"`
+	EndTimestamp      int64  `json:"end_timestamp"`
+	ModelName         string `json:"model_name"`
+	Username          string `json:"username"`
+	TokenName         string `json:"token_name"`
+	Channel           int    `json:"channel"`
+	Group             string `json:"group"`
+	RequestId         string `json:"request_id"`
+	UpstreamRequestId string `json:"upstream_request_id"`
+	UserAgent         string `json:"user_agent"`
+	Confirm           bool   `json:"confirm"`
+}
+
+func BatchDisableLogUsers(c *gin.Context) {
+	var req BatchDisableLogUsersRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil || !req.Confirm {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	userIds, err := model.GetDistinctLogUserIds(req.LogType, req.StartTimestamp, req.EndTimestamp, req.ModelName, req.Username, req.TokenName, req.Channel, req.Group, req.RequestId, req.UpstreamRequestId, req.UserAgent)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	disabledIds, err := model.BatchDisableUsers(userIds)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	adminInfo := map[string]interface{}{
+		"admin_id":       c.GetInt("id"),
+		"admin_username": c.GetString("username"),
+		"matched_count":  len(userIds),
+		"disabled_count": len(disabledIds),
+		"user_agent":     req.UserAgent,
+	}
+	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("按日志筛选批量封禁用户，共封禁 %d 个用户", len(disabledIds)), adminInfo)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"matched_count":  len(userIds),
+			"disabled_count": len(disabledIds),
+			"skipped_count":  len(userIds) - len(disabledIds),
+		},
+	})
+}
+
 type ManageRequest struct {
 	Id     int    `json:"id"`
 	Action string `json:"action"`

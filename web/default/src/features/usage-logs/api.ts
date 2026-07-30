@@ -23,6 +23,7 @@ import type {
   GetLogsResponse,
   GetLogStatsParams,
   GetLogStatsResponse,
+  GetLogUsersResponse,
   GetMidjourneyLogsParams,
   GetTaskLogsParams,
   UserInfo,
@@ -75,6 +76,31 @@ export const getAllLogs = (params: GetLogsParams = {}) =>
 export const getUserLogs = (
   params: Omit<GetLogsParams, 'username' | 'channel'> = {}
 ) => fetchLogs('/api/log', params, false)
+
+export async function getLogUsers(
+  params: GetLogsParams = {}
+): Promise<GetLogUsersResponse> {
+  const queryParams = buildQueryParams(params as Record<string, unknown>)
+  const res = await api.get(`/api/log/users?${queryParams}`)
+  return res.data
+}
+
+export async function batchDisableLogUsers(
+  params: GetLogsParams
+): Promise<{
+  success: boolean
+  message?: string
+  data?: { matched_count: number; disabled_count: number; skipped_count: number }
+}> {
+  const res = await api.post('/api/user/batch_disable_by_logs', {
+    ...params,
+    p: undefined,
+    page_size: undefined,
+    user_id: undefined,
+    confirm: true,
+  })
+  return res.data
+}
 
 export const getLogStats = (params: GetLogStatsParams = {}) =>
   fetchLogStats('/api/log', params, true)

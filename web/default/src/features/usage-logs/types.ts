@@ -272,6 +272,25 @@ export interface GetLogsParams {
   request_id?: string
   upstream_request_id?: string
   user_agent?: string
+  user_id?: number
+}
+
+export interface LogUserStat {
+  user_id: number
+  username: string
+  log_count: number
+  last_created_at: number
+}
+
+export interface GetLogUsersResponse {
+  success: boolean
+  message?: string
+  data?: {
+    items: LogUserStat[]
+    total: number
+    page: number
+    page_size: number
+  }
 }
 
 export interface GetLogsResponse {

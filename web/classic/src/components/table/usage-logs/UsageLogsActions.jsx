@@ -18,9 +18,10 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Tag, Space, Skeleton } from '@douyinfe/semi-ui';
+import { Tag, Space, Skeleton, Button } from '@douyinfe/semi-ui';
 import { renderQuota } from '../../../helpers';
 import CompactModeToggle from '../../common/ui/CompactModeToggle';
+import { BarChart3 } from 'lucide-react';
 import { useMinimumLoadingTime } from '../../../hooks/common/useMinimumLoadingTime';
 
 const LogsActions = ({
@@ -29,6 +30,8 @@ const LogsActions = ({
   showStat,
   compactMode,
   setCompactMode,
+  openUserStats,
+  isAdminUser,
   t,
 }) => {
   const showSkeleton = useMinimumLoadingTime(loadingStat);
@@ -83,11 +86,24 @@ const LogsActions = ({
         </Space>
       </Skeleton>
 
-      <CompactModeToggle
-        compactMode={compactMode}
-        setCompactMode={setCompactMode}
-        t={t}
-      />
+      <Space>
+        {isAdminUser && (
+          <Button
+            type='tertiary'
+            theme='outline'
+            icon={<BarChart3 size={16} />}
+            onClick={openUserStats}
+            size='small'
+          >
+            {t('统计用户')}
+          </Button>
+        )}
+        <CompactModeToggle
+          compactMode={compactMode}
+          setCompactMode={setCompactMode}
+          t={t}
+        />
+      </Space>
     </div>
   );
 };

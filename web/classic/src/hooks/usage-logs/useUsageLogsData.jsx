@@ -167,7 +167,9 @@ export const useLogsData = () => {
   };
 
   // Column visibility state
-  const [visibleColumns, setVisibleColumns] = useState(getInitialVisibleColumns);
+  const [visibleColumns, setVisibleColumns] = useState(
+    getInitialVisibleColumns,
+  );
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [billingDisplayMode, setBillingDisplayMode] = useState(
     getInitialBillingDisplayMode,
@@ -189,6 +191,17 @@ export const useLogsData = () => {
     useState(null);
   const [showParamOverrideModal, setShowParamOverrideModal] = useState(false);
   const [paramOverrideTarget, setParamOverrideTarget] = useState(null);
+
+  // User statistics modal state (admin only)
+  const [showUserStats, setShowUserStats] = useState(false);
+  const [userStats, setUserStats] = useState([]);
+  const [userStatsLoading, setUserStatsLoading] = useState(false);
+  const [userStatsPage, setUserStatsPage] = useState(1);
+  const [userStatsTotal, setUserStatsTotal] = useState(0);
+  const [userStatsLogs, setUserStatsLogs] = useState({});
+  const [userStatsLogsLoading, setUserStatsLogsLoading] = useState({});
+  const [batchDisableLoading, setBatchDisableLoading] = useState(false);
+  const userStatsPageSize = 20;
 
   // Initialize default column visibility
   const initDefaultColumns = () => {
@@ -369,8 +382,156 @@ export const useLogsData = () => {
     setShowParamOverrideModal(true);
   };
 
+  const buildAdminLogQuery = (page, size, userId = null) => {
+    const {
+      username,
+      token_name,
+      model_name,
+      start_timestamp,
+      end_timestamp,
+      channel,
+      group,
+      request_id,
+      user_agent,
+      logType: formLogType,
+    } = getFormValues();
+    const params = new URLSearchParams({
+      p: String(page),
+      page_size: String(size),
+      type: String(formLogType !== undefined ? formLogType : logType),
+      username,
+      token_name,
+      model_name,
+      start_timestamp: String(Date.parse(start_timestamp) / 1000),
+      end_timestamp: String(Date.parse(end_timestamp) / 1000),
+      channel,
+      group,
+      request_id,
+      user_agent,
+    });
+    if (userId !== null) {
+      params.set('user_id', String(userId));
+    }
+    return params.toString();
+  };
+
+  const loadUserStats = async (page = 1) => {
+    if (!isAdminUser) return;
+    setUserStatsLoading(true);
+    try {
+      const res = await API.get(
+        `/api/log/users?${buildAdminLogQuery(page, userStatsPageSize)}`,
+      );
+      const { success, message, data } = res.data;
+      if (!success) {
+        showError(message);
+        return;
+      }
+      setUserStats(data.items || []);
+      setUserStatsPage(data.page);
+      setUserStatsTotal(data.total);
+      setUserStatsLogs({});
+    } catch (error) {
+      showError(error.message);
+    } finally {
+      setUserStatsLoading(false);
+    }
+  };
+
+  const openUserStats = () => {
+    if (!isAdminUser) return;
+    setShowUserStats(true);
+    loadUserStats(1);
+  };
+
+  const closeUserStats = () => {
+    setShowUserStats(false);
+  };
+
+  const batchDisableByLogs = async () => {
+    if (!isAdminUser || batchDisableLoading) return;
+
+    const {
+      username,
+      token_name,
+      model_name,
+      start_timestamp,
+      end_timestamp,
+      channel,
+      group,
+      request_id,
+      user_agent,
+      logType: formLogType,
+    } = getFormValues();
+    if (!user_agent.trim()) {
+      showError(t('请先填写 User Agent 筛选条件'));
+      return;
+    }
+
+    setBatchDisableLoading(true);
+    try {
+      const res = await API.post('/api/user/batch_disable_by_logs', {
+        type: formLogType !== undefined ? formLogType : logType,
+        username,
+        token_name,
+        model_name,
+        start_timestamp: Date.parse(start_timestamp) / 1000,
+        end_timestamp: Date.parse(end_timestamp) / 1000,
+        channel: channel ? Number(channel) : 0,
+        group,
+        request_id,
+        user_agent,
+        confirm: true,
+      });
+      const { success, message, data } = res.data;
+      if (!success) {
+        showError(message);
+        return;
+      }
+      showSuccess(
+        t('实际封禁 {{disabled}} 个用户，跳过 {{skipped}} 个用户', {
+          disabled: data.disabled_count,
+          skipped: data.skipped_count,
+        }),
+      );
+      await loadUserStats(userStatsPage);
+    } catch (error) {
+      showError(error.message);
+    } finally {
+      setBatchDisableLoading(false);
+    }
+  };
+
+  const loadUserStatsLogs = async (userId, page = 1) => {
+    setUserStatsLogsLoading((current) => ({ ...current, [userId]: true }));
+    try {
+      const res = await API.get(
+        `/api/log/?${buildAdminLogQuery(page, 20, userId)}`,
+      );
+      const { success, message, data } = res.data;
+      if (!success) {
+        showError(message);
+        return;
+      }
+      const formatted = formatLogs(data.items || []);
+      setUserStatsLogs((current) => ({
+        ...current,
+        [userId]: {
+          items: formatted.logs,
+          expandData: formatted.expandData,
+          page: data.page,
+          total: data.total,
+        },
+      }));
+    } catch (error) {
+      showError(error.message);
+    } finally {
+      setUserStatsLogsLoading((current) => ({ ...current, [userId]: false }));
+    }
+  };
+
   // Format logs data
-  const setLogsFormat = (logs) => {
+  const formatLogs = (logs) => {
     const requestConversionDisplayValue = (conversionChain) => {
       const chain = Array.isArray(conversionChain)
         ? conversionChain.filter(Boolean)
@@ -388,7 +549,10 @@ export const useLogsData = () => {
       let other = getLogOther(logs[i].other);
       let expandDataLocal = [];
 
-      if (isAdminUser && (logs[i].type === 0 || logs[i].type === 2 || logs[i].type === 6)) {
+      if (
+        isAdminUser &&
+        (logs[i].type === 0 || logs[i].type === 2 || logs[i].type === 6)
+      ) {
         expandDataLocal.push({
           key: t('渠道信息'),
           value: `${logs[i].channel} - ${logs[i].channel_name || '[未知]'}`,
@@ -435,7 +599,10 @@ export const useLogsData = () => {
           expandDataLocal.push({
             key: t('日志详情'),
             value: other?.claude
-              ? renderClaudeLogContent({ ...other, displayMode: billingDisplayMode })
+              ? renderClaudeLogContent({
+                  ...other,
+                  displayMode: billingDisplayMode,
+                })
               : renderLogContent({ ...other, displayMode: billingDisplayMode }),
           });
         }
@@ -525,7 +692,14 @@ export const useLogsData = () => {
           expandDataLocal.push({
             key: t('失败原因'),
             value: (
-              <div style={{ maxWidth: 600, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.6 }}>
+              <div
+                style={{
+                  maxWidth: 600,
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
+                  lineHeight: 1.6,
+                }}
+              >
                 {other.reason}
               </div>
             ),
@@ -542,7 +716,8 @@ export const useLogsData = () => {
         const ss = other.stream_status;
         const isOk = ss.status === 'ok';
         const statusLabel = isOk ? '✓ ' + t('正常') : '✗ ' + t('异常');
-        let streamValue = statusLabel + ' (' + (ss.end_reason || 'unknown') + ')';
+        let streamValue =
+          statusLabel + ' (' + (ss.end_reason || 'unknown') + ')';
         if (ss.error_count > 0) {
           streamValue += ` [${t('软错误')}: ${ss.error_count}]`;
         }
@@ -557,7 +732,14 @@ export const useLogsData = () => {
           expandDataLocal.push({
             key: t('流错误详情'),
             value: (
-              <div style={{ maxWidth: 600, whiteSpace: 'pre-line', wordBreak: 'break-word', lineHeight: 1.6 }}>
+              <div
+                style={{
+                  maxWidth: 600,
+                  whiteSpace: 'pre-line',
+                  wordBreak: 'break-word',
+                  lineHeight: 1.6,
+                }}
+              >
                 {ss.errors.join('\n')}
               </div>
             ),
@@ -726,8 +908,13 @@ export const useLogsData = () => {
       expandDatesLocal[logs[i].key] = expandDataLocal;
     }
 
-    setExpandData(expandDatesLocal);
-    setLogs(logs);
+    return { logs, expandData: expandDatesLocal };
+  };
+
+  const setLogsFormat = (logs) => {
+    const formatted = formatLogs(logs);
+    setExpandData(formatted.expandData);
+    setLogs(formatted.logs);
   };
 
   // Load logs function
@@ -887,6 +1074,22 @@ export const useLogsData = () => {
     showParamOverrideModal,
     setShowParamOverrideModal,
     paramOverrideTarget,
+
+    // User statistics modal
+    showUserStats,
+    userStats,
+    userStatsLoading,
+    userStatsPage,
+    userStatsPageSize,
+    userStatsTotal,
+    userStatsLogs,
+    userStatsLogsLoading,
+    batchDisableLoading,
+    openUserStats,
+    closeUserStats,
+    loadUserStats,
+    loadUserStatsLogs,
+    batchDisableByLogs,
 
     // Functions
     loadLogs,
