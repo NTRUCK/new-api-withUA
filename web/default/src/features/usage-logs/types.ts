@@ -273,6 +273,7 @@ export interface GetLogsParams {
   upstream_request_id?: string
   user_agent?: string
   user_id?: number
+  exclude_admins?: boolean
 }
 
 export interface LogUserStat {

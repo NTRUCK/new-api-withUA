@@ -1522,6 +1522,7 @@
     "example.com&#10;blocked-site.com": "example.com&#10;blocked-site.com",
     "example.com&#10;company.com": "example.com&#10;company.com",
     "Excellent": "Excellent",
+    "Exclude administrator logs": "Exclure les journaux des administrateurs",
     "Exchange rate is required": "Le taux de change est requis",
     "Exchange rate must be greater than 0": "Le taux de change doit être supérieur à 0",
     "Execute code in a sandbox during the response": "Exécuter du code dans un bac à sable pendant la réponse",

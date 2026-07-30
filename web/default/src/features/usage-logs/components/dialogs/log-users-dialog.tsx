@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { formatTimestampToDate } from '@/lib/format'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   Collapsible,
@@ -167,7 +168,8 @@ export function LogUsersDialog(props: LogUsersDialogProps) {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const pageSize = 50
+  const [excludeAdmins, setExcludeAdmins] = useState(true)
+  const pageSize = 20
   const filters = buildApiParams({
     page: 1,
     pageSize: 1,
@@ -176,8 +178,14 @@ export function LogUsersDialog(props: LogUsersDialogProps) {
     isAdmin: true,
   })
   const query = useQuery({
-    queryKey: ['usage-log-users', filters, page],
-    queryFn: () => getLogUsers({ ...filters, p: page, page_size: pageSize }),
+    queryKey: ['usage-log-users', filters, page, excludeAdmins],
+    queryFn: () =>
+      getLogUsers({
+        ...filters,
+        p: page,
+        page_size: pageSize,
+        exclude_admins: excludeAdmins,
+      }),
     enabled: props.open,
   })
   const users = query.data?.data?.items || []
@@ -204,7 +212,7 @@ export function LogUsersDialog(props: LogUsersDialogProps) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className='max-h-[85vh] overflow-hidden sm:max-w-4xl'>
+      <DialogContent className='flex h-[min(720px,85vh)] flex-col overflow-hidden sm:max-w-4xl'>
         <DialogHeader>
           <div className='flex items-start justify-between gap-3 pr-7'>
             <div>
@@ -226,7 +234,17 @@ export function LogUsersDialog(props: LogUsersDialogProps) {
             </Button>
           </div>
         </DialogHeader>
-        <div className='max-h-[65vh] space-y-2 overflow-y-auto pr-1'>
+        <label className='flex cursor-pointer items-center gap-2 text-sm'>
+          <Checkbox
+            checked={excludeAdmins}
+            onCheckedChange={(checked) => {
+              setExcludeAdmins(checked === true)
+              setPage(1)
+            }}
+          />
+          {t('Exclude administrator logs')}
+        </label>
+        <div className='min-h-0 flex-1 space-y-2 overflow-y-auto pr-1'>
           {query.isLoading ? (
             <div className='flex justify-center py-12'>
               <Loader2 className='text-muted-foreground size-6 animate-spin' />

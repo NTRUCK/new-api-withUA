@@ -198,6 +198,7 @@ export const useLogsData = () => {
   const [userStatsLoading, setUserStatsLoading] = useState(false);
   const [userStatsPage, setUserStatsPage] = useState(1);
   const [userStatsTotal, setUserStatsTotal] = useState(0);
+  const [userStatsExcludeAdmins, setUserStatsExcludeAdmins] = useState(true);
   const [userStatsLogs, setUserStatsLogs] = useState({});
   const [userStatsLogsLoading, setUserStatsLogsLoading] = useState({});
   const [batchDisableLoading, setBatchDisableLoading] = useState(false);
@@ -415,12 +416,16 @@ export const useLogsData = () => {
     return params.toString();
   };
 
-  const loadUserStats = async (page = 1) => {
+  const loadUserStats = async (
+    page = 1,
+    excludeAdmins = userStatsExcludeAdmins,
+  ) => {
     if (!isAdminUser) return;
     setUserStatsLoading(true);
     try {
+      const query = buildAdminLogQuery(page, userStatsPageSize);
       const res = await API.get(
-        `/api/log/users?${buildAdminLogQuery(page, userStatsPageSize)}`,
+        `/api/log/users?${query}&exclude_admins=${excludeAdmins}`,
       );
       const { success, message, data } = res.data;
       if (!success) {
@@ -1082,6 +1087,8 @@ export const useLogsData = () => {
     userStatsPage,
     userStatsPageSize,
     userStatsTotal,
+    userStatsExcludeAdmins,
+    setUserStatsExcludeAdmins,
     userStatsLogs,
     userStatsLogsLoading,
     batchDisableLoading,

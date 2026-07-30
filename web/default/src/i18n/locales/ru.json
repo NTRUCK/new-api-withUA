@@ -1522,6 +1522,7 @@
     "example.com&#10;blocked-site.com": "example.com&#10;blocked-site.com",
     "example.com&#10;company.com": "example.com&#10;company.com",
     "Excellent": "Отлично",
+    "Exclude administrator logs": "Исключить журналы администраторов",
     "Exchange rate is required": "Требуется курс обмена",
     "Exchange rate must be greater than 0": "Курс обмена должен быть больше 0",
     "Execute code in a sandbox during the response": "Выполнять код в песочнице во время ответа",

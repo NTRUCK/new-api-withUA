@@ -41,10 +41,27 @@ func GetLogUsers(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
 	channel, _ := strconv.Atoi(c.Query("channel"))
+	excludeAdmins, _ := strconv.ParseBool(c.Query("exclude_admins"))
+	var allowedUserIds []int
+	if excludeAdmins {
+		matchedUserIds, err := model.GetDistinctLogUserIds(
+			logType, startTimestamp, endTimestamp, c.Query("model_name"), c.Query("username"), c.Query("token_name"),
+			channel, c.Query("group"), c.Query("request_id"), c.Query("upstream_request_id"), c.Query("user_agent"), false,
+		)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		allowedUserIds, err = model.FilterNonAdminUserIds(matchedUserIds)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+	}
 	users, total, err := model.GetLogUserStats(
 		logType, startTimestamp, endTimestamp, c.Query("model_name"), c.Query("username"), c.Query("token_name"),
 		pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, c.Query("group"), c.Query("request_id"),
-		c.Query("upstream_request_id"), c.Query("user_agent"),
+		c.Query("upstream_request_id"), c.Query("user_agent"), allowedUserIds, excludeAdmins,
 	)
 	if err != nil {
 		common.ApiError(c, err)

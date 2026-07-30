@@ -885,7 +885,7 @@ func BatchDisableLogUsers(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
-	userIds, err := model.GetDistinctLogUserIds(req.LogType, req.StartTimestamp, req.EndTimestamp, req.ModelName, req.Username, req.TokenName, req.Channel, req.Group, req.RequestId, req.UpstreamRequestId, req.UserAgent)
+	userIds, err := model.GetDistinctLogUserIds(req.LogType, req.StartTimestamp, req.EndTimestamp, req.ModelName, req.Username, req.TokenName, req.Channel, req.Group, req.RequestId, req.UpstreamRequestId, req.UserAgent, true)
 	if err != nil {
 		common.ApiError(c, err)
 		return

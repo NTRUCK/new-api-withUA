@@ -1522,6 +1522,7 @@
     "example.com&#10;blocked-site.com": "example.com &#10;blocked-site.com",
     "example.com&#10;company.com": "example.com &#10;company.com",
     "Excellent": "優秀",
+    "Exclude administrator logs": "管理者のログを除外",
     "Exchange rate is required": "為替レートは必須です",
     "Exchange rate must be greater than 0": "為替レートは 0 より大きくする必要があります",
     "Execute code in a sandbox during the response": "応答中にサンドボックスでコードを実行",

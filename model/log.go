@@ -446,8 +446,14 @@ type LogUserStat struct {
 	LastCreatedAt int64  `json:"last_created_at"`
 }
 
-func GetLogUserStats(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, userAgent string) (users []*LogUserStat, total int64, err error) {
+func GetLogUserStats(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, userAgent string, allowedUserIds []int, restrictUserIds bool) (users []*LogUserStat, total int64, err error) {
+	if restrictUserIds && len(allowedUserIds) == 0 {
+		return users, 0, nil
+	}
 	tx := LOG_DB.Model(&Log{}).Where("logs.user_id > 0")
+	if restrictUserIds {
+		tx = tx.Where("logs.user_id IN ?", allowedUserIds)
+	}
 	if logType != LogTypeUnknown {
 		tx = tx.Where("logs.type = ?", logType)
 	}
@@ -489,8 +495,8 @@ func GetLogUserStats(logType int, startTimestamp int64, endTimestamp int64, mode
 	return users, total, err
 }
 
-func GetDistinctLogUserIds(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, requestId string, upstreamRequestId string, userAgent string) (userIds []int, err error) {
-	if strings.TrimSpace(userAgent) == "" {
+func GetDistinctLogUserIds(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, requestId string, upstreamRequestId string, userAgent string, requireUserAgent bool) (userIds []int, err error) {
+	if requireUserAgent && strings.TrimSpace(userAgent) == "" {
 		return nil, errors.New("User-Agent 筛选不能为空")
 	}
 	tx := LOG_DB.Model(&Log{}).Where("logs.user_id > 0")

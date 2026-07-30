@@ -491,6 +491,16 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 	}
 }
 
+func FilterNonAdminUserIds(userIds []int) (filteredIds []int, err error) {
+	if len(userIds) == 0 {
+		return filteredIds, nil
+	}
+	err = DB.Model(&User{}).
+		Where("id IN ? AND id <> ? AND role < ?", userIds, 1, common.RoleAdminUser).
+		Pluck("id", &filteredIds).Error
+	return filteredIds, err
+}
+
 func BatchDisableUsers(userIds []int) (disabledIds []int, err error) {
 	if len(userIds) == 0 {
 		return disabledIds, nil

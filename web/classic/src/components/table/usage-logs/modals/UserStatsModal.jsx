@@ -20,6 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useEffect, useMemo } from 'react';
 import {
   Button,
+  Checkbox,
   Descriptions,
   Empty,
   Modal,
@@ -115,6 +116,8 @@ const UserStatsModal = (logsData) => {
     userStatsPage,
     userStatsPageSize,
     userStatsTotal,
+    userStatsExcludeAdmins,
+    setUserStatsExcludeAdmins,
     loadUserStats,
     isAdminUser,
     batchDisableLoading,
@@ -150,6 +153,12 @@ const UserStatsModal = (logsData) => {
     });
   };
 
+  const handleExcludeAdminsChange = (event) => {
+    const checked = event.target.checked;
+    setUserStatsExcludeAdmins(checked);
+    loadUserStats(1, checked);
+  };
+
   const columns = [
     {
       title: t('用户 ID'),
@@ -181,11 +190,19 @@ const UserStatsModal = (logsData) => {
       visible={showUserStats}
       onCancel={closeUserStats}
       footer={null}
-      size='full-width'
+      width={1000}
+      style={{ maxWidth: 'calc(100vw - 32px)' }}
+      bodyStyle={{ maxHeight: 'calc(100vh - 160px)', overflow: 'hidden' }}
       centered
     >
       {isAdminUser && (
-        <div className='flex justify-end mb-4'>
+        <div className='flex justify-between items-center mb-4'>
+          <Checkbox
+            checked={userStatsExcludeAdmins}
+            onChange={handleExcludeAdminsChange}
+          >
+            {t('排除管理员日志')}
+          </Checkbox>
           <Button
             type='danger'
             theme='solid'
@@ -197,28 +214,32 @@ const UserStatsModal = (logsData) => {
           </Button>
         </div>
       )}
-      <Table
-        columns={columns}
-        dataSource={userStats}
-        rowKey='user_id'
-        loading={userStatsLoading}
-        size='small'
-        pagination={false}
-        expandRowByClick
-        expandedRowRender={(user) => (
-          <UserLogsPanel user={user} logsData={logsData} />
-        )}
-        empty={
-          <Empty
-            image={<IllustrationNoResult style={{ width: 150, height: 150 }} />}
-            darkModeImage={
-              <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
-            }
-            description={t('搜索无结果')}
-            style={{ padding: 30 }}
-          />
-        }
-      />
+      <div style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+        <Table
+          columns={columns}
+          dataSource={userStats}
+          rowKey='user_id'
+          loading={userStatsLoading}
+          size='small'
+          pagination={false}
+          expandRowByClick
+          expandedRowRender={(user) => (
+            <UserLogsPanel user={user} logsData={logsData} />
+          )}
+          empty={
+            <Empty
+              image={
+                <IllustrationNoResult style={{ width: 150, height: 150 }} />
+              }
+              darkModeImage={
+                <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
+              }
+              description={t('搜索无结果')}
+              style={{ padding: 30 }}
+            />
+          }
+        />
+      </div>
       {userStatsTotal > userStatsPageSize && (
         <div className='flex justify-end mt-4'>
           <Pagination
