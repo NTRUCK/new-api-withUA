@@ -120,6 +120,14 @@ const LogsFilters = ({
                 pure
                 size='small'
               />
+              <Form.Input
+                field='user_agent'
+                prefix={<IconSearch />}
+                placeholder={t('User-Agent')}
+                showClear
+                pure
+                size='small'
+              />
             </>
           )}
         </div>

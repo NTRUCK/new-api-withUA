@@ -31,6 +31,27 @@ func applyExplicitLogTextFilter(tx *gorm.DB, column string, value string) (*gorm
 	return tx.Where(column+" = ?", value), nil
 }
 
+// userAgentSearchMinLength User-Agent 模糊搜索的最小关键词长度，避免过于宽泛的全表扫描
+const userAgentSearchMinLength = 2
+
+// applyUserAgentFilter 按 User-Agent 关键词做模糊过滤。
+// User-Agent 存放在 logs.other 的 JSON 文本中，为兼容三种数据库这里只能使用 LIKE 近似匹配。
+func applyUserAgentFilter(tx *gorm.DB, column string, keyword string) (*gorm.DB, error) {
+	keyword = strings.TrimSpace(keyword)
+	if keyword == "" {
+		return tx, nil
+	}
+	if len([]rune(keyword)) < userAgentSearchMinLength {
+		return nil, errors.New("User-Agent 搜索关键词长度至少为 2 个字符")
+	}
+	// 使用 ! 作为 ESCAPE 字符，避免 MySQL 中反斜杠的字符串转义问题
+	escaped := strings.ReplaceAll(keyword, "!", "!!")
+	escaped = strings.ReplaceAll(escaped, "%", "!%")
+	escaped = strings.ReplaceAll(escaped, "_", "!_")
+	pattern := `%"user_agent":"%` + strings.ToLower(escaped) + `%`
+	return tx.Where("LOWER("+column+") LIKE ? ESCAPE '!'", pattern), nil
+}
+
 type Log struct {
 	Id                int    `json:"id" gorm:"index:idx_created_at_id,priority:2;index:idx_user_id_id,priority:2"`
 	UserId            int    `json:"user_id" gorm:"index;index:idx_user_id_id,priority:1"`
@@ -325,7 +346,7 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string) (logs []*Log, total int64, err error) {
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, userAgent string) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB
@@ -359,6 +380,9 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	}
 	if group != "" {
 		tx = tx.Where("logs."+logGroupCol+" = ?", group)
+	}
+	if tx, err = applyUserAgentFilter(tx, "logs.other", userAgent); err != nil {
+		return nil, 0, err
 	}
 	err = tx.Model(&Log{}).Count(&total).Error
 	if err != nil {
@@ -464,7 +488,7 @@ type Stat struct {
 	Tpm   int `json:"tpm"`
 }
 
-func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat, err error) {
+func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, userAgent string) (stat Stat, err error) {
 	tx := LOG_DB.Table("logs").Select("sum(quota) quota")
 
 	// 为rpm和tpm创建单独的查询
@@ -499,6 +523,12 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	if group != "" {
 		tx = tx.Where(logGroupCol+" = ?", group)
 		rpmTpmQuery = rpmTpmQuery.Where(logGroupCol+" = ?", group)
+	}
+	if tx, err = applyUserAgentFilter(tx, "other", userAgent); err != nil {
+		return stat, err
+	}
+	if rpmTpmQuery, err = applyUserAgentFilter(rpmTpmQuery, "other", userAgent); err != nil {
+		return stat, err
 	}
 
 	tx = tx.Where("type = ?", LogTypeConsume)
