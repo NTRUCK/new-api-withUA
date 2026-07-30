@@ -72,27 +72,29 @@ function UserLogs(props: {
   }
 
   return (
-    <div className='bg-muted/20 border-t px-3 py-2'>
-      <div className='space-y-1'>
-        {logs.map((log) => (
-          <div
-            key={log.id}
-            className='bg-background flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2 text-xs'
-          >
-            <span className='text-muted-foreground font-mono'>#{log.id}</span>
-            <span>{formatTimestampToDate(log.created_at)}</span>
-            <span className='font-medium'>{log.model_name || '-'}</span>
-            <span className='text-muted-foreground'>{log.token_name || '-'}</span>
-            <Button
-              variant='ghost'
-              size='sm'
-              className='ml-auto h-7'
-              onClick={() => setSelectedLog(log)}
+    <div className='bg-muted/20 min-w-0 border-t px-3 py-2'>
+      <div className='w-full overflow-x-auto pb-1'>
+        <div className='min-w-max space-y-1'>
+          {logs.map((log) => (
+            <div
+              key={log.id}
+              className='bg-background flex min-w-[760px] items-center gap-3 rounded-md border px-3 py-2 text-xs'
             >
-              {t('Details')}
-            </Button>
-          </div>
-        ))}
+              <span className='text-muted-foreground font-mono'>#{log.id}</span>
+              <span>{formatTimestampToDate(log.created_at)}</span>
+              <span className='font-medium'>{log.model_name || '-'}</span>
+              <span className='text-muted-foreground'>{log.token_name || '-'}</span>
+              <Button
+                variant='ghost'
+                size='sm'
+                className='ml-auto h-7'
+                onClick={() => setSelectedLog(log)}
+              >
+                {t('Details')}
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
       {logs.length === 0 && (
         <div className='text-muted-foreground py-5 text-center text-xs'>
@@ -234,16 +236,21 @@ export function LogUsersDialog(props: LogUsersDialogProps) {
             </Button>
           </div>
         </DialogHeader>
-        <label className='flex cursor-pointer items-center gap-2 text-sm'>
-          <Checkbox
-            checked={excludeAdmins}
-            onCheckedChange={(checked) => {
-              setExcludeAdmins(checked === true)
-              setPage(1)
-            }}
-          />
-          {t('Exclude administrator logs')}
-        </label>
+        <div className='flex flex-wrap items-center justify-between gap-3'>
+          <label className='flex cursor-pointer items-center gap-2 text-sm'>
+            <Checkbox
+              checked={excludeAdmins}
+              onCheckedChange={(checked) => {
+                setExcludeAdmins(checked === true)
+                setPage(1)
+              }}
+            />
+            {t('Exclude administrator logs')}
+          </label>
+          <div className='bg-muted rounded-md px-3 py-1.5 text-sm'>
+            {t('Users matching filters')}: <strong>{total}</strong>
+          </div>
+        </div>
         <div className='min-h-0 flex-1 space-y-2 overflow-y-auto pr-1'>
           {query.isLoading ? (
             <div className='flex justify-center py-12'>

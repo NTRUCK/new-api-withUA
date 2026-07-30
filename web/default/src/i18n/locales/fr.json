@@ -4314,6 +4314,7 @@
     "Username or Email": "Nom d'utilisateur ou e-mail",
     "Users": "Utilisateurs",
     "Users call the model on the left. The platform forwards the request to the upstream model on the right.": "Les utilisateurs appellent le modèle à gauche. La plateforme transmet la requête au modèle amont à droite.",
+    "Users matching filters": "Utilisateurs correspondant aux filtres",
     "Users must wait for a successful drawing before upscales or variations.": "Les utilisateurs doivent attendre une génération réussie avant les upscales ou variations.",
     "Users only see groups marked as user selectable. Non-selectable groups can still be assigned by administrators.": "Les utilisateurs ne voient que les groupes marqués comme sélectionnables. Les groupes non sélectionnables peuvent toujours être attribués par les administrateurs.",
     "uses": "utilisations",

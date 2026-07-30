@@ -67,32 +67,40 @@ const UserLogsPanel = ({ user, logsData }) => {
   );
 
   return (
-    <div className='p-2'>
-      <CardTable
-        columns={columns}
-        dataSource={logData?.items || []}
-        rowKey='key'
-        loading={loading}
-        size='small'
-        scroll={compactMode ? undefined : { x: 'max-content' }}
-        expandedRowRender={expandRowRender}
-        expandRowByClick
-        rowExpandable={(record) =>
-          Boolean(logData?.expandData[record.key]?.length)
-        }
-        pagination={false}
-        hidePagination
-        empty={
-          <Empty
-            image={<IllustrationNoResult style={{ width: 100, height: 100 }} />}
-            darkModeImage={
-              <IllustrationNoResultDark style={{ width: 100, height: 100 }} />
+    <div className='p-2 min-w-0'>
+      <div className='w-full overflow-x-auto pb-1'>
+        <div style={{ minWidth: compactMode ? 760 : 1200 }}>
+          <CardTable
+            columns={columns}
+            dataSource={logData?.items || []}
+            rowKey='key'
+            loading={loading}
+            size='small'
+            scroll={{ x: 'max-content' }}
+            expandedRowRender={expandRowRender}
+            expandRowByClick
+            rowExpandable={(record) =>
+              Boolean(logData?.expandData[record.key]?.length)
             }
-            description={t('搜索无结果')}
-            style={{ padding: 20 }}
+            pagination={false}
+            hidePagination
+            empty={
+              <Empty
+                image={
+                  <IllustrationNoResult style={{ width: 100, height: 100 }} />
+                }
+                darkModeImage={
+                  <IllustrationNoResultDark
+                    style={{ width: 100, height: 100 }}
+                  />
+                }
+                description={t('搜索无结果')}
+                style={{ padding: 20 }}
+              />
+            }
           />
-        }
-      />
+        </div>
+      </div>
       {logData?.total > 20 && (
         <div className='flex justify-end mt-3'>
           <Pagination
@@ -203,15 +211,21 @@ const UserStatsModal = (logsData) => {
           >
             {t('排除管理员日志')}
           </Checkbox>
-          <Button
-            type='danger'
-            theme='solid'
-            loading={batchDisableLoading}
-            disabled={batchDisableLoading}
-            onClick={confirmBatchDisable}
-          >
-            {t('按当前筛选批量封禁')}
-          </Button>
+          <div className='flex items-center gap-3'>
+            <Typography.Text>
+              {t('符合筛选的用户数')}：
+              <Typography.Text strong>{userStatsTotal}</Typography.Text>
+            </Typography.Text>
+            <Button
+              type='danger'
+              theme='solid'
+              loading={batchDisableLoading}
+              disabled={batchDisableLoading}
+              onClick={confirmBatchDisable}
+            >
+              {t('按当前筛选批量封禁')}
+            </Button>
+          </div>
         </div>
       )}
       <div style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>

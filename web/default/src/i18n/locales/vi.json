@@ -4314,6 +4314,7 @@
     "Username or Email": "Tên đăng nhập hoặc Email",
     "Users": "Người dùng",
     "Users call the model on the left. The platform forwards the request to the upstream model on the right.": "Người dùng gọi mô hình bên trái. Nền tảng chuyển tiếp yêu cầu đến mô hình thượng nguồn bên phải.",
+    "Users matching filters": "Người dùng khớp bộ lọc",
     "Users must wait for a successful drawing before upscales or variations.": "Người dùng phải chờ vẽ thành công trước khi upscale hoặc biến thể.",
     "Users only see groups marked as user selectable. Non-selectable groups can still be assigned by administrators.": "Người dùng chỉ thấy các nhóm được đánh dấu là có thể chọn. Nhóm không thể chọn vẫn có thể do quản trị viên gán.",
     "uses": "sử dụng",

@@ -4314,6 +4314,7 @@
     "Username or Email": "Имя пользователя или Email",
     "Users": "Пользователи",
     "Users call the model on the left. The platform forwards the request to the upstream model on the right.": "Пользователи вызывают модель слева. Платформа перенаправляет запрос вышестоящей модели справа.",
+    "Users matching filters": "Пользователи, соответствующие фильтрам",
     "Users must wait for a successful drawing before upscales or variations.": "Пользователи должны дождаться успешного рисунка перед апскейлом или вариациями.",
     "Users only see groups marked as user selectable. Non-selectable groups can still be assigned by administrators.": "Пользователи видят только группы, отмеченные как доступные для выбора. Недоступные для выбора группы всё равно могут назначаться администраторами.",
     "uses": "использует",

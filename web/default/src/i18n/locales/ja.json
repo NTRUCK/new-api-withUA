@@ -4314,6 +4314,7 @@
     "Username or Email": "ユーザー名またはメールアドレス",
     "Users": "ユーザー",
     "Users call the model on the left. The platform forwards the request to the upstream model on the right.": "ユーザーは左側のモデルを呼び出します。プラットフォームはリクエストを右側のアップストリームモデルに転送します。",
+    "Users matching filters": "フィルターに一致するユーザー数",
     "Users must wait for a successful drawing before upscales or variations.": "アップスケールやバリエーションを行う前に、ユーザーは成功した描画を待つ必要があります。",
     "Users only see groups marked as user selectable. Non-selectable groups can still be assigned by administrators.": "ユーザーにはユーザー選択可のグループだけが表示されます。選択不可グループも管理者は割り当てできます。",
     "uses": "使用回数",
