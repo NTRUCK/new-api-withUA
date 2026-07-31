@@ -283,6 +283,36 @@ export interface LogUserStat {
   last_created_at: number
 }
 
+export type ViolationReasonCode = 'tavo_client' | 'custom'
+
+export interface ViolationInput {
+  reason_code: ViolationReasonCode
+  reason_text: string
+  list_publicly: boolean
+  increment_hit: boolean
+}
+
+export interface InactiveUser {
+  id: number
+  username: string
+  display_name: string
+  status: number
+  created_at: number
+  last_login_at: number
+  on_violation_board: boolean
+}
+
+export interface GetInactiveUsersResponse {
+  success: boolean
+  message?: string
+  data?: {
+    items: InactiveUser[]
+    total: number
+    page: number
+    page_size: number
+  }
+}
+
 export interface GetLogUsersResponse {
   success: boolean
   message?: string

@@ -21,12 +21,14 @@ import { buildQueryParams } from './lib/utils'
 import type {
   GetLogsParams,
   GetLogsResponse,
+  GetInactiveUsersResponse,
   GetLogStatsParams,
   GetLogStatsResponse,
   GetLogUsersResponse,
   GetMidjourneyLogsParams,
   GetTaskLogsParams,
   UserInfo,
+  ViolationInput,
 } from './types'
 
 // ============================================================================
@@ -85,12 +87,40 @@ export async function getLogUsers(
   return res.data
 }
 
+export async function getInactiveUsers(params: {
+  start_timestamp: number
+  end_timestamp: number
+  p: number
+  page_size: number
+}): Promise<GetInactiveUsersResponse> {
+  const queryParams = buildQueryParams(params)
+  const res = await api.get(`/api/user/inactive?${queryParams}`)
+  if (!res.data.success) {
+    throw new Error(res.data.message || 'Unable to load inactive users')
+  }
+  return res.data
+}
+
+export async function recordViolation(userId: number, input: ViolationInput) {
+  const res = await api.post('/api/violation/admin', {
+    user_id: userId,
+    ...input,
+  })
+  return res.data as { success: boolean; message?: string }
+}
+
 export async function batchDisableLogUsers(
-  params: GetLogsParams
+  params: GetLogsParams,
+  violation: ViolationInput
 ): Promise<{
   success: boolean
   message?: string
-  data?: { matched_count: number; disabled_count: number; skipped_count: number }
+  data?: {
+    matched_count: number
+    disabled_count: number
+    skipped_count: number
+    listed_count: number
+  }
 }> {
   const res = await api.post('/api/user/batch_disable_by_logs', {
     ...params,
@@ -98,6 +128,7 @@ export async function batchDisableLogUsers(
     page_size: undefined,
     user_id: undefined,
     confirm: true,
+    violation,
   })
   return res.data
 }

@@ -183,6 +183,9 @@ func handleOAuthBind(c *gin.Context, provider oauth.Provider) {
 	} else {
 		// Built-in provider: update user record directly
 		provider.SetProviderUserID(&user, oauthUser.ProviderUserID)
+		if provider.GetName() == "Discord" {
+			applyDiscordOAuthProfile(&user, oauthUser)
+		}
 		err = user.Update(false)
 		if err != nil {
 			common.ApiError(c, err)
@@ -208,6 +211,16 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 		// Check if user has been deleted
 		if user.Id == 0 {
 			return nil, &OAuthUserDeletedError{}
+		}
+		if provider.GetName() == "Discord" {
+			applyDiscordOAuthProfile(user, oauthUser)
+			if err := model.DB.Model(user).Updates(map[string]interface{}{
+				"discord_username":    user.DiscordUsername,
+				"discord_global_name": user.DiscordGlobalName,
+				"discord_avatar":      user.DiscordAvatar,
+			}).Error; err != nil {
+				return nil, err
+			}
 		}
 		return user, nil
 	}
@@ -261,6 +274,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 	user.Role = common.RoleCommonUser
 	user.Status = common.UserStatusEnabled
+	if provider.GetName() == "Discord" {
+		applyDiscordOAuthProfile(user, oauthUser)
+	}
 
 	// Handle affiliate code
 	affCode := session.Get("aff")
@@ -306,13 +322,19 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 
 			// Set the provider user ID on the user model and update
 			provider.SetProviderUserID(user, oauthUser.ProviderUserID)
+			if provider.GetName() == "Discord" {
+				applyDiscordOAuthProfile(user, oauthUser)
+			}
 			if err := tx.Model(user).Updates(map[string]interface{}{
-				"github_id":   user.GitHubId,
-				"discord_id":  user.DiscordId,
-				"oidc_id":     user.OidcId,
-				"linux_do_id": user.LinuxDOId,
-				"wechat_id":   user.WeChatId,
-				"telegram_id": user.TelegramId,
+				"github_id":           user.GitHubId,
+				"discord_id":          user.DiscordId,
+				"discord_username":    user.DiscordUsername,
+				"discord_global_name": user.DiscordGlobalName,
+				"discord_avatar":      user.DiscordAvatar,
+				"oidc_id":             user.OidcId,
+				"linux_do_id":         user.LinuxDOId,
+				"wechat_id":           user.WeChatId,
+				"telegram_id":         user.TelegramId,
 			}).Error; err != nil {
 				return err
 			}
@@ -328,6 +350,12 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 
 	return user, nil
+}
+
+func applyDiscordOAuthProfile(user *model.User, oauthUser *oauth.OAuthUser) {
+	user.DiscordUsername, _ = oauthUser.Extra["discord_username"].(string)
+	user.DiscordGlobalName, _ = oauthUser.Extra["discord_global_name"].(string)
+	user.DiscordAvatar, _ = oauthUser.Extra["discord_avatar"].(string)
 }
 
 // Error types for OAuth

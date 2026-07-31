@@ -864,19 +864,26 @@ func CreateUser(c *gin.Context) {
 	return
 }
 
+type BatchDisableViolationRequest struct {
+	ReasonCode   string `json:"reason_code"`
+	ReasonText   string `json:"reason_text"`
+	ListPublicly bool   `json:"list_publicly"`
+}
+
 type BatchDisableLogUsersRequest struct {
-	LogType           int    `json:"type"`
-	StartTimestamp    int64  `json:"start_timestamp"`
-	EndTimestamp      int64  `json:"end_timestamp"`
-	ModelName         string `json:"model_name"`
-	Username          string `json:"username"`
-	TokenName         string `json:"token_name"`
-	Channel           int    `json:"channel"`
-	Group             string `json:"group"`
-	RequestId         string `json:"request_id"`
-	UpstreamRequestId string `json:"upstream_request_id"`
-	UserAgent         string `json:"user_agent"`
-	Confirm           bool   `json:"confirm"`
+	LogType           int                           `json:"type"`
+	StartTimestamp    int64                         `json:"start_timestamp"`
+	EndTimestamp      int64                         `json:"end_timestamp"`
+	ModelName         string                        `json:"model_name"`
+	Username          string                        `json:"username"`
+	TokenName         string                        `json:"token_name"`
+	Channel           int                           `json:"channel"`
+	Group             string                        `json:"group"`
+	RequestId         string                        `json:"request_id"`
+	UpstreamRequestId string                        `json:"upstream_request_id"`
+	UserAgent         string                        `json:"user_agent"`
+	Confirm           bool                          `json:"confirm"`
+	Violation         *BatchDisableViolationRequest `json:"violation"`
 }
 
 func BatchDisableLogUsers(c *gin.Context) {
@@ -890,7 +897,16 @@ func BatchDisableLogUsers(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	disabledIds, err := model.BatchDisableUsers(userIds)
+	var violation *model.BatchDisableViolation
+	if req.Violation != nil {
+		code, text, normalizeErr := normalizeViolationReason(req.Violation.ReasonCode, req.Violation.ReasonText)
+		if normalizeErr != nil {
+			common.ApiError(c, normalizeErr)
+			return
+		}
+		violation = &model.BatchDisableViolation{ReasonCode: code, ReasonText: text, ListPublicly: req.Violation.ListPublicly, OperatorId: c.GetInt("id")}
+	}
+	disabledIds, listedCount, err := model.BatchDisableUsersWithViolation(userIds, violation)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -900,6 +916,7 @@ func BatchDisableLogUsers(c *gin.Context) {
 		"admin_username": c.GetString("username"),
 		"matched_count":  len(userIds),
 		"disabled_count": len(disabledIds),
+		"listed_count":   listedCount,
 		"user_agent":     req.UserAgent,
 	}
 	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("按日志筛选批量封禁用户，共封禁 %d 个用户", len(disabledIds)), adminInfo)
@@ -909,6 +926,7 @@ func BatchDisableLogUsers(c *gin.Context) {
 		"data": gin.H{
 			"matched_count":  len(userIds),
 			"disabled_count": len(disabledIds),
+			"listed_count":   listedCount,
 			"skipped_count":  len(userIds) - len(disabledIds),
 		},
 	})

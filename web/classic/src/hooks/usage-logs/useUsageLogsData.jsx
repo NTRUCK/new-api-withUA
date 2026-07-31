@@ -17,9 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useEffect, useState } from 'react';
 import { Modal } from '@douyinfe/semi-ui';
+import { useTranslation } from 'react-i18next';
 import {
   API,
   getTodayStartTimestamp,
@@ -202,6 +202,11 @@ export const useLogsData = () => {
   const [userStatsLogs, setUserStatsLogs] = useState({});
   const [userStatsLogsLoading, setUserStatsLogsLoading] = useState({});
   const [batchDisableLoading, setBatchDisableLoading] = useState(false);
+  const [inactiveUsers, setInactiveUsers] = useState([]);
+  const [inactiveUsersLoading, setInactiveUsersLoading] = useState(false);
+  const [inactiveUsersPage, setInactiveUsersPage] = useState(1);
+  const [inactiveUsersTotal, setInactiveUsersTotal] = useState(0);
+  const [violationLoading, setViolationLoading] = useState({});
   const userStatsPageSize = 20;
 
   // Initialize default column visibility
@@ -443,6 +448,65 @@ export const useLogsData = () => {
     }
   };
 
+  const loadInactiveUsers = async (page = 1, range = null) => {
+    if (!isAdminUser) return;
+    setInactiveUsersLoading(true);
+    try {
+      const end = range?.end || Math.floor(Date.now() / 1000);
+      const start = range?.start || end - 7 * 24 * 3600;
+      const params = new URLSearchParams({
+        start_timestamp: String(start),
+        end_timestamp: String(end),
+        p: String(page),
+        page_size: String(userStatsPageSize),
+      });
+      const res = await API.get(`/api/user/inactive?${params}`);
+      const { success, message, data } = res.data;
+      if (!success) return showError(message);
+      setInactiveUsers(data.items || []);
+      setInactiveUsersPage(data.page || page);
+      setInactiveUsersTotal(data.total || 0);
+    } catch (error) {
+      showError(error.message);
+    } finally {
+      setInactiveUsersLoading(false);
+    }
+  };
+
+  const recordViolation = async (userId, values) => {
+    setViolationLoading((current) => ({ ...current, [userId]: true }));
+    try {
+      const res = await API.post('/api/violation/admin', {
+        user_id: userId,
+        reason_code: values.reasonCode,
+        reason_text: values.reasonText || '',
+        list_publicly: values.listPublicly,
+        increment_hit: true,
+      });
+      const { success, message } = res.data;
+      if (!success) return showError(message);
+      showSuccess(t('违规记录已更新'));
+      setInactiveUsers((current) =>
+        current.map((user) =>
+          user.id === userId
+            ? { ...user, on_violation_board: values.listPublicly }
+            : user,
+        ),
+      );
+      setUserStats((current) =>
+        current.map((user) =>
+          user.user_id === userId
+            ? { ...user, on_violation_board: values.listPublicly }
+            : user,
+        ),
+      );
+    } catch (error) {
+      showError(error.message);
+    } finally {
+      setViolationLoading((current) => ({ ...current, [userId]: false }));
+    }
+  };
+
   const openUserStats = () => {
     if (!isAdminUser) return;
     setShowUserStats(true);
@@ -453,7 +517,7 @@ export const useLogsData = () => {
     setShowUserStats(false);
   };
 
-  const batchDisableByLogs = async () => {
+  const batchDisableByLogs = async (violation) => {
     if (!isAdminUser || batchDisableLoading) return;
 
     const {
@@ -487,6 +551,7 @@ export const useLogsData = () => {
         request_id,
         user_agent,
         confirm: true,
+        violation,
       });
       const { success, message, data } = res.data;
       if (!success) {
@@ -1092,11 +1157,18 @@ export const useLogsData = () => {
     userStatsLogs,
     userStatsLogsLoading,
     batchDisableLoading,
+    inactiveUsers,
+    inactiveUsersLoading,
+    inactiveUsersPage,
+    inactiveUsersTotal,
+    violationLoading,
     openUserStats,
     closeUserStats,
     loadUserStats,
+    loadInactiveUsers,
     loadUserStatsLogs,
     batchDisableByLogs,
+    recordViolation,
 
     // Functions
     loadLogs,

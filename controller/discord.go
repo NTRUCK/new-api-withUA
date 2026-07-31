@@ -28,9 +28,10 @@ type DiscordResponse struct {
 }
 
 type DiscordUser struct {
-	UID  string `json:"id"`
-	ID   string `json:"username"`
-	Name string `json:"global_name"`
+	UID    string `json:"id"`
+	ID     string `json:"username"`
+	Name   string `json:"global_name"`
+	Avatar string `json:"avatar"`
 }
 
 func getDiscordUserInfoByCode(code string) (*DiscordUser, error) {
@@ -128,7 +129,10 @@ func DiscordOAuth(c *gin.Context) {
 		return
 	}
 	user := model.User{
-		DiscordId: discordUser.UID,
+		DiscordId:         discordUser.UID,
+		DiscordUsername:   discordUser.ID,
+		DiscordGlobalName: discordUser.Name,
+		DiscordAvatar:     discordUser.Avatar,
 	}
 	if model.IsDiscordIdAlreadyTaken(user.DiscordId) {
 		err := user.FillUserByDiscordId()
@@ -137,6 +141,14 @@ func DiscordOAuth(c *gin.Context) {
 				"success": false,
 				"message": err.Error(),
 			})
+			return
+		}
+		if err := model.DB.Model(&user).Updates(map[string]interface{}{
+			"discord_username":    discordUser.ID,
+			"discord_global_name": discordUser.Name,
+			"discord_avatar":      discordUser.Avatar,
+		}).Error; err != nil {
+			common.ApiError(c, err)
 			return
 		}
 	} else {
@@ -193,7 +205,10 @@ func DiscordBind(c *gin.Context) {
 		return
 	}
 	user := model.User{
-		DiscordId: discordUser.UID,
+		DiscordId:         discordUser.UID,
+		DiscordUsername:   discordUser.ID,
+		DiscordGlobalName: discordUser.Name,
+		DiscordAvatar:     discordUser.Avatar,
 	}
 	if model.IsDiscordIdAlreadyTaken(user.DiscordId) {
 		c.JSON(http.StatusOK, gin.H{
@@ -211,6 +226,9 @@ func DiscordBind(c *gin.Context) {
 		return
 	}
 	user.DiscordId = discordUser.UID
+	user.DiscordUsername = discordUser.ID
+	user.DiscordGlobalName = discordUser.Name
+	user.DiscordAvatar = discordUser.Avatar
 	err = user.Update(false)
 	if err != nil {
 		common.ApiError(c, err)
