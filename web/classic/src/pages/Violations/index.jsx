@@ -20,15 +20,23 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useEffect, useState } from 'react';
 import {
   Avatar,
+  Button,
   Card,
   Empty,
+  Modal,
   Pagination,
   Spin,
   Tag,
   Typography,
 } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
-import { API, showError, timestamp2string } from '../../helpers';
+import {
+  API,
+  isAdmin,
+  showError,
+  showSuccess,
+  timestamp2string,
+} from '../../helpers';
 
 const PAGE_SIZE = 20;
 
@@ -38,6 +46,8 @@ const Violations = () => {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [removingId, setRemovingId] = useState(null);
+  const admin = isAdmin();
 
   const load = async (nextPage = 1) => {
     setLoading(true);
@@ -60,6 +70,31 @@ const Violations = () => {
   useEffect(() => {
     load(1);
   }, []);
+
+  const handleRemove = (item) => {
+    Modal.confirm({
+      title: t('确认下榜'),
+      content: t('确定将该用户从公开违规榜下榜吗？'),
+      okText: t('确认下榜'),
+      cancelText: t('取消'),
+      okType: 'danger',
+      centered: true,
+      onOk: async () => {
+        setRemovingId(item.user_id);
+        try {
+          const res = await API.delete(`/api/violation/admin/${item.user_id}`);
+          const { success, message } = res.data;
+          if (!success) return showError(message);
+          showSuccess(t('已下榜'));
+          load(page);
+        } catch (error) {
+          showError(error.message);
+        } finally {
+          setRemovingId(null);
+        }
+      },
+    });
+  };
 
   return (
     <div className='mt-[60px] max-w-6xl mx-auto px-4 py-8'>
@@ -88,15 +123,21 @@ const Violations = () => {
                       <Typography.Text strong>
                         {item.display_name || t('未知用户')}
                       </Typography.Text>
-                      {item.discord_username && (
-                        <Typography.Text type='tertiary'>
-                          @{item.discord_username}
-                        </Typography.Text>
-                      )}
                       <Tag color='red'>
                         {t('命中 {{count}} 次', { count: item.hit_count })}
                       </Tag>
                     </div>
+                    {item.discord_username && (
+                      <div className='mt-1'>
+                        <Typography.Text
+                          type='tertiary'
+                          size='small'
+                          copyable={{ content: item.discord_username }}
+                        >
+                          dcid：{item.discord_username}
+                        </Typography.Text>
+                      </div>
+                    )}
                     <Typography.Paragraph className='mt-3 mb-3 whitespace-pre-wrap break-words'>
                       {item.reason}
                     </Typography.Paragraph>
@@ -110,6 +151,19 @@ const Violations = () => {
                         {timestamp2string(item.last_recorded_at)}
                       </Typography.Text>
                     </div>
+                    {admin && (
+                      <div className='mt-3'>
+                        <Button
+                          size='small'
+                          type='danger'
+                          theme='light'
+                          loading={removingId === item.user_id}
+                          onClick={() => handleRemove(item)}
+                        >
+                          {t('下榜')}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>

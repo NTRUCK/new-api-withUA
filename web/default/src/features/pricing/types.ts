@@ -69,6 +69,14 @@ export type PricingModel = {
   input_modalities?: Modality[]
   output_modalities?: Modality[]
   capabilities?: ModelCapability[]
+  /** 每日调用限额与已用次数，按分组划分。仅当后端启用限额且该模型有配置时下发 */
+  daily_limits?: Record<string, DailyLimitUsage>
+}
+
+/** 单个分组的每日调用上限与当前已用次数 */
+export type DailyLimitUsage = {
+  limit: number
+  used: number
 }
 
 /** Input/output modalities supported by a model. */
@@ -98,6 +106,7 @@ export type PricingData = {
   usable_group: Record<string, { desc: string; ratio: number }>
   supported_endpoint: Record<string, string>
   auto_groups: string[]
+  daily_limits?: Record<string, Record<string, DailyLimitUsage>>
 }
 
 export type TokenUnit = 'M' | 'K'

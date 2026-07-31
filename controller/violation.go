@@ -87,6 +87,7 @@ func AdminRemoveViolation(c *gin.Context) {
 }
 
 type publicViolationItem struct {
+	UserId          int    `json:"user_id"`
 	DisplayName     string `json:"display_name"`
 	DiscordUsername string `json:"discord_username"`
 	AvatarURL       string `json:"avatar_url"`
@@ -97,6 +98,7 @@ type publicViolationItem struct {
 }
 
 type publicViolationRow struct {
+	UserId                  int
 	DisplayName             string
 	DiscordIdSnapshot       string
 	DiscordNameSnapshot     string
@@ -135,7 +137,7 @@ func GetPublicViolations(c *gin.Context) {
 		return
 	}
 	var rows []publicViolationRow
-	if err := query.Select("users.display_name, violation_entries.discord_id_snapshot, violation_entries.discord_name_snapshot, violation_entries.discord_username_snapshot, violation_entries.discord_avatar_snapshot, violation_entries.reason_text, violation_entries.hit_count, violation_entries.first_recorded_at, violation_entries.last_recorded_at").
+	if err := query.Select("violation_entries.user_id, users.display_name, violation_entries.discord_id_snapshot, violation_entries.discord_name_snapshot, violation_entries.discord_username_snapshot, violation_entries.discord_avatar_snapshot, violation_entries.reason_text, violation_entries.hit_count, violation_entries.first_recorded_at, violation_entries.last_recorded_at").
 		Joins("LEFT JOIN users ON users.id = violation_entries.user_id").Order("violation_entries.last_recorded_at DESC").
 		Offset(pageInfo.GetStartIdx()).Limit(pageInfo.GetPageSize()).Scan(&rows).Error; err != nil {
 		common.ApiError(c, err)
@@ -148,7 +150,7 @@ func GetPublicViolations(c *gin.Context) {
 			displayName = row.DisplayName
 		}
 		items = append(items, publicViolationItem{
-			DisplayName: displayName, DiscordUsername: row.DiscordUsernameSnapshot,
+			UserId: row.UserId, DisplayName: displayName, DiscordUsername: row.DiscordUsernameSnapshot,
 			AvatarURL: discordAvatarURL(row.DiscordIdSnapshot, row.DiscordAvatarSnapshot), Reason: row.ReasonText,
 			HitCount: row.HitCount, FirstRecordedAt: row.FirstRecordedAt, LastRecordedAt: row.LastRecordedAt,
 		})

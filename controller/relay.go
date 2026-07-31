@@ -65,6 +65,19 @@ func geminiRelayHandler(c *gin.Context, info *relaycommon.RelayInfo) *types.NewA
 	return err
 }
 
+// modelDailyLimitGroup 返回用于每日限额统计的分组名。
+// 优先使用 token 指定的分组，其次是用户所在分组。
+func modelDailyLimitGroup(info *relaycommon.RelayInfo) string {
+	group := info.UsingGroup
+	if group == "" {
+		group = info.TokenGroup
+	}
+	if group == "" {
+		group = info.UserGroup
+	}
+	return group
+}
+
 func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	requestId := c.GetString(common.RequestIdKey)
@@ -120,6 +133,18 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	relayInfo, err := relaycommon.GenRelayInfo(c, relayFormat, request, ws)
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
+		return
+	}
+
+	// 模型每日调用次数限制（按 模型+分组 统计，仅计成功调用，自然日零点重置）
+	dailyLimitGroup := modelDailyLimitGroup(relayInfo)
+	if allowed, limit, used := service.CheckModelDailyLimit(relayInfo.OriginModelName, dailyLimitGroup); !allowed {
+		newAPIError = types.NewErrorWithStatusCode(
+			fmt.Errorf("模型 %s 在分组 %s 今日调用次数已达上限（%d/%d），请明日再试", relayInfo.OriginModelName, dailyLimitGroup, used, limit),
+			types.ErrorCodeModelDailyLimitExceeded,
+			http.StatusTooManyRequests,
+			types.ErrOptionWithSkipRetry(),
+		)
 		return
 	}
 
@@ -222,6 +247,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		if newAPIError == nil {
 			relayInfo.LastError = nil
+			service.IncrModelDailyUsage(relayInfo.OriginModelName, dailyLimitGroup)
 			return
 		}
 

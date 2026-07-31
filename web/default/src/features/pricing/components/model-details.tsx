@@ -88,6 +88,66 @@ function SectionTitle(props: { children: React.ReactNode }) {
   )
 }
 
+// 每日调用限额区块：展示各分组的每日上限与当日已用次数
+function DailyLimitSection(props: { model: PricingModel }) {
+  const { t } = useTranslation()
+  const limits = props.model.daily_limits
+  if (!limits || Object.keys(limits).length === 0) return null
+
+  const rows = Object.entries(limits).sort(([a], [b]) => a.localeCompare(b))
+
+  return (
+    <section className='bg-card/60 space-y-3 rounded-xl border p-4 shadow-sm'>
+      <SectionTitle>{t('Daily call limit')}</SectionTitle>
+      <div className='border-border/60 overflow-hidden rounded-lg border'>
+        <Table>
+          <TableHeader>
+            <TableRow className='bg-muted/30 hover:bg-muted/30'>
+              <TableHead className='h-9'>{t('Group')}</TableHead>
+              <TableHead className='h-9 text-right'>{t('Used today')}</TableHead>
+              <TableHead className='h-9 text-right'>{t('Daily limit')}</TableHead>
+              <TableHead className='h-9 text-right'>{t('Remaining')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map(([group, usage]) => {
+              const remaining = Math.max(usage.limit - usage.used, 0)
+              const reached = usage.used >= usage.limit
+              return (
+                <TableRow key={group} className='hover:bg-muted/20'>
+                  <TableCell className='py-2 font-mono'>{group}</TableCell>
+                  <TableCell className='py-2 text-right font-mono'>
+                    {usage.used.toLocaleString()}
+                  </TableCell>
+                  <TableCell className='py-2 text-right font-mono'>
+                    {usage.limit.toLocaleString()}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      'py-2 text-right font-mono',
+                      reached
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : 'text-emerald-600 dark:text-emerald-400'
+                    )}
+                  >
+                    {remaining.toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      <p className='text-muted-foreground text-[11px] leading-relaxed'>
+        {t(
+          'Daily limits are shared across all users in the group and reset at midnight (server timezone). Only successful calls are counted.'
+        )}
+      </p>
+    </section>
+  )
+}
+
+
 const CAPABILITY_LABEL_KEYS: Record<ModelCapability, string> = {
   function_calling: 'Function calling',
   streaming: 'Streaming',
@@ -963,6 +1023,8 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
               showRechargePrice={showRechargePrice}
             />
           </section>
+
+          <DailyLimitSection model={props.model} />
 
           <ModelDetailsQuickStats metadata={metadata} />
 

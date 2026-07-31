@@ -4,6 +4,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -64,6 +65,29 @@ func GetPricing(c *gin.Context) {
 		}
 	}
 
+	// 组装每模型/分组的每日调用上限与当前已用次数（仅在启用时下发）
+	dailyLimits := map[string]map[string]gin.H{}
+	if setting.ModelDailyLimitEnabled {
+		for modelName, groups := range setting.GetModelDailyLimitCopy() {
+			for g, limit := range groups {
+				// 只暴露用户可见分组的数据
+				if _, ok := usableGroup[g]; !ok {
+					continue
+				}
+				if limit <= 0 {
+					continue
+				}
+				if dailyLimits[modelName] == nil {
+					dailyLimits[modelName] = map[string]gin.H{}
+				}
+				dailyLimits[modelName][g] = gin.H{
+					"limit": limit,
+					"used":  service.GetModelDailyUsage(modelName, g),
+				}
+			}
+		}
+	}
+
 	c.JSON(200, gin.H{
 		"success":            true,
 		"data":               pricing,
@@ -72,6 +96,7 @@ func GetPricing(c *gin.Context) {
 		"usable_group":       usableGroup,
 		"supported_endpoint": model.GetSupportedEndpointMap(),
 		"auto_groups":        service.GetUserAutoGroup(group),
+		"daily_limits":       dailyLimits,
 		"pricing_version":    "a42d372ccf0b5dd13ecf71203521f9d2",
 	})
 }

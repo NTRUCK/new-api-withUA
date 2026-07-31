@@ -3679,6 +3679,24 @@
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "运营和收费行为产生的法律责任": "operation and charging behavior",
     "，": ", ",
-    "、": ", "
+    "、": ", ",
+    "模型每日调用次数限制": "Limite quotidienne d'appels du modèle",
+    "启用模型每日调用次数限制": "Activer la limite quotidienne d'appels du modèle",
+    "每日调用上限配置": "Configuration de la limite quotidienne",
+    "使用 JSON 对象格式，格式为：{\"模型名\": {\"分组名\": 每日最大成功调用次数}}": "Utilisez le format objet JSON : {\"nomModèle\": {\"nomGroupe\": appelsRéussisMaxParJour}}",
+    "示例：{\"gpt-4o\": {\"default\": 300}} 表示 default 分组内所有用户对 gpt-4o 每天合计最多成功调用 300 次。": "Exemple : {\"gpt-4o\": {\"default\": 300}} signifie que tous les utilisateurs du groupe default peuvent effectuer au maximum 300 appels réussis à gpt-4o par jour au total.",
+    "每日次数按自然日零点（服务器时区）重置。": "Les compteurs quotidiens sont réinitialisés à minuit (fuseau horaire du serveur).",
+    "仅统计成功的调用，失败请求不计入。": "Seuls les appels réussis sont comptés ; les requêtes échouées sont exclues.",
+    "每日上限必须为大于等于 1 的整数。": "La limite quotidienne doit être un entier >= 1.",
+    "同一分组内所有用户共享该模型的每日额度。": "Tous les utilisateurs du même groupe partagent le quota quotidien du modèle.",
+    "保存每日调用限制": "Enregistrer la limite d'appels quotidiens",
+    "每日调用限额": "Limite d'appels quotidiens",
+    "同分组用户共享额度，每日零点（服务器时区）重置，仅统计成功调用": "Partagé entre les utilisateurs du groupe, réinitialisé à minuit (fuseau horaire du serveur), seuls les appels réussis sont comptés",
+    "今日已用": "Utilisé aujourd'hui",
+    "每日上限": "Limite quotidienne",
+    "确认下榜": "Confirmer le retrait",
+    "确定将该用户从公开违规榜下榜吗？": "Voulez-vous vraiment retirer cet utilisateur du tableau public des infractions ?",
+    "已下榜": "Retiré du tableau",
+    "下榜": "Retirer"
   }
 }

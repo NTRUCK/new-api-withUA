@@ -192,11 +192,12 @@ export const useModelPricingData = () => {
     return `$${priceInUSD.toFixed(3)}`;
   };
 
-  const setModelsFormat = (models, groupRatio, vendorMap) => {
+  const setModelsFormat = (models, groupRatio, vendorMap, dailyLimits) => {
     for (let i = 0; i < models.length; i++) {
       const m = models[i];
       m.key = m.model_name;
       m.group_ratio = groupRatio[m.model_name];
+      m.daily_limits = dailyLimits ? dailyLimits[m.model_name] : undefined;
 
       if (m.vendor_id && vendorMap[m.vendor_id]) {
         const vendor = vendorMap[m.vendor_id];
@@ -238,6 +239,7 @@ export const useModelPricingData = () => {
       usable_group,
       supported_endpoint,
       auto_groups,
+      daily_limits,
     } = res.data;
     if (success) {
       setGroupRatio(group_ratio);
@@ -253,7 +255,7 @@ export const useModelPricingData = () => {
       setVendorsMap(vendorMap);
       setEndpointMap(supported_endpoint || {});
       setAutoGroups(auto_groups || []);
-      setModelsFormat(data, group_ratio, vendorMap);
+      setModelsFormat(data, group_ratio, vendorMap, daily_limits);
     } else {
       showError(message);
     }

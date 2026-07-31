@@ -56,6 +56,7 @@ export function usePricingData() {
         vendor_icon: vendor?.icon,
         vendor_description: vendor?.description,
         group_ratio: data.group_ratio,
+        daily_limits: data.daily_limits?.[model.model_name],
       }
     })
   }, [data])

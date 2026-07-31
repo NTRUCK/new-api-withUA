@@ -26,6 +26,7 @@ import ModelHeader from './components/ModelHeader';
 import ModelBasicInfo from './components/ModelBasicInfo';
 import ModelEndpoints from './components/ModelEndpoints';
 import ModelPricingTable from './components/ModelPricingTable';
+import ModelDailyLimit from './components/ModelDailyLimit';
 import DynamicPricingBreakdown from './components/DynamicPricingBreakdown';
 
 const { Text } = Typography;
@@ -121,6 +122,15 @@ const ModelDetailSideSheet = ({
                 t={t}
               />
             </div>
+            {modelData.daily_limits &&
+              Object.keys(modelData.daily_limits).length > 0 && (
+                <>
+                  <Divider margin={16} />
+                  <div style={{ padding: '0 24px' }}>
+                    <ModelDailyLimit modelData={modelData} t={t} />
+                  </div>
+                </>
+              )}
             <Divider margin={16} />
           </>
         )}

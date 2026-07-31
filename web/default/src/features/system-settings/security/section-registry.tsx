@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { ModelDailyLimitSection } from '../request-limits/model-daily-limit-section'
 import { RateLimitSection } from '../request-limits/rate-limit-section'
 import { SensitiveWordsSection } from '../request-limits/sensitive-words-section'
 import { SSRFSection } from '../request-limits/ssrf-section'
@@ -36,6 +37,18 @@ const SECURITY_SECTIONS = [
           ModelRequestRateLimitDurationMinutes:
             settings.ModelRequestRateLimitDurationMinutes,
           ModelRequestRateLimitGroup: settings.ModelRequestRateLimitGroup,
+        }}
+      />
+    ),
+  },
+  {
+    id: 'model-daily-limit',
+    titleKey: 'Model Daily Limit',
+    build: (settings: SecuritySettings) => (
+      <ModelDailyLimitSection
+        defaultValues={{
+          ModelDailyLimitEnabled: settings.ModelDailyLimitEnabled,
+          ModelDailyLimit: settings.ModelDailyLimit,
         }}
       />
     ),
