@@ -62,7 +62,7 @@ const Violations = () => {
   }, []);
 
   return (
-    <div className='max-w-6xl mx-auto px-4 py-8'>
+    <div className='mt-[60px] max-w-6xl mx-auto px-4 py-8'>
       <div className='mb-6'>
         <Typography.Title heading={2}>{t('公开违规榜')}</Typography.Title>
         <Typography.Text type='tertiary'>

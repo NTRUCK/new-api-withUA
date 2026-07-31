@@ -99,5 +99,8 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('About'), href: '/about' })
   }
 
+  // Violations board (always available, public)
+  links.push({ title: t('Violations'), href: '/violations' })
+
   return links
 }

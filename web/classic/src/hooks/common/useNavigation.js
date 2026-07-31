@@ -64,12 +64,20 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         itemKey: 'about',
         to: '/about',
       },
+      {
+        text: t('违规榜'),
+        itemKey: 'violations',
+        to: '/violations',
+      },
     ];
 
     // 根据配置过滤导航链接
     return allLinks.filter((link) => {
       if (link.itemKey === 'docs') {
         return docsLink && modules.docs;
+      }
+      if (link.itemKey === 'violations') {
+        return true;
       }
       if (link.itemKey === 'pricing') {
         // 支持新的pricing配置格式
