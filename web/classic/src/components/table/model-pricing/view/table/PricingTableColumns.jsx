@@ -101,6 +101,47 @@ function renderSupportedEndpoints(endpoints) {
   );
 }
 
+// 渲染模型在当前所选分组下的每日调用限额（已用/上限）
+function renderDailyLimit(record, selectedGroup, t) {
+  const limits = record.daily_limits;
+  if (!limits || Object.keys(limits).length === 0) return null;
+
+  // 选定具体分组时只展示该分组；选 all 时展示全部可见分组
+  let entries = Object.entries(limits);
+  if (selectedGroup && selectedGroup !== 'all') {
+    entries = entries.filter(([g]) => g === selectedGroup);
+  }
+  if (entries.length === 0) return null;
+
+  return (
+    <div className='mt-1 pt-1 border-t border-dashed border-gray-200 space-y-0.5'>
+      {entries
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([group, usage]) => {
+          const limit = usage?.limit ?? 0;
+          const used = usage?.used ?? 0;
+          const reached = used >= limit;
+          return (
+            <div
+              key={group}
+              className='flex items-center gap-1 text-xs text-gray-600'
+            >
+              <span>{t('每日限额')}</span>
+              {(!selectedGroup || selectedGroup === 'all') && (
+                <Tag size='small' color={stringToColor(group)} shape='circle'>
+                  {group}
+                </Tag>
+              )}
+              <Tag size='small' color={reached ? 'red' : 'green'} shape='circle'>
+                {used.toLocaleString()}/{limit.toLocaleString()}
+              </Tag>
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
 export const getPricingTableColumns = ({
   t,
   selectedGroup,
@@ -244,6 +285,7 @@ export const getPricingTableColumns = ({
               {item.suffix}
             </div>
           ))}
+          {renderDailyLimit(record, selectedGroup, t)}
         </div>
       );
     },

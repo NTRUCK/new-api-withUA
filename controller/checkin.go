@@ -32,12 +32,18 @@ func GetCheckinStatus(c *gin.Context) {
 		return
 	}
 
+	// 按用户当前剩余额度返回其适用的签到额度范围（支持梯度）
+	minQuota, maxQuota := setting.MinQuota, setting.MaxQuota
+	if balance, qErr := model.GetUserQuota(userId, false); qErr == nil {
+		minQuota, maxQuota = operation_setting.GetCheckinQuotaRangeByBalance(balance)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
 			"enabled":   setting.Enabled,
-			"min_quota": setting.MinQuota,
-			"max_quota": setting.MaxQuota,
+			"min_quota": minQuota,
+			"max_quota": maxQuota,
 			"stats":     stats,
 		},
 	})

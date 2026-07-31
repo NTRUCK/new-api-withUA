@@ -3697,6 +3697,17 @@
     "确认下榜": "Confirmer le retrait",
     "确定将该用户从公开违规榜下榜吗？": "Voulez-vous vraiment retirer cet utilisateur du tableau public des infractions ?",
     "已下榜": "Retiré du tableau",
-    "下榜": "Retirer"
+    "下榜": "Retirer",
+    "每日限额": "Limite quotidienne",
+    "复制 BaseURL": "Copier l'URL de base",
+    "已复制 BaseURL": "URL de base copiée",
+    "默认签到最小额度": "Récompense min. par défaut",
+    "默认签到最大额度": "Récompense max. par défaut",
+    "签到额度梯度（可选）": "Paliers de récompense (optionnel)",
+    "数组格式，每档为：{\"min_balance\": 剩余额度阈值, \"min_quota\": 最小奖励, \"max_quota\": 最大奖励}": "Format tableau, chaque palier : {\"min_balance\": seuil de solde, \"min_quota\": récompense min, \"max_quota\": récompense max}",
+    "按用户当前剩余额度从高到低匹配，命中第一个满足 剩余额度 >= min_balance 的档；未命中任何档则使用上方默认额度。": "Correspondance selon le solde actuel de l'utilisateur, du plus élevé au plus bas ; le premier palier où solde >= min_balance s'applique. Sinon, les récompenses par défaut ci-dessus sont utilisées.",
+    "额度单位为 quota（500000 ≈ $1）。示例：min_balance 25000000 约等于 $50。": "L'unité est le quota (500000 ≈ 1 $). Exemple : min_balance 25000000 ≈ 50 $.",
+    "示例：[{\"min_balance\": 25000000, \"min_quota\": 1, \"max_quota\": 1}] 表示剩余额度高于约 $50 的用户，每次签到仅奖励 1。": "Exemple : [{\"min_balance\": 25000000, \"min_quota\": 1, \"max_quota\": 1}] signifie que les utilisateurs avec un solde supérieur à ~50 $ ne reçoivent que 1 par pointage.",
+    "留空则对所有用户使用上方默认额度。": "Laisser vide pour utiliser les récompenses par défaut ci-dessus pour tous les utilisateurs."
   }
 }

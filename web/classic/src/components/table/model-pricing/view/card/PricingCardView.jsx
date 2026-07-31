@@ -54,6 +54,50 @@ const CARD_STYLES = {
   default: 'border-gray-200 hover:border-gray-300',
 };
 
+// 渲染模型在当前所选分组下的每日调用限额（已用/上限）
+const renderDailyLimit = (model, selectedGroup, t) => {
+  const limits = model.daily_limits;
+  if (!limits || Object.keys(limits).length === 0) return null;
+
+  let entries = Object.entries(limits);
+  if (selectedGroup && selectedGroup !== 'all') {
+    entries = entries.filter(([g]) => g === selectedGroup);
+  }
+  if (entries.length === 0) return null;
+
+  const showGroup = !selectedGroup || selectedGroup === 'all';
+  return (
+    <div className='flex flex-col gap-0.5 mt-1'>
+      {entries
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([group, usage]) => {
+          const limit = usage?.limit ?? 0;
+          const used = usage?.used ?? 0;
+          const reached = used >= limit;
+          return (
+            <div key={group} className='flex items-center gap-1 text-xs'>
+              <span style={{ color: 'var(--semi-color-text-2)' }}>
+                {t('每日限额')}
+              </span>
+              {showGroup && (
+                <Tag size='small' color={stringToColor(group)} shape='circle'>
+                  {group}
+                </Tag>
+              )}
+              <Tag
+                size='small'
+                color={reached ? 'red' : 'green'}
+                shape='circle'
+              >
+                {used.toLocaleString()}/{limit.toLocaleString()}
+              </Tag>
+            </div>
+          );
+        })}
+    </div>
+  );
+};
+
 const PricingCardView = ({
   filteredModels,
   loading,
@@ -273,6 +317,7 @@ const PricingCardView = ({
                         ) : (
                           formatPriceInfo(priceData, t, siteDisplayType)
                         )}
+                        {renderDailyLimit(model, selectedGroup, t)}
                       </div>
                     </div>
                   </div>

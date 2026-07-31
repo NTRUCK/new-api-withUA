@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React, { useState } from 'react';
 import { Button, Space } from '@douyinfe/semi-ui';
-import { showError } from '../../../helpers';
+import { showError, showSuccess, copy } from '../../../helpers';
 import CopyTokensModal from './modals/CopyTokensModal';
 import DeleteTokensModal from './modals/DeleteTokensModal';
 
@@ -34,6 +34,23 @@ const TokensActions = ({
   // Modal states
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // 复制 BaseURL（站点地址 + /v1，取不到则退回当前域名）
+  const handleCopyBaseUrl = async () => {
+    let serverAddress = '';
+    try {
+      const status = JSON.parse(localStorage.getItem('status') || '{}');
+      serverAddress = status.server_address || '';
+    } catch (_) {}
+    if (!serverAddress) serverAddress = window.location.origin;
+    serverAddress = serverAddress.replace(/\/+$/, '');
+    const baseUrl = `${serverAddress}/v1`;
+    if (await copy(baseUrl)) {
+      showSuccess(`${t('已复制 BaseURL')}：${baseUrl}`);
+    } else {
+      showError(`${t('无法复制到剪贴板，请手动复制')}：${baseUrl}`);
+    }
+  };
 
   // Handle copy selected tokens with options
   const handleCopySelectedTokens = () => {
@@ -83,6 +100,15 @@ const TokensActions = ({
           size='small'
         >
           {t('复制所选令牌')}
+        </Button>
+
+        <Button
+          type='tertiary'
+          className='flex-1 md:flex-initial'
+          onClick={handleCopyBaseUrl}
+          size='small'
+        >
+          {t('复制 BaseURL')}
         </Button>
 
         <Button

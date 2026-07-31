@@ -25,6 +25,7 @@ import {
   showError,
   showSuccess,
   showWarning,
+  verifyJSON,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 
@@ -35,6 +36,7 @@ export default function SettingsCheckin(props) {
     'checkin_setting.enabled': false,
     'checkin_setting.min_quota': 1000,
     'checkin_setting.max_quota': 10000,
+    'checkin_setting.tiers': '[]',
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -68,6 +70,11 @@ export default function SettingsCheckin(props) {
         } else if (requestQueue.length > 1) {
           if (res.includes(undefined))
             return showError(t('部分保存失败，请重试'));
+        }
+        for (let i = 0; i < res.length; i++) {
+          if (res[i] && !res[i].data.success) {
+            return showError(res[i].data.message);
+          }
         }
         showSuccess(t('保存成功'));
         props.refresh();
@@ -121,7 +128,7 @@ export default function SettingsCheckin(props) {
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
                 <Form.InputNumber
                   field={'checkin_setting.min_quota'}
-                  label={t('签到最小额度')}
+                  label={t('默认签到最小额度')}
                   placeholder={t('签到奖励的最小额度')}
                   onChange={handleFieldChange('checkin_setting.min_quota')}
                   min={0}
@@ -131,11 +138,61 @@ export default function SettingsCheckin(props) {
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
                 <Form.InputNumber
                   field={'checkin_setting.max_quota'}
-                  label={t('签到最大额度')}
+                  label={t('默认签到最大额度')}
                   placeholder={t('签到奖励的最大额度')}
                   onChange={handleFieldChange('checkin_setting.max_quota')}
                   min={0}
                   disabled={!inputs['checkin_setting.enabled']}
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('签到额度梯度（可选）')}
+                  field={'checkin_setting.tiers'}
+                  placeholder={
+                    '[\n  {"min_balance": 25000000, "min_quota": 1, "max_quota": 1}\n]'
+                  }
+                  autosize={{ minRows: 5, maxRows: 16 }}
+                  trigger='blur'
+                  stopValidateWithError
+                  disabled={!inputs['checkin_setting.enabled']}
+                  rules={[
+                    {
+                      validator: (rule, value) => !value || verifyJSON(value),
+                      message: t('不是合法的 JSON 字符串'),
+                    },
+                  ]}
+                  extraText={
+                    <div>
+                      <p>{t('说明：')}</p>
+                      <ul>
+                        <li>
+                          {t(
+                            '数组格式，每档为：{"min_balance": 剩余额度阈值, "min_quota": 最小奖励, "max_quota": 最大奖励}',
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            '按用户当前剩余额度从高到低匹配，命中第一个满足 剩余额度 >= min_balance 的档；未命中任何档则使用上方默认额度。',
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            '额度单位为 quota（500000 ≈ $1）。示例：min_balance 25000000 约等于 $50。',
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            '示例：[{"min_balance": 25000000, "min_quota": 1, "max_quota": 1}] 表示剩余额度高于约 $50 的用户，每次签到仅奖励 1。',
+                          )}
+                        </li>
+                        <li>{t('留空则对所有用户使用上方默认额度。')}</li>
+                      </ul>
+                    </div>
+                  }
+                  onChange={handleFieldChange('checkin_setting.tiers')}
                 />
               </Col>
             </Row>
