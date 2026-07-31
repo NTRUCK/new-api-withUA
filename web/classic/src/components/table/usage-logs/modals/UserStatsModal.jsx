@@ -27,6 +27,7 @@ import {
   Form,
   Modal,
   Pagination,
+  Radio,
   RadioGroup,
   Table,
   Tag,
@@ -344,12 +345,11 @@ const UserStatsModal = (logsData) => {
         type='button'
         value={mode}
         onChange={handleModeChange}
-        optionList={[
-          { label: t('符合日志筛选'), value: 'logs' },
-          { label: t('指定时间内无调用'), value: 'inactive' },
-        ]}
         className='mb-4'
-      />
+      >
+        <Radio value='logs'>{t('符合日志筛选')}</Radio>
+        <Radio value='inactive'>{t('指定时间内无调用')}</Radio>
+      </RadioGroup>
       <div className='flex flex-wrap justify-between items-center gap-3 mb-4'>
         {isInactive ? (
           <DatePicker
