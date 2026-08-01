@@ -319,6 +319,16 @@ func usageSemanticFromUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) 
 	return "openai"
 }
 
+func isEmptyResponseRejectReason(reason string) bool {
+	// 仅空回类原因免费；被安全策略拦截（gemini_block_reason=xxx）等不在此列
+	switch reason {
+	case "gemini_empty_candidates", "gemini_empty_stream":
+		return true
+	default:
+		return false
+	}
+}
+
 func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage, extraContent []string) {
 	originUsage := usage
 	if usage == nil {
@@ -331,9 +341,17 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	adminRejectReason := common.GetContextKeyString(ctx, constant.ContextKeyAdminRejectReason)
 	summary := calculateTextQuotaSummary(ctx, relayInfo, usage)
 
+	// 空回不扣费：检测到空回（有输入无任何输出）时，全额免除本次计费。
+	// 仅针对“空回”类原因，被安全策略拦截（block_reason）等仍照常处理。
+	emptyResponseFree := isEmptyResponseRejectReason(adminRejectReason)
+	if emptyResponseFree {
+		summary.Quota = 0
+		extraContent = append(extraContent, "空回未产生有效输出，已免除本次计费")
+	}
+
 	var tieredResult *billingexpr.TieredResult
 	tieredBillingApplied := false
-	if originUsage != nil {
+	if originUsage != nil && !emptyResponseFree {
 		var tieredUsedVars map[string]bool
 		if snap := relayInfo.TieredBillingSnapshot; snap != nil {
 			tieredUsedVars = billingexpr.UsedVars(snap.ExprString)
@@ -365,6 +383,8 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	if summary.TotalTokens == 0 {
 		extraContent = append(extraContent, "上游没有返回计费信息，无法扣费（可能是上游超时）")
 		logger.LogError(ctx, fmt.Sprintf("total tokens is 0, cannot consume quota, userId %d, channelId %d, tokenId %d, model %s， pre-consumed quota %d", relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, summary.ModelName, relayInfo.FinalPreConsumedQuota))
+	} else if emptyResponseFree {
+		// 空回免费：不累计用户/渠道已用额度
 	} else {
 		model.UpdateUserUsedQuotaAndRequestCount(relayInfo.UserId, summary.Quota)
 		model.UpdateChannelUsedQuota(relayInfo.ChannelId, summary.Quota)

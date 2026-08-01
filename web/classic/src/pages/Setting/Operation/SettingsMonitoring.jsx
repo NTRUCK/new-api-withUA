@@ -118,7 +118,12 @@ export default function SettingsMonitoring(props) {
     const currentInputs = {};
     for (let key in props.options) {
       if (Object.keys(inputs).includes(key)) {
-        currentInputs[key] = props.options[key];
+        if (typeof inputs[key] === 'boolean') {
+          currentInputs[key] =
+            props.options[key] === 'true' || props.options[key] === true;
+        } else {
+          currentInputs[key] = props.options[key];
+        }
       }
     }
     setInputs(currentInputs);

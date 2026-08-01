@@ -1386,6 +1386,13 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		}
 	}
 
+	// 流式空回检测：全程无任何文本/图片输出，标记为空回（供上层免计费）
+	if responseText.Len() == 0 && imageCount == 0 {
+		if common.GetContextKeyString(c, constant.ContextKeyAdminRejectReason) == "" {
+			common.SetContextKey(c, constant.ContextKeyAdminRejectReason, "gemini_empty_stream")
+		}
+	}
+
 	if usage.CompletionTokens <= 0 {
 		if info.ReceivedResponseCount > 0 {
 			usage = service.ResponseText2Usage(c, responseText.String(), info.UpstreamModelName, info.GetEstimatePromptTokens())
