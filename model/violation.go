@@ -128,6 +128,29 @@ func BanUserByUserAgent(userId int, clientUA, reasonText string) (banned bool, e
 	return banned, nil
 }
 
+// DisableUserByGroupPolicy 因分组 UA 黑/白名单违规达到阈值，将用户禁用（不上榜）。
+// 跳过 User ID 1 和管理员。返回是否实际执行了封禁（首次禁用时为 true）。
+func DisableUserByGroupPolicy(userId int) (banned bool, err error) {
+	result := DB.Model(&User{}).
+		Where("id = ? AND status = ? AND id <> ? AND role < ?",
+			userId, common.UserStatusEnabled, 1, common.RoleAdminUser).
+		Update("status", common.UserStatusDisabled)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	banned = result.RowsAffected == 1
+	if banned {
+		if cacheErr := InvalidateUserCache(userId); cacheErr != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", userId, cacheErr.Error()))
+		}
+		if cacheErr := InvalidateUserTokensCache(userId); cacheErr != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate token cache for user %d: %s", userId, cacheErr.Error()))
+		}
+	}
+	return banned, nil
+}
+
+
 func RemoveViolation(userId, operatorId int) error {
 	var user User
 	if err := DB.Select("id", "role").First(&user, userId).Error; err != nil {

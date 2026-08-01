@@ -178,6 +178,9 @@ func InitOptionMap() {
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
 	common.OptionMap["UserAgentBanEnabled"] = strconv.FormatBool(operation_setting.UserAgentBanEnabled)
 	common.OptionMap["UserAgentBanKeywords"] = operation_setting.UserAgentBanKeywordsToString()
+	common.OptionMap["UserAgentGroupWhitelist"] = operation_setting.UserAgentGroupWhitelistToString()
+	common.OptionMap["UserAgentGroupBlacklist"] = operation_setting.UserAgentGroupBlacklistToString()
+	common.OptionMap["UserAgentGroupBanThreshold"] = strconv.Itoa(operation_setting.UserAgentGroupBanThreshold)
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	common.OptionMap["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
 	common.OptionMap["ExposeRatioEnabled"] = strconv.FormatBool(ratio_setting.IsExposeRatioEnabled())
@@ -578,6 +581,14 @@ func updateOptionMap(key string, value string) (err error) {
 		operation_setting.AutomaticDisableKeywordsFromString(value)
 	case "UserAgentBanKeywords":
 		operation_setting.UserAgentBanKeywordsFromString(value)
+	case "UserAgentGroupWhitelist":
+		operation_setting.UserAgentGroupWhitelistFromString(value)
+	case "UserAgentGroupBlacklist":
+		operation_setting.UserAgentGroupBlacklistFromString(value)
+	case "UserAgentGroupBanThreshold":
+		if n, convErr := strconv.Atoi(value); convErr == nil && n > 0 {
+			operation_setting.UserAgentGroupBanThreshold = n
+		}
 	case "AutomaticDisableStatusCodes":
 		err = operation_setting.AutomaticDisableStatusCodesFromString(value)
 	case "AutomaticRetryStatusCodes":

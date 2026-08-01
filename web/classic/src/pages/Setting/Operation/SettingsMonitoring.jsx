@@ -44,6 +44,9 @@ export default function SettingsMonitoring(props) {
       '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
     UserAgentBanEnabled: false,
     UserAgentBanKeywords: 'tavo',
+    UserAgentGroupBlacklist: '',
+    UserAgentGroupWhitelist: '',
+    UserAgentGroupBanThreshold: '5',
     'monitor_setting.auto_test_channel_enabled': false,
     'monitor_setting.auto_test_channel_minutes': 10,
   });
@@ -306,6 +309,56 @@ export default function SettingsMonitoring(props) {
                   autosize={{ minRows: 3, maxRows: 8 }}
                   onChange={(value) =>
                     setInputs({ ...inputs, UserAgentBanKeywords: value })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('分组 UA 违规封禁阈值')}
+                  step={1}
+                  min={1}
+                  suffix={t('次')}
+                  extraText={t(
+                    '同一用户在某分组累计违反黑/白名单达到此次数后自动封禁（不上榜），并通知管理员',
+                  )}
+                  field={'UserAgentGroupBanThreshold'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      UserAgentGroupBanThreshold: String(value),
+                    })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12}>
+                <Form.TextArea
+                  label={t('分组 UA 黑名单')}
+                  placeholder={'default:badua1,badua2\ncoding:otherbad'}
+                  extraText={t(
+                    '每行一个分组，格式 group:ua1,ua2；该分组请求 UA 命中任一关键词即算违规（子串包含）',
+                  )}
+                  field={'UserAgentGroupBlacklist'}
+                  autosize={{ minRows: 4, maxRows: 10 }}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, UserAgentGroupBlacklist: value })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.TextArea
+                  label={t('分组 UA 白名单')}
+                  placeholder={'default:node-fetch,TauriTavern\ncoding:claudecode'}
+                  extraText={t(
+                    '每行一个分组，格式 group:ua1,ua2；该分组只允许 UA 命中列表内的请求，其余算违规',
+                  )}
+                  field={'UserAgentGroupWhitelist'}
+                  autosize={{ minRows: 4, maxRows: 10 }}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, UserAgentGroupWhitelist: value })
                   }
                 />
               </Col>

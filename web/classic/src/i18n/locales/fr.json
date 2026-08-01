@@ -2148,7 +2148,7 @@
     "模板应用失败": "Échec de l'application du modèle",
     "模板示例": "Exemple de modèle",
     "模糊搜索模型名称": "Recherche floue de nom de modèle",
-    "次": "requête",
+    "次": " fois",
     "欢迎使用，请完成以下设置以开始使用系统": "Bienvenue, veuillez compléter les paramètres suivants pour commencer à utiliser le système",
     "欧元": "Euro",
     "正则替换": "",
@@ -3802,6 +3802,12 @@
     "开启后，请求客户端 User-Agent 命中下方关键词时，自动封禁该用户并公开上榜": "Une fois activé, les requêtes dont le User-Agent correspond aux mots-clés ci-dessous entraînent le bannissement automatique de l'utilisateur et sa mise au tableau public.",
     "封禁 User-Agent 关键词": "Mots-clés de bannissement User-Agent",
     "一行一个，不区分大小写，子串包含即命中": "Un par ligne, insensible à la casse, correspondance par sous-chaîne",
-    "例如填写 tavo，则任何 User-Agent 中包含 tavo 的请求都会被封禁并上榜": "ex. : saisissez tavo, toute requête dont le User-Agent contient tavo sera bannie et listée"
+    "例如填写 tavo，则任何 User-Agent 中包含 tavo 的请求都会被封禁并上榜": "ex. : saisissez tavo, toute requête dont le User-Agent contient tavo sera bannie et listée",
+    "分组 UA 违规封禁阈值": "Seuil de bannissement UA par groupe",
+    "同一用户在某分组累计违反黑/白名单达到此次数后自动封禁（不上榜），并通知管理员": "Lorsqu'un utilisateur atteint ce nombre d'infractions liste noire/blanche dans un groupe, il est banni automatiquement (non listé) et l'administrateur est notifié.",
+    "分组 UA 黑名单": "Liste noire UA par groupe",
+    "每行一个分组，格式 group:ua1,ua2；该分组请求 UA 命中任一关键词即算违规（子串包含）": "Un groupe par ligne, format group:ua1,ua2 ; une requête de ce groupe est en infraction si son UA correspond à un mot-clé (sous-chaîne).",
+    "分组 UA 白名单": "Liste blanche UA par groupe",
+    "每行一个分组，格式 group:ua1,ua2；该分组只允许 UA 命中列表内的请求，其余算违规": "Un groupe par ligne, format group:ua1,ua2 ; ce groupe n'autorise que les requêtes dont l'UA correspond à la liste, sinon infraction."
   }
 }
