@@ -4242,6 +4242,11 @@
     "按用户当前剩余额度从高到低匹配，命中第一个满足 剩余额度 >= min_balance 的档；未命中任何档则使用上方默认额度。": "Khớp theo số dư hiện tại của người dùng từ cao đến thấp; áp dụng bậc đầu tiên có số dư >= min_balance. Nếu không khớp bậc nào thì dùng phần thưởng mặc định ở trên.",
     "额度单位为 quota（500000 ≈ $1）。示例：min_balance 25000000 约等于 $50。": "Đơn vị là quota (500000 ≈ $1). Ví dụ: min_balance 25000000 ≈ $50.",
     "示例：[{\"min_balance\": 25000000, \"min_quota\": 1, \"max_quota\": 1}] 表示剩余额度高于约 $50 的用户，每次签到仅奖励 1。": "Ví dụ: [{\"min_balance\": 25000000, \"min_quota\": 1, \"max_quota\": 1}] nghĩa là người dùng có số dư trên ~$50 chỉ nhận 1 mỗi lần điểm danh.",
-    "留空则对所有用户使用上方默认额度。": "Để trống để dùng phần thưởng mặc định ở trên cho tất cả người dùng."
+    "留空则对所有用户使用上方默认额度。": "Để trống để dùng phần thưởng mặc định ở trên cho tất cả người dùng.",
+    "共享限额组配置（可选）": "Nhóm giới hạn dùng chung (tùy chọn)",
+    "用于让来自同一渠道的多个模型共用一份每日额度。数组格式，每个组包含 name（组名，需唯一）、models（模型名列表）、limits（分组名到上限的映射）。": "Cho phép nhiều mô hình từ cùng một kênh dùng chung một hạn mức hàng ngày. Định dạng mảng; mỗi nhóm gồm name (duy nhất), models (danh sách mô hình) và limits (ánh xạ tên nhóm tới giới hạn).",
+    "示例：[{\"name\": \"channel_a\", \"models\": [\"gpt-4o\", \"gpt-4o-mini\"], \"limits\": {\"default\": 500}}] 表示 default 分组内这两个模型每天合计最多成功调用 500 次。": "Ví dụ: [{\"name\": \"channel_a\", \"models\": [\"gpt-4o\", \"gpt-4o-mini\"], \"limits\": {\"default\": 500}}] nghĩa là hai mô hình này cộng lại tối đa 500 lần gọi thành công mỗi ngày trong nhóm default.",
+    "共享组优先于上方单模型配置：若某模型同时命中两者，只按共享组计数。": "Nhóm dùng chung được ưu tiên hơn cấu hình từng mô hình ở trên: nếu một mô hình khớp cả hai, chỉ tính theo nhóm dùng chung.",
+    "其余规则（自然日重置、仅计成功调用、分组内所有用户共享）与上方一致。": "Các quy tắc còn lại (đặt lại theo ngày, chỉ tính lệnh gọi thành công, dùng chung cho mọi người dùng trong nhóm) giống như ở trên."
   }
 }

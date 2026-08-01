@@ -139,6 +139,7 @@ func InitOptionMap() {
 	common.OptionMap["ModelRequestRateLimitGroup"] = setting.ModelRequestRateLimitGroup2JSONString()
 	common.OptionMap["ModelDailyLimitEnabled"] = strconv.FormatBool(setting.ModelDailyLimitEnabled)
 	common.OptionMap["ModelDailyLimit"] = setting.ModelDailyLimit2JSONString()
+	common.OptionMap["ModelDailyLimitGroups"] = setting.ModelDailyLimitGroups2JSONString()
 	common.OptionMap["ModelRatio"] = ratio_setting.ModelRatio2JSONString()
 	common.OptionMap["ModelPrice"] = ratio_setting.ModelPrice2JSONString()
 	common.OptionMap["CacheRatio"] = ratio_setting.CacheRatio2JSONString()
@@ -518,6 +519,8 @@ func updateOptionMap(key string, value string) (err error) {
 		err = setting.UpdateModelRequestRateLimitGroupByJSONString(value)
 	case "ModelDailyLimit":
 		err = setting.UpdateModelDailyLimitByJSONString(value)
+	case "ModelDailyLimitGroups":
+		err = setting.UpdateModelDailyLimitGroupsByJSONString(value)
 	case "RetryTimes":
 		common.RetryTimes, _ = strconv.Atoi(value)
 	case "DataExportInterval":

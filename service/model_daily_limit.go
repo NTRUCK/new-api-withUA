@@ -73,33 +73,35 @@ func GetModelDailyUsage(modelName, group string) int64 {
 
 // CheckModelDailyLimit 检查是否超过每日限额。返回 (allowed, limit, used)。
 // 当模型/分组未配置限额时，allowed=true 且 found 相关值为 0。
+// 支持共享限额组：组内多个模型共用同一计数。
 func CheckModelDailyLimit(modelName, group string) (allowed bool, limit int, used int64) {
 	if !setting.ModelDailyLimitEnabled {
 		return true, 0, 0
 	}
-	limit, found := setting.GetModelDailyLimit(modelName, group)
+	counterName, limit, found := setting.ResolveModelDailyLimit(modelName, group)
 	if !found {
 		return true, 0, 0
 	}
-	used = GetModelDailyUsage(modelName, group)
+	used = GetModelDailyUsage(counterName, group)
 	if used >= int64(limit) {
 		return false, limit, used
 	}
 	return true, limit, used
 }
 
-// IncrModelDailyUsage 在一次成功调用后，将对应模型/分组的当日计数加一
+// IncrModelDailyUsage 在一次成功调用后，将对应模型/分组（或共享组）的当日计数加一
 func IncrModelDailyUsage(modelName, group string) {
 	if !setting.ModelDailyLimitEnabled {
 		return
 	}
-	if _, found := setting.GetModelDailyLimit(modelName, group); !found {
+	counterName, _, found := setting.ResolveModelDailyLimit(modelName, group)
+	if !found {
 		return
 	}
 
 	if common.RedisEnabled {
 		ctx := context.Background()
-		key := modelDailyLimitKey(modelName, group)
+		key := modelDailyLimitKey(counterName, group)
 		pipe := common.RDB.TxPipeline()
 		incr := pipe.Incr(ctx, key)
 		pipe.Expire(ctx, key, time.Duration(secondsUntilEndOfDay())*time.Second)
@@ -118,5 +120,5 @@ func IncrModelDailyUsage(modelName, group string) {
 		memDailyCounter.day = today
 		memDailyCounter.count = make(map[string]int64)
 	}
-	memDailyCounter.count[memoryCounterKey(modelName, group)]++
+	memDailyCounter.count[memoryCounterKey(counterName, group)]++
 }

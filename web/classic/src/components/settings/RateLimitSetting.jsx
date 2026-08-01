@@ -35,6 +35,7 @@ const RateLimitSetting = () => {
     ModelRequestRateLimitGroup: '',
     ModelDailyLimitEnabled: false,
     ModelDailyLimit: '',
+    ModelDailyLimitGroups: '',
   });
 
   let [loading, setLoading] = useState(false);
@@ -47,7 +48,8 @@ const RateLimitSetting = () => {
       data.forEach((item) => {
         if (
           item.key === 'ModelRequestRateLimitGroup' ||
-          item.key === 'ModelDailyLimit'
+          item.key === 'ModelDailyLimit' ||
+          item.key === 'ModelDailyLimitGroups'
         ) {
           try {
             item.value = JSON.stringify(JSON.parse(item.value), null, 2);

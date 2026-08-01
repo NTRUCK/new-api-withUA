@@ -66,23 +66,24 @@ func GetPricing(c *gin.Context) {
 	}
 
 	// 组装每模型/分组的每日调用上限与当前已用次数（仅在启用时下发）
+	// 支持共享限额组：组内模型展开展示，且已用次数按共享计数标识读取
 	dailyLimits := map[string]map[string]gin.H{}
 	if setting.ModelDailyLimitEnabled {
-		for modelName, groups := range setting.GetModelDailyLimitCopy() {
-			for g, limit := range groups {
+		for modelName, groups := range setting.GetModelDailyLimitDisplayCopy() {
+			for g, entry := range groups {
 				// 只暴露用户可见分组的数据
 				if _, ok := usableGroup[g]; !ok {
 					continue
 				}
-				if limit <= 0 {
+				if entry.Limit <= 0 {
 					continue
 				}
 				if dailyLimits[modelName] == nil {
 					dailyLimits[modelName] = map[string]gin.H{}
 				}
 				dailyLimits[modelName][g] = gin.H{
-					"limit": limit,
-					"used":  service.GetModelDailyUsage(modelName, g),
+					"limit": entry.Limit,
+					"used":  service.GetModelDailyUsage(entry.CounterName, g),
 				}
 			}
 		}

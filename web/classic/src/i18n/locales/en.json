@@ -3854,6 +3854,11 @@
     "按用户当前剩余额度从高到低匹配，命中第一个满足 剩余额度 >= min_balance 的档；未命中任何档则使用上方默认额度。": "Matched by the user's current balance from high to low; the first tier where balance >= min_balance applies. If no tier matches, the default rewards above are used.",
     "额度单位为 quota（500000 ≈ $1）。示例：min_balance 25000000 约等于 $50。": "The unit is quota (500000 ≈ $1). Example: min_balance 25000000 ≈ $50.",
     "示例：[{\"min_balance\": 25000000, \"min_quota\": 1, \"max_quota\": 1}] 表示剩余额度高于约 $50 的用户，每次签到仅奖励 1。": "Example: [{\"min_balance\": 25000000, \"min_quota\": 1, \"max_quota\": 1}] means users with a balance above ~$50 get only 1 per check-in.",
-    "留空则对所有用户使用上方默认额度。": "Leave empty to use the default rewards above for all users."
+    "留空则对所有用户使用上方默认额度。": "Leave empty to use the default rewards above for all users.",
+    "共享限额组配置（可选）": "Shared limit groups (optional)",
+    "用于让来自同一渠道的多个模型共用一份每日额度。数组格式，每个组包含 name（组名，需唯一）、models（模型名列表）、limits（分组名到上限的映射）。": "Let multiple models from the same channel share one daily quota. Array format; each group has name (unique), models (list of model names), and limits (group name to limit mapping).",
+    "示例：[{\"name\": \"channel_a\", \"models\": [\"gpt-4o\", \"gpt-4o-mini\"], \"limits\": {\"default\": 500}}] 表示 default 分组内这两个模型每天合计最多成功调用 500 次。": "Example: [{\"name\": \"channel_a\", \"models\": [\"gpt-4o\", \"gpt-4o-mini\"], \"limits\": {\"default\": 500}}] means these two models combined can succeed at most 500 times per day in the default group.",
+    "共享组优先于上方单模型配置：若某模型同时命中两者，只按共享组计数。": "Shared groups take precedence over per-model config above: if a model matches both, only the shared group is counted.",
+    "其余规则（自然日重置、仅计成功调用、分组内所有用户共享）与上方一致。": "Other rules (calendar-day reset, only successful calls counted, shared by all users in the group) are the same as above."
   }
 }

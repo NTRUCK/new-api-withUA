@@ -36,6 +36,7 @@ export default function ModelDailyLimit(props) {
   const [inputs, setInputs] = useState({
     ModelDailyLimitEnabled: false,
     ModelDailyLimit: '',
+    ModelDailyLimitGroups: '',
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -160,6 +161,52 @@ export default function ModelDailyLimit(props) {
                   }
                   onChange={(value) => {
                     setInputs({ ...inputs, ModelDailyLimit: value });
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('共享限额组配置（可选）')}
+                  placeholder={
+                    '[\n  {\n    "name": "channel_a",\n    "models": ["gpt-4o", "gpt-4o-mini"],\n    "limits": { "default": 500 }\n  }\n]'
+                  }
+                  field={'ModelDailyLimitGroups'}
+                  autosize={{ minRows: 6, maxRows: 18 }}
+                  trigger='blur'
+                  stopValidateWithError
+                  rules={[
+                    {
+                      validator: (rule, value) => !value || verifyJSON(value),
+                      message: t('不是合法的 JSON 字符串'),
+                    },
+                  ]}
+                  extraText={
+                    <div>
+                      <p>{t('说明：')}</p>
+                      <ul>
+                        <li>
+                          {t(
+                            '用于让来自同一渠道的多个模型共用一份每日额度。数组格式，每个组包含 name（组名，需唯一）、models（模型名列表）、limits（分组名到上限的映射）。',
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            '示例：[{"name": "channel_a", "models": ["gpt-4o", "gpt-4o-mini"], "limits": {"default": 500}}] 表示 default 分组内这两个模型每天合计最多成功调用 500 次。',
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            '共享组优先于上方单模型配置：若某模型同时命中两者，只按共享组计数。',
+                          )}
+                        </li>
+                        <li>{t('其余规则（自然日重置、仅计成功调用、分组内所有用户共享）与上方一致。')}</li>
+                      </ul>
+                    </div>
+                  }
+                  onChange={(value) => {
+                    setInputs({ ...inputs, ModelDailyLimitGroups: value });
                   }}
                 />
               </Col>
