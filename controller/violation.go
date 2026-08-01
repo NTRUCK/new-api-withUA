@@ -178,27 +178,10 @@ func GetInactiveUsers(c *gin.Context) {
 		common.ApiError(c, errors.New("invalid timestamp range"))
 		return
 	}
-	var candidateIds []int
-	if err := model.DB.Model(&model.User{}).Where("id <> ? AND role < ?", 1, common.RoleAdminUser).Pluck("id", &candidateIds).Error; err != nil {
+	inactiveIds, err := computeInactiveUserIds(start, end)
+	if err != nil {
 		common.ApiError(c, err)
 		return
-	}
-	active := make(map[int]struct{})
-	if len(candidateIds) > 0 {
-		var activeIds []int
-		if err := model.LOG_DB.Model(&model.Log{}).Distinct("user_id").Where("user_id IN ? AND created_at >= ? AND created_at <= ? AND type IN ?", candidateIds, start, end, []int{model.LogTypeConsume, model.LogTypeError}).Pluck("user_id", &activeIds).Error; err != nil {
-			common.ApiError(c, err)
-			return
-		}
-		for _, id := range activeIds {
-			active[id] = struct{}{}
-		}
-	}
-	inactiveIds := make([]int, 0, len(candidateIds))
-	for _, id := range candidateIds {
-		if _, ok := active[id]; !ok {
-			inactiveIds = append(inactiveIds, id)
-		}
 	}
 	pageInfo := common.GetPageQuery(c)
 	items := make([]inactiveUserItem, 0)
@@ -214,4 +197,110 @@ func GetInactiveUsers(c *gin.Context) {
 	pageInfo.SetTotal(len(inactiveIds))
 	pageInfo.SetItems(items)
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": pageInfo})
+}
+
+// computeInactiveUserIds 返回在 [start, end] 时间段内没有调用日志的普通用户 ID（排除 User ID 1 和管理员）
+func computeInactiveUserIds(start, end int64) ([]int, error) {
+	var candidateIds []int
+	if err := model.DB.Model(&model.User{}).Where("id <> ? AND role < ?", 1, common.RoleAdminUser).Pluck("id", &candidateIds).Error; err != nil {
+		return nil, err
+	}
+	active := make(map[int]struct{})
+	if len(candidateIds) > 0 {
+		var activeIds []int
+		if err := model.LOG_DB.Model(&model.Log{}).Distinct("user_id").Where("user_id IN ? AND created_at >= ? AND created_at <= ? AND type IN ?", candidateIds, start, end, []int{model.LogTypeConsume, model.LogTypeError}).Pluck("user_id", &activeIds).Error; err != nil {
+			return nil, err
+		}
+		for _, id := range activeIds {
+			active[id] = struct{}{}
+		}
+	}
+	inactiveIds := make([]int, 0, len(candidateIds))
+	for _, id := range candidateIds {
+		if _, ok := active[id]; !ok {
+			inactiveIds = append(inactiveIds, id)
+		}
+	}
+	return inactiveIds, nil
+}
+
+type batchDisableInactiveRequest struct {
+	StartTimestamp   int64                         `json:"start_timestamp"`
+	EndTimestamp     int64                         `json:"end_timestamp"`
+	Confirm          bool                          `json:"confirm"`
+	WhitelistUserIds []int                         `json:"whitelist_user_ids"`
+	Violation        *BatchDisableViolationRequest `json:"violation"`
+}
+
+// BatchDisableInactiveUsers 批量封禁在指定时间段内无调用的用户
+func BatchDisableInactiveUsers(c *gin.Context) {
+	var req batchDisableInactiveRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil || !req.Confirm {
+		common.ApiError(c, errors.New("invalid params"))
+		return
+	}
+	now := time.Now().Unix()
+	if req.StartTimestamp <= 0 || req.EndTimestamp <= 0 || req.StartTimestamp > req.EndTimestamp || req.EndTimestamp > now {
+		common.ApiError(c, errors.New("invalid timestamp range"))
+		return
+	}
+	userIds, err := computeInactiveUserIds(req.StartTimestamp, req.EndTimestamp)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	matchedCount := len(userIds)
+	// 白名单：排除管理员本次勾选保护的用户，永不封禁
+	whitelistedCount := 0
+	if len(req.WhitelistUserIds) > 0 {
+		whitelist := make(map[int]bool, len(req.WhitelistUserIds))
+		for _, id := range req.WhitelistUserIds {
+			whitelist[id] = true
+		}
+		filtered := make([]int, 0, len(userIds))
+		for _, id := range userIds {
+			if whitelist[id] {
+				whitelistedCount++
+				continue
+			}
+			filtered = append(filtered, id)
+		}
+		userIds = filtered
+	}
+	var violation *model.BatchDisableViolation
+	if req.Violation != nil {
+		code, text, normalizeErr := normalizeViolationReason(req.Violation.ReasonCode, req.Violation.ReasonText)
+		if normalizeErr != nil {
+			common.ApiError(c, normalizeErr)
+			return
+		}
+		violation = &model.BatchDisableViolation{ReasonCode: code, ReasonText: text, ListPublicly: req.Violation.ListPublicly, OperatorId: c.GetInt("id")}
+	}
+	disabledIds, listedCount, err := model.BatchDisableUsersWithViolation(userIds, violation)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	adminInfo := map[string]interface{}{
+		"admin_id":          c.GetInt("id"),
+		"admin_username":    c.GetString("username"),
+		"matched_count":     matchedCount,
+		"disabled_count":    len(disabledIds),
+		"listed_count":      listedCount,
+		"whitelisted_count": whitelistedCount,
+		"start_timestamp":   req.StartTimestamp,
+		"end_timestamp":     req.EndTimestamp,
+	}
+	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("按无调用时间段批量封禁用户，共封禁 %d 个用户", len(disabledIds)), adminInfo)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"matched_count":     matchedCount,
+			"disabled_count":    len(disabledIds),
+			"listed_count":      listedCount,
+			"whitelisted_count": whitelistedCount,
+			"skipped_count":     matchedCount - len(disabledIds) - whitelistedCount,
+		},
+	})
 }

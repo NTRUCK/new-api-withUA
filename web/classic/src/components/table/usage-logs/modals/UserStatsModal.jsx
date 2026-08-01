@@ -162,6 +162,7 @@ const UserStatsModal = (logsData) => {
     isAdminUser,
     batchDisableLoading,
     batchDisableByLogs,
+    batchDisableInactive,
     inactiveUsers,
     inactiveUsersLoading,
     inactiveUsersPage,
@@ -254,6 +255,55 @@ const UserStatsModal = (logsData) => {
     });
   };
 
+  const confirmBatchDisableInactive = () => {
+    if (!isAdminUser || batchDisableLoading) return;
+    if (!inactiveRange?.[0] || !inactiveRange?.[1]) {
+      Modal.warning({ title: t('请先选择时间范围') });
+      return;
+    }
+    let formApi;
+    const whitelistCount = userStatsWhitelist.length;
+    Modal.confirm({
+      title: t('确认批量封禁用户'),
+      content: (
+        <div className='flex flex-col gap-2'>
+          <Typography.Text>
+            {t('将封禁在所选时间段内没有任何调用的全部用户。')}
+          </Typography.Text>
+          <Typography.Text strong type='danger'>
+            {t('User ID 1 和所有管理员永远不会被封禁。')}
+          </Typography.Text>
+          {whitelistCount > 0 && (
+            <Typography.Text strong type='warning'>
+              {t('已勾选 {{count}} 个白名单用户，本次将被跳过。', {
+                count: whitelistCount,
+              })}
+            </Typography.Text>
+          )}
+          <ViolationForm
+            t={t}
+            getFormApi={(api) => {
+              formApi = api;
+            }}
+          />
+        </div>
+      ),
+      okText: t('确认批量封禁'),
+      cancelText: t('取消'),
+      okType: 'danger',
+      centered: true,
+      onOk: async () => {
+        await formApi.validate();
+        const values = formApi.getValues();
+        return batchDisableInactive(inactiveRange, {
+          reason_code: values.reason_code,
+          reason_text: values.reason_text,
+          list_publicly: values.list_publicly,
+        });
+      },
+    });
+  };
+
   const toggleWhitelist = (userId) => {
     setUserStatsWhitelist((current) =>
       current.includes(userId)
@@ -323,6 +373,18 @@ const UserStatsModal = (logsData) => {
   ];
 
   const inactiveColumns = [
+    {
+      title: t('白名单'),
+      key: 'whitelist',
+      width: 70,
+      render: (_, record) => (
+        <Checkbox
+          checked={userStatsWhitelist.includes(record.id)}
+          onClick={(event) => event.stopPropagation()}
+          onChange={() => toggleWhitelist(record.id)}
+        />
+      ),
+    },
     { title: t('用户 ID'), dataIndex: 'id', key: 'id', width: 90 },
     { title: t('用户名'), dataIndex: 'username', key: 'username' },
     {
@@ -407,34 +469,30 @@ const UserStatsModal = (logsData) => {
             {isInactive ? t('无调用用户数') : t('符合筛选的用户数')}：
             <Typography.Text strong>{total}</Typography.Text>
           </Typography.Text>
-          {!isInactive && (
-            <>
-              {userStatsWhitelist.length > 0 && (
-                <Typography.Text type='warning'>
-                  {t('白名单')}：
-                  <Typography.Text strong>
-                    {userStatsWhitelist.length}
-                  </Typography.Text>
-                  <Button
-                    size='small'
-                    theme='borderless'
-                    type='tertiary'
-                    onClick={() => setUserStatsWhitelist([])}
-                  >
-                    {t('清空')}
-                  </Button>
-                </Typography.Text>
-              )}
+          {userStatsWhitelist.length > 0 && (
+            <Typography.Text type='warning'>
+              {t('白名单')}：
+              <Typography.Text strong>
+                {userStatsWhitelist.length}
+              </Typography.Text>
               <Button
-                type='danger'
-                theme='solid'
-                loading={batchDisableLoading}
-                onClick={confirmBatchDisable}
+                size='small'
+                theme='borderless'
+                type='tertiary'
+                onClick={() => setUserStatsWhitelist([])}
               >
-                {t('按当前筛选批量封禁')}
+                {t('清空')}
               </Button>
-            </>
+            </Typography.Text>
           )}
+          <Button
+            type='danger'
+            theme='solid'
+            loading={batchDisableLoading}
+            onClick={isInactive ? confirmBatchDisableInactive : confirmBatchDisable}
+          >
+            {t('按当前筛选批量封禁')}
+          </Button>
         </div>
       </div>
       <div style={{ maxHeight: 'calc(100vh - 320px)', overflowY: 'auto' }}>

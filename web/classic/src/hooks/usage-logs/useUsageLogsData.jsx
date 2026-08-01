@@ -574,6 +574,39 @@ export const useLogsData = () => {
     }
   };
 
+  const batchDisableInactive = async (range, violation) => {
+    if (!isAdminUser || batchDisableLoading) return;
+    if (!range?.[0] || !range?.[1]) {
+      showError(t('请先选择时间范围'));
+      return;
+    }
+    setBatchDisableLoading(true);
+    try {
+      const res = await API.post('/api/user/batch_disable_inactive', {
+        start_timestamp: Math.floor(new Date(range[0]).getTime() / 1000),
+        end_timestamp: Math.floor(new Date(range[1]).getTime() / 1000),
+        confirm: true,
+        whitelist_user_ids: userStatsWhitelist,
+        violation,
+      });
+      const { success, message, data } = res.data;
+      if (!success) {
+        showError(message);
+        return;
+      }
+      showSuccess(
+        t('实际封禁 {{disabled}} 个用户，跳过 {{skipped}} 个用户', {
+          disabled: data.disabled_count,
+          skipped: data.skipped_count,
+        }),
+      );
+    } catch (error) {
+      showError(error.message);
+    } finally {
+      setBatchDisableLoading(false);
+    }
+  };
+
   const loadUserStatsLogs = async (userId, page = 1) => {
     setUserStatsLogsLoading((current) => ({ ...current, [userId]: true }));
     try {
@@ -1172,6 +1205,7 @@ export const useLogsData = () => {
     loadInactiveUsers,
     loadUserStatsLogs,
     batchDisableByLogs,
+    batchDisableInactive,
     recordViolation,
 
     // Functions
