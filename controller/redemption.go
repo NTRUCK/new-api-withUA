@@ -87,6 +87,36 @@ func AddRedemption(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
 		return
 	}
+	maxUses := redemption.MaxUses
+	if maxUses <= 0 {
+		maxUses = 1
+	}
+	// 校验发放模式相关参数
+	mode := redemption.Mode
+	if mode == 0 {
+		mode = common.RedemptionModeFixed
+	}
+	switch mode {
+	case common.RedemptionModeFixed:
+		if redemption.Quota <= 0 {
+			common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
+			return
+		}
+	case common.RedemptionModeRandomRange:
+		if redemption.MinQuota < 0 || redemption.MaxQuota <= 0 || redemption.MaxQuota < redemption.MinQuota {
+			common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
+			return
+		}
+	case common.RedemptionModeLuckyPacket:
+		// 拼手气：总额度需 >= 份数（保证每份至少 1）
+		if redemption.TotalQuota < maxUses {
+			common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
+			return
+		}
+	default:
+		common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
+		return
+	}
 	var keys []string
 	for i := 0; i < redemption.Count; i++ {
 		key := common.GetUUID()
@@ -97,6 +127,15 @@ func AddRedemption(c *gin.Context) {
 			CreatedTime: common.GetTimestamp(),
 			Quota:       redemption.Quota,
 			ExpiredTime: redemption.ExpiredTime,
+			MaxUses:     maxUses,
+			Mode:        mode,
+			MinQuota:    redemption.MinQuota,
+			MaxQuota:    redemption.MaxQuota,
+			TotalQuota:  redemption.TotalQuota,
+		}
+		// 拼手气模式：每个码独立持有一份总额度与剩余额度
+		if mode == common.RedemptionModeLuckyPacket {
+			cleanRedemption.RemainQuota = redemption.TotalQuota
 		}
 		err = cleanRedemption.Insert()
 		if err != nil {
@@ -154,6 +193,14 @@ func UpdateRedemption(c *gin.Context) {
 		cleanRedemption.Name = redemption.Name
 		cleanRedemption.Quota = redemption.Quota
 		cleanRedemption.ExpiredTime = redemption.ExpiredTime
+		if redemption.MaxUses > 0 {
+			// 不允许把上限改到小于已兑换次数
+			if redemption.MaxUses < cleanRedemption.UsedCount {
+				c.JSON(http.StatusOK, gin.H{"success": false, "message": i18n.T(c, i18n.MsgRedemptionMaxUsesTooSmall)})
+				return
+			}
+			cleanRedemption.MaxUses = redemption.MaxUses
+		}
 	}
 	if statusOnly != "" {
 		cleanRedemption.Status = redemption.Status

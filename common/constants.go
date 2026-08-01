@@ -252,6 +252,13 @@ const (
 	RedemptionCodeStatusUsed     = 3 // also don't use 0
 )
 
+// 兑换码额度发放模式
+const (
+	RedemptionModeFixed       = 1 // 固定额度：每次兑换发放固定 Quota
+	RedemptionModeRandomRange = 2 // 区间随机：每次兑换在 [MinQuota, MaxQuota] 内随机
+	RedemptionModeLuckyPacket = 3 // 拼手气红包：TotalQuota 随机拆分为 MaxUses 份，抢完即失效
+)
+
 const (
 	ChannelStatusUnknown          = 0
 	ChannelStatusEnabled          = 1 // don't use 0, 0 is the default value!

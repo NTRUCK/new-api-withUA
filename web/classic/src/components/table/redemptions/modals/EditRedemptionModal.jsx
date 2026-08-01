@@ -69,6 +69,11 @@ const EditRedemptionModal = (props) => {
     quota: 100000,
     amount: Number(quotaToDisplayAmount(100000).toFixed(6)),
     count: 1,
+    max_uses: 1,
+    mode: 1,
+    min_amount: Number(quotaToDisplayAmount(0).toFixed(6)),
+    max_amount: Number(quotaToDisplayAmount(100000).toFixed(6)),
+    total_amount: Number(quotaToDisplayAmount(100000).toFixed(6)),
     expired_time: null,
   });
 
@@ -87,6 +92,16 @@ const EditRedemptionModal = (props) => {
         data.expired_time = new Date(data.expired_time * 1000);
       }
       data.amount = Number(quotaToDisplayAmount(data.quota || 0).toFixed(6));
+      data.min_amount = Number(
+        quotaToDisplayAmount(data.min_quota || 0).toFixed(6),
+      );
+      data.max_amount = Number(
+        quotaToDisplayAmount(data.max_quota || 0).toFixed(6),
+      );
+      data.total_amount = Number(
+        quotaToDisplayAmount(data.total_quota || 0).toFixed(6),
+      );
+      if (!data.mode) data.mode = 1;
       formApiRef.current?.setValues({ ...getInitValues(), ...data });
     } else {
       showError(message);
@@ -112,11 +127,37 @@ const EditRedemptionModal = (props) => {
     setLoading(true);
     let localInputs = { ...values };
     localInputs.count = parseInt(localInputs.count) || 0;
+    localInputs.max_uses = parseInt(localInputs.max_uses) || 1;
+    if (localInputs.max_uses <= 0) {
+      localInputs.max_uses = 1;
+    }
+    localInputs.mode = parseInt(localInputs.mode) || 1;
     localInputs.quota = displayAmountToQuota(localInputs.amount);
-    if (localInputs.quota <= 0) {
+    localInputs.min_quota = displayAmountToQuota(localInputs.min_amount);
+    localInputs.max_quota = displayAmountToQuota(localInputs.max_amount);
+    localInputs.total_quota = displayAmountToQuota(localInputs.total_amount);
+
+    if (localInputs.mode === 1 && localInputs.quota <= 0) {
       showError(t('请输入金额'));
       setLoading(false);
       return;
+    }
+    if (localInputs.mode === 2) {
+      if (
+        localInputs.max_quota <= 0 ||
+        localInputs.max_quota < localInputs.min_quota
+      ) {
+        showError(t('请正确设置随机额度区间'));
+        setLoading(false);
+        return;
+      }
+    }
+    if (localInputs.mode === 3) {
+      if (localInputs.total_quota < localInputs.max_uses) {
+        showError(t('拼手气总额度需不小于份数'));
+        setLoading(false);
+        return;
+      }
     }
     localInputs.name = name;
     if (!localInputs.expired_time) {
@@ -299,6 +340,21 @@ const EditRedemptionModal = (props) => {
 
                   <Row gutter={12}>
                     <Col span={24}>
+                      <Form.Select
+                        field='mode'
+                        label={t('额度发放模式')}
+                        style={{ width: '100%' }}
+                        optionList={[
+                          { label: t('固定额度'), value: 1 },
+                          { label: t('区间随机'), value: 2 },
+                          { label: t('拼手气红包'), value: 3 },
+                        ]}
+                        extraText={t(
+                          '固定：每次发放相同额度；区间随机：每次在区间内随机；拼手气：总额度随机拆成多份，抢完即止',
+                        )}
+                      />
+                    </Col>
+                    <Col span={24} style={{ display: values.mode === 1 ? 'block' : 'none' }}>
                       <Form.InputNumber
                         field='amount'
                         label={t('金额')}
@@ -332,17 +388,6 @@ const EditRedemptionModal = (props) => {
                           field='quota'
                           label={t('额度')}
                           placeholder={t('输入额度')}
-                          rules={[
-                            { required: true, message: t('请输入额度') },
-                            {
-                              validator: (rule, v) => {
-                                const num = parseInt(v, 10);
-                                return num > 0
-                                  ? Promise.resolve()
-                                  : Promise.reject(t('额度必须大于0'));
-                              },
-                            },
-                          ]}
                           onChange={(val) => {
                             const quota = val === '' || val == null ? 0 : val;
                             formApiRef.current?.setValue('quota', quota);
@@ -355,6 +400,43 @@ const EditRedemptionModal = (props) => {
                           showClear
                         />
                       </div>
+                    </Col>
+                    <Col span={12} style={{ display: values.mode === 2 ? 'block' : 'none' }}>
+                      <Form.InputNumber
+                        field='min_amount'
+                        label={t('最小金额')}
+                        prefix={getCurrencyConfig().symbol}
+                        precision={6}
+                        min={0}
+                        step={0.000001}
+                        style={{ width: '100%' }}
+                        showClear
+                      />
+                    </Col>
+                    <Col span={12} style={{ display: values.mode === 2 ? 'block' : 'none' }}>
+                      <Form.InputNumber
+                        field='max_amount'
+                        label={t('最大金额')}
+                        prefix={getCurrencyConfig().symbol}
+                        precision={6}
+                        min={0}
+                        step={0.000001}
+                        style={{ width: '100%' }}
+                        showClear
+                      />
+                    </Col>
+                    <Col span={24} style={{ display: values.mode === 3 ? 'block' : 'none' }}>
+                      <Form.InputNumber
+                        field='total_amount'
+                        label={t('总金额')}
+                        prefix={getCurrencyConfig().symbol}
+                        precision={6}
+                        min={0}
+                        step={0.000001}
+                        style={{ width: '100%' }}
+                        extraText={t('总额度将随机拆分为「可兑换次数」份，抢完即失效')}
+                        showClear
+                      />
                     </Col>
                     {!isEdit && (
                       <Col span={12}>
@@ -378,6 +460,27 @@ const EditRedemptionModal = (props) => {
                         />
                       </Col>
                     )}
+                    <Col span={12}>
+                      <Form.InputNumber
+                        field='max_uses'
+                        label={t('可兑换次数')}
+                        min={1}
+                        extraText={t('同一兑换码可被兑换的次数，1 表示仅可兑换一次')}
+                        rules={[
+                          { required: true, message: t('请输入可兑换次数') },
+                          {
+                            validator: (rule, v) => {
+                              const num = parseInt(v, 10);
+                              return num > 0
+                                ? Promise.resolve()
+                                : Promise.reject(t('可兑换次数必须大于0'));
+                            },
+                          },
+                        ]}
+                        style={{ width: '100%' }}
+                        showClear
+                      />
+                    </Col>
                   </Row>
                 </Card>
               </div>

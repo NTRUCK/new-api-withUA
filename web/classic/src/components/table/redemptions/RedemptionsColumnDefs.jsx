@@ -107,13 +107,56 @@ export const getRedemptionsColumns = ({
     {
       title: t('额度'),
       dataIndex: 'quota',
-      render: (text) => {
+      render: (text, record) => {
+        if (record.mode === 2) {
+          return (
+            <Tag color='grey' shape='circle'>
+              {`${renderQuota(parseInt(record.min_quota || 0))} ~ ${renderQuota(parseInt(record.max_quota || 0))}`}
+            </Tag>
+          );
+        }
+        if (record.mode === 3) {
+          return (
+            <Tag color='grey' shape='circle'>
+              {`${t('剩余')} ${renderQuota(parseInt(record.remain_quota || 0))} / ${renderQuota(parseInt(record.total_quota || 0))}`}
+            </Tag>
+          );
+        }
         return (
           <div>
             <Tag color='grey' shape='circle'>
               {renderQuota(parseInt(text))}
             </Tag>
           </div>
+        );
+      },
+    },
+    {
+      title: t('发放模式'),
+      dataIndex: 'mode',
+      render: (mode) => {
+        const map = {
+          1: { text: t('固定额度'), color: 'blue' },
+          2: { text: t('区间随机'), color: 'cyan' },
+          3: { text: t('拼手气红包'), color: 'red' },
+        };
+        const cfg = map[mode] || map[1];
+        return (
+          <Tag color={cfg.color} shape='circle'>
+            {cfg.text}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: t('兑换次数'),
+      dataIndex: 'used_count',
+      render: (text, record) => {
+        const max = record.max_uses > 0 ? record.max_uses : 1;
+        return (
+          <Tag color='light-blue' shape='circle'>
+            {`${record.used_count || 0} / ${max}`}
+          </Tag>
         );
       },
     },

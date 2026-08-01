@@ -3877,6 +3877,25 @@
     "确认清理": "Confirm purge",
     "已彻底清理 {{count}} 个已注销用户": "Purged {{count}} deregistered user(s)",
     "当前可用用户数": "Active users",
-    "已注销用户数": "Deregistered users"
+    "已注销用户数": "Deregistered users",
+    "请先选择时间范围": "Please select a time range first",
+    "将封禁在所选时间段内没有任何调用的全部用户。": "This will ban all users with no calls during the selected time range.",
+    "可兑换次数": "Redeemable times",
+    "同一兑换码可被兑换的次数，1 表示仅可兑换一次": "How many times the same code can be redeemed. 1 means single use.",
+    "请输入可兑换次数": "Please enter redeemable times",
+    "可兑换次数必须大于0": "Redeemable times must be greater than 0",
+    "兑换次数": "Redemptions",
+    "额度发放模式": "Quota mode",
+    "固定额度": "Fixed",
+    "区间随机": "Random range",
+    "拼手气红包": "Lucky packet",
+    "固定：每次发放相同额度；区间随机：每次在区间内随机；拼手气：总额度随机拆成多份，抢完即止": "Fixed: same amount each time; Random range: random within range each time; Lucky packet: total split into random shares until exhausted.",
+    "最小金额": "Min amount",
+    "最大金额": "Max amount",
+    "总金额": "Total amount",
+    "总额度将随机拆分为「可兑换次数」份，抢完即失效": "The total will be randomly split into \"redeemable times\" shares and expires once exhausted.",
+    "请正确设置随机额度区间": "Please set the random amount range correctly",
+    "拼手气总额度需不小于份数": "Lucky packet total must be no less than the number of shares",
+    "发放模式": "Mode"
   }
 }
