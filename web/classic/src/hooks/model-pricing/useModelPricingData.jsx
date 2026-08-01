@@ -192,12 +192,13 @@ export const useModelPricingData = () => {
     return `$${priceInUSD.toFixed(3)}`;
   };
 
-  const setModelsFormat = (models, groupRatio, vendorMap, dailyLimits) => {
+  const setModelsFormat = (models, groupRatio, vendorMap, dailyLimits, perfMap) => {
     for (let i = 0; i < models.length; i++) {
       const m = models[i];
       m.key = m.model_name;
       m.group_ratio = groupRatio[m.model_name];
       m.daily_limits = dailyLimits ? dailyLimits[m.model_name] : undefined;
+      m.perf = perfMap ? perfMap[m.model_name] : undefined;
 
       if (m.vendor_id && vendorMap[m.vendor_id]) {
         const vendor = vendorMap[m.vendor_id];
@@ -255,7 +256,20 @@ export const useModelPricingData = () => {
       setVendorsMap(vendorMap);
       setEndpointMap(supported_endpoint || {});
       setAutoGroups(auto_groups || []);
-      setModelsFormat(data, group_ratio, vendorMap, daily_limits);
+      // 拉取模型性能概览（成功率等），失败不影响定价展示
+      let perfMap = {};
+      try {
+        const perfRes = await API.get('/api/perf-metrics/summary?hours=24');
+        if (perfRes.data?.success) {
+          const perfModels = perfRes.data.data?.models || [];
+          perfModels.forEach((pm) => {
+            perfMap[pm.model_name] = pm;
+          });
+        }
+      } catch (e) {
+        // 性能指标未开启或无权限时静默忽略
+      }
+      setModelsFormat(data, group_ratio, vendorMap, daily_limits, perfMap);
     } else {
       showError(message);
     }

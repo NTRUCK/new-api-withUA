@@ -148,6 +148,7 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.POST("/batch_disable_by_logs", middleware.CriticalRateLimit(), controller.BatchDisableLogUsers)
 				adminRoute.POST("/batch_disable_inactive", middleware.CriticalRateLimit(), controller.BatchDisableInactiveUsers)
 				adminRoute.POST("/batch_deregister_disabled", middleware.CriticalRateLimit(), controller.BatchDeregisterDisabledUsers)
+				adminRoute.POST("/batch_adjust_quota_by_balance", middleware.CriticalRateLimit(), controller.BatchAdjustUserQuotaByBalance)
 				adminRoute.POST("/purge_deregistered", middleware.CriticalRateLimit(), controller.PurgeDeregisteredUsers)
 				adminRoute.PUT("/", controller.UpdateUser)
 				adminRoute.DELETE("/:id", controller.DeleteUser)

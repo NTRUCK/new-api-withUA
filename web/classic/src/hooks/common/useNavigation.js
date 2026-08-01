@@ -69,6 +69,11 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         itemKey: 'violations',
         to: '/violations',
       },
+      {
+        text: t('模型健康'),
+        itemKey: 'model-health',
+        to: '/model-health',
+      },
     ];
 
     // 根据配置过滤导航链接
@@ -77,6 +82,9 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
         return docsLink && modules.docs;
       }
       if (link.itemKey === 'violations') {
+        return true;
+      }
+      if (link.itemKey === 'model-health') {
         return true;
       }
       if (link.itemKey === 'pricing') {

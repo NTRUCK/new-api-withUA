@@ -91,6 +91,7 @@ const UsersPage = () => {
             <UsersActions
               setShowAddUser={setShowAddUser}
               batchDeregisterDisabled={usersData.batchDeregisterDisabled}
+              batchAdjustQuotaByBalance={usersData.batchAdjustQuotaByBalance}
               purgeDeregistered={usersData.purgeDeregistered}
               t={t}
             />

@@ -542,6 +542,7 @@ type BatchDisableViolation struct {
 	ReasonText   string
 	ListPublicly bool
 	OperatorId   int
+	ClientUA     string // 违规客户端 User-Agent 筛选值
 }
 
 func BatchDisableUsersWithViolation(userIds []int, violation *BatchDisableViolation) (disabledIds []int, listedCount int, err error) {
@@ -562,7 +563,7 @@ func BatchDisableUsersWithViolation(userIds []int, violation *BatchDisableViolat
 				disabledIds = append(disabledIds, userId)
 			}
 			if violation != nil {
-				listed, err := UpsertViolationWithTx(tx, userId, violation.ReasonCode, violation.ReasonText, violation.ListPublicly, true, violation.OperatorId)
+				listed, err := UpsertViolationWithTx(tx, userId, violation.ReasonCode, violation.ReasonText, violation.ListPublicly, true, violation.OperatorId, violation.ClientUA)
 				if err != nil {
 					return err
 				}
@@ -629,6 +630,53 @@ func BatchDeregisterDisabledUsers(excludeViolation bool) (deregisteredIds []int,
 		}
 	}
 	return deregisteredIds, nil
+}
+
+// BatchAdjustUserQuotaByBalance 对「当前余额」落在 [minQuota, maxQuota] 区间内的用户批量调整额度。
+// delta 为正表示增加，为负表示减少；减额时扣至 0 为止（不会变负）。
+// 跳过 User ID 1 和管理员。返回匹配用户数与实际调整成功的用户 ID 列表。
+func BatchAdjustUserQuotaByBalance(minQuota, maxQuota, delta int) (matchedCount int, adjustedIds []int, err error) {
+	if delta == 0 {
+		return 0, adjustedIds, errors.New("调整额度不能为 0")
+	}
+	var targetIds []int
+	query := DB.Model(&User{}).
+		Where("quota >= ? AND quota <= ? AND id <> ? AND role < ?", minQuota, maxQuota, 1, common.RoleAdminUser)
+	if err = query.Pluck("id", &targetIds).Error; err != nil {
+		return 0, nil, err
+	}
+	matchedCount = len(targetIds)
+	if matchedCount == 0 {
+		return 0, adjustedIds, nil
+	}
+	err = DB.Transaction(func(tx *gorm.DB) error {
+		for _, userId := range targetIds {
+			var expr interface{}
+			if delta >= 0 {
+				expr = gorm.Expr("quota + ?", delta)
+			} else {
+				// 扣至 0 为止：quota = max(quota - |delta|, 0)
+				expr = gorm.Expr("CASE WHEN quota + ? < 0 THEN 0 ELSE quota + ? END", delta, delta)
+			}
+			result := tx.Model(&User{}).Where("id = ?", userId).Update("quota", expr)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 1 {
+				adjustedIds = append(adjustedIds, userId)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return matchedCount, nil, err
+	}
+	for _, userId := range adjustedIds {
+		if cacheErr := InvalidateUserCache(userId); cacheErr != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", userId, cacheErr.Error()))
+		}
+	}
+	return matchedCount, adjustedIds, nil
 }
 
 func (user *User) Update(updatePassword bool) error {

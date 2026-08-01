@@ -151,6 +151,29 @@ export const useUsersData = () => {
     }
   };
 
+  // 按余额区间批量加/减额度（delta 为原始 quota 单位，正加负减）
+  const batchAdjustQuotaByBalance = async ({ minQuota, maxQuota, delta }) => {
+    const res = await API.post('/api/user/batch_adjust_quota_by_balance', {
+      min_quota: minQuota,
+      max_quota: maxQuota,
+      delta,
+      confirm: true,
+    });
+    const { success, message, data } = res.data;
+    if (success) {
+      showSuccess(
+        t('已调整 {{count}} 个用户额度（匹配 {{matched}} 个）', {
+          count: data?.adjusted_count ?? 0,
+          matched: data?.matched_count ?? 0,
+        }),
+      );
+      await refresh();
+    } else {
+      showError(message);
+    }
+    return success;
+  };
+
   // Purge all deregistered (soft-deleted) users permanently
   const purgeDeregistered = async () => {
     const res = await API.post('/api/user/purge_deregistered');
@@ -353,6 +376,7 @@ export const useUsersData = () => {
     searchUsers,
     manageUser,
     batchDeregisterDisabled,
+    batchAdjustQuotaByBalance,
     purgeDeregistered,
     resetUserPasskey,
     resetUserTwoFA,

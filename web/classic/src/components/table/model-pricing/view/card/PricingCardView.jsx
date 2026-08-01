@@ -29,7 +29,7 @@ import {
   Avatar,
 } from '@douyinfe/semi-ui';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
-import { Copy } from 'lucide-react';
+import { Copy, Activity } from 'lucide-react';
 import {
   IllustrationNoResult,
   IllustrationNoResultDark,
@@ -95,6 +95,28 @@ const renderDailyLimit = (model, selectedGroup, t) => {
           );
         })}
     </div>
+  );
+};
+
+// 渲染模型精简成功率标签（数据来自 perf-metrics）
+const renderSuccessRate = (model, t) => {
+  const perf = model.perf;
+  if (!perf || typeof perf.success_rate !== 'number') return null;
+  const rate = perf.success_rate;
+  let color = 'green';
+  if (rate < 60) color = 'red';
+  else if (rate < 90) color = 'orange';
+  else if (rate < 95) color = 'amber';
+  return (
+    <Tooltip
+      content={t('近 24 小时成功率（{{count}} 次请求）', {
+        count: (perf.request_count ?? 0).toLocaleString(),
+      })}
+    >
+      <Tag size='small' color={color} shape='circle' prefixIcon={<Activity size={12} />}>
+        {rate.toFixed(1)}%
+      </Tag>
+    </Tooltip>
   );
 };
 
@@ -238,7 +260,10 @@ const PricingCardView = ({
 
     return (
       <div className='flex items-center justify-between'>
-        <div className='flex items-center gap-2'>{billingTag}</div>
+        <div className='flex items-center gap-2'>
+          {billingTag}
+          {renderSuccessRate(record, t)}
+        </div>
         <div className='flex items-center gap-1'>
           {customTags.length > 0 &&
             renderLimitedItems({

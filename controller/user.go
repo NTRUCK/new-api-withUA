@@ -897,6 +897,65 @@ func PurgeDeregisteredUsers(c *gin.Context) {
 	})
 }
 
+// BatchAdjustQuotaByBalanceRequest 按余额区间批量调整额度请求
+type BatchAdjustQuotaByBalanceRequest struct {
+	MinQuota int  `json:"min_quota"`
+	MaxQuota int  `json:"max_quota"`
+	Delta    int  `json:"delta"` // 正为增加，负为减少（原始 quota 单位）
+	Confirm  bool `json:"confirm"`
+}
+
+// BatchAdjustUserQuotaByBalance 对余额落在 [min_quota, max_quota] 区间的用户批量加/减额度。
+// 跳过 User ID 1 和管理员，减额时扣至 0 为止。
+func BatchAdjustUserQuotaByBalance(c *gin.Context) {
+	var req BatchAdjustQuotaByBalanceRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil || !req.Confirm {
+		common.ApiError(c, errors.New("invalid params"))
+		return
+	}
+	if req.MinQuota < 0 || req.MaxQuota < 0 || req.MinQuota > req.MaxQuota {
+		common.ApiError(c, errors.New("invalid quota range"))
+		return
+	}
+	if req.Delta == 0 {
+		common.ApiError(c, errors.New("delta cannot be zero"))
+		return
+	}
+	matchedCount, adjustedIds, err := model.BatchAdjustUserQuotaByBalance(req.MinQuota, req.MaxQuota, req.Delta)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	for _, userId := range adjustedIds {
+		if cacheErr := model.InvalidateUserTokensCache(userId); cacheErr != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate tokens cache for user %d: %s", userId, cacheErr.Error()))
+		}
+	}
+	action := "增加"
+	if req.Delta < 0 {
+		action = "减少"
+	}
+	adminInfo := map[string]interface{}{
+		"admin_id":       c.GetInt("id"),
+		"admin_username": c.GetString("username"),
+		"min_quota":      req.MinQuota,
+		"max_quota":      req.MaxQuota,
+		"delta":          req.Delta,
+		"matched_count":  matchedCount,
+		"adjusted_count": len(adjustedIds),
+	}
+	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage,
+		fmt.Sprintf("按余额区间批量%s额度，共影响 %d 个用户", action, len(adjustedIds)), adminInfo)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"matched_count":  matchedCount,
+			"adjusted_count": len(adjustedIds),
+		},
+	})
+}
+
 func DeleteSelf(c *gin.Context) {
 	id := c.GetInt("id")
 	user, _ := model.GetUserById(id, false)
@@ -1016,7 +1075,7 @@ func BatchDisableLogUsers(c *gin.Context) {
 			common.ApiError(c, normalizeErr)
 			return
 		}
-		violation = &model.BatchDisableViolation{ReasonCode: code, ReasonText: text, ListPublicly: req.Violation.ListPublicly, OperatorId: c.GetInt("id")}
+		violation = &model.BatchDisableViolation{ReasonCode: code, ReasonText: text, ListPublicly: req.Violation.ListPublicly, OperatorId: c.GetInt("id"), ClientUA: req.UserAgent}
 	}
 	disabledIds, listedCount, err := model.BatchDisableUsersWithViolation(userIds, violation)
 	if err != nil {

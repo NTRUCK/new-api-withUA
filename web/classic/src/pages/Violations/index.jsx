@@ -124,7 +124,9 @@ const Violations = () => {
                         {item.display_name || t('未知用户')}
                       </Typography.Text>
                       <Tag color='red'>
-                        {t('命中 {{count}} 次', { count: item.hit_count })}
+                        {t('使用违规客户端 {{count}} 次', {
+                          count: item.client_usage_count ?? 0,
+                        })}
                       </Tag>
                     </div>
                     {item.discord_username && (
