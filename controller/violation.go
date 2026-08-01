@@ -93,6 +93,7 @@ type publicViolationItem struct {
 	AvatarURL       string `json:"avatar_url"`
 	Reason          string `json:"reason"`
 	HitCount        int    `json:"hit_count"`
+	ClientUsageCount int   `json:"client_usage_count"`
 	FirstRecordedAt int64  `json:"first_recorded_at"`
 	LastRecordedAt  int64  `json:"last_recorded_at"`
 }
@@ -106,6 +107,7 @@ type publicViolationRow struct {
 	DiscordAvatarSnapshot   string
 	ReasonText              string
 	HitCount                int
+	ClientUA                string
 	FirstRecordedAt         int64
 	LastRecordedAt          int64
 }
@@ -137,11 +139,35 @@ func GetPublicViolations(c *gin.Context) {
 		return
 	}
 	var rows []publicViolationRow
-	if err := query.Select("violation_entries.user_id, users.display_name, violation_entries.discord_id_snapshot, violation_entries.discord_name_snapshot, violation_entries.discord_username_snapshot, violation_entries.discord_avatar_snapshot, violation_entries.reason_text, violation_entries.hit_count, violation_entries.first_recorded_at, violation_entries.last_recorded_at").
+	if err := query.Select("violation_entries.user_id, users.display_name, violation_entries.discord_id_snapshot, violation_entries.discord_name_snapshot, violation_entries.discord_username_snapshot, violation_entries.discord_avatar_snapshot, violation_entries.reason_text, violation_entries.hit_count, violation_entries.client_ua, violation_entries.first_recorded_at, violation_entries.last_recorded_at").
 		Joins("LEFT JOIN users ON users.id = violation_entries.user_id").Order("violation_entries.last_recorded_at DESC").
 		Offset(pageInfo.GetStartIdx()).Limit(pageInfo.GetPageSize()).Scan(&rows).Error; err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	// 按 client_ua 分组，为本页每个违规用户统计其使用违规客户端的日志次数
+	usageByUser := make(map[int]int)
+	uaToUserIds := make(map[string][]int)
+	for _, row := range rows {
+		if row.ClientUA != "" {
+			uaToUserIds[row.ClientUA] = append(uaToUserIds[row.ClientUA], row.UserId)
+		}
+	}
+	for ua, ids := range uaToUserIds {
+		counts, err := model.GetLogCountByUserIds(model.LogTypeUnknown, 0, 0, "", "", "", 0, "", "", "", ua)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		idSet := make(map[int]bool, len(ids))
+		for _, id := range ids {
+			idSet[id] = true
+		}
+		for userId, cnt := range counts {
+			if idSet[userId] {
+				usageByUser[userId] = cnt
+			}
+		}
 	}
 	items := make([]publicViolationItem, 0, len(rows))
 	for _, row := range rows {
@@ -152,7 +178,8 @@ func GetPublicViolations(c *gin.Context) {
 		items = append(items, publicViolationItem{
 			UserId: row.UserId, DisplayName: displayName, DiscordUsername: row.DiscordUsernameSnapshot,
 			AvatarURL: discordAvatarURL(row.DiscordIdSnapshot, row.DiscordAvatarSnapshot), Reason: row.ReasonText,
-			HitCount: row.HitCount, FirstRecordedAt: row.FirstRecordedAt, LastRecordedAt: row.LastRecordedAt,
+			HitCount: row.HitCount, ClientUsageCount: usageByUser[row.UserId],
+			FirstRecordedAt: row.FirstRecordedAt, LastRecordedAt: row.LastRecordedAt,
 		})
 	}
 	pageInfo.SetTotal(int(total))

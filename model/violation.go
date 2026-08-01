@@ -13,6 +13,7 @@ type ViolationEntry struct {
 	ReasonCode              string `json:"reason_code" gorm:"column:reason_code;type:varchar(32)"`
 	ReasonText              string `json:"reason_text" gorm:"column:reason_text;type:varchar(200)"`
 	HitCount                int    `json:"hit_count" gorm:"column:hit_count;default:1"`
+	ClientUA                string `json:"client_ua" gorm:"column:client_ua;type:varchar(255)"` // 违规客户端 User-Agent 筛选值，用于统计使用次数
 	FirstRecordedAt         int64  `json:"first_recorded_at" gorm:"column:first_recorded_at;index"`
 	LastRecordedAt          int64  `json:"last_recorded_at" gorm:"column:last_recorded_at;index"`
 	Listed                  bool   `json:"listed" gorm:"column:listed;default:false;index"`
@@ -30,7 +31,7 @@ func isProtectedViolationUser(userId, role int) bool {
 	return userId == 1 || role >= common.RoleAdminUser
 }
 
-func UpsertViolationWithTx(tx *gorm.DB, userId int, reasonCode, reasonText string, listed, incrementHit bool, operatorId int) (bool, error) {
+func UpsertViolationWithTx(tx *gorm.DB, userId int, reasonCode, reasonText string, listed, incrementHit bool, operatorId int, clientUA string) (bool, error) {
 	var user User
 	if err := tx.Select("id", "role", "discord_id", "discord_username", "discord_global_name", "discord_avatar").First(&user, userId).Error; err != nil {
 		return false, err
@@ -48,6 +49,7 @@ func UpsertViolationWithTx(tx *gorm.DB, userId int, reasonCode, reasonText strin
 			ReasonCode:              reasonCode,
 			ReasonText:              reasonText,
 			HitCount:                1,
+			ClientUA:                clientUA,
 			FirstRecordedAt:         now,
 			LastRecordedAt:          now,
 			Listed:                  listed,
@@ -76,6 +78,10 @@ func UpsertViolationWithTx(tx *gorm.DB, userId int, reasonCode, reasonText strin
 		"removed_by":                0,
 		"removed_at":                0,
 	}
+	// 仅当本次带上了客户端 UA 时才更新，避免手动更新覆盖为空
+	if clientUA != "" {
+		updates["client_ua"] = clientUA
+	}
 	if incrementHit {
 		updates["hit_count"] = gorm.Expr("hit_count + ?", 1)
 	}
@@ -84,7 +90,7 @@ func UpsertViolationWithTx(tx *gorm.DB, userId int, reasonCode, reasonText strin
 
 func UpsertViolation(userId int, reasonCode, reasonText string, listed, incrementHit bool, operatorId int) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
-		_, err := UpsertViolationWithTx(tx, userId, reasonCode, reasonText, listed, incrementHit, operatorId)
+		_, err := UpsertViolationWithTx(tx, userId, reasonCode, reasonText, listed, incrementHit, operatorId, "")
 		return err
 	})
 }
