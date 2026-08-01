@@ -3753,6 +3753,13 @@
     "发放模式": "Mode",
     "注销全部已禁用用户": "Désinscrire tous les utilisateurs désactivés",
     "注销时排除违规榜用户": "Désinscrire sauf les utilisateurs de la liste des infractions",
-    "将把所有「已禁用」状态的用户注销（软删除），但会跳过违规榜上的用户，使其保持被封禁状态。User ID 1 和管理员也会被跳过。此操作不可撤销，确定继续？": "Cela désinscrira (suppression logique) tous les utilisateurs « désactivés », mais ignorera ceux de la liste des infractions afin qu'ils restent bannis. User ID 1 et les administrateurs sont également ignorés. Action irréversible. Continuer ?"
+    "将把所有「已禁用」状态的用户注销（软删除），但会跳过违规榜上的用户，使其保持被封禁状态。User ID 1 和管理员也会被跳过。此操作不可撤销，确定继续？": "Cela désinscrira (suppression logique) tous les utilisateurs « désactivés », mais ignorera ceux de la liste des infractions afin qu'ils restent bannis. User ID 1 et les administrateurs sont également ignorés. Action irréversible. Continuer ?",
+    "使用违规客户端 {{count}} 次": "Client en infraction utilisé {{count}} fois",
+    "上游报错模糊化": "Masquage des erreurs amont",
+    "模糊化上游报错": "Masquer les erreurs amont",
+    "开启后，返回给用户的上游报错统一为「upstream error」，管理员日志仍保留真实报错": "Une fois activé, les erreurs amont renvoyées aux utilisateurs sont unifiées en « upstream error » ; les journaux admin conservent l'erreur réelle.",
+    "模糊化模式": "Mode de masquage",
+    "仅状态码": "Code de statut uniquement",
+    "状态码 + 上游错误码": "Code de statut + code amont"
   }
 }

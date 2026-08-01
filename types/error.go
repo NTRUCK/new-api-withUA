@@ -210,6 +210,11 @@ func (e *NewAPIError) ToOpenAIError() OpenAIError {
 	if result.Message == "" {
 		result.Message = string(e.errorType)
 	}
+	// 模糊化上游报错：仅对上游相关错误生效
+	if msg, ok := e.obfuscatedUpstreamMessage(); ok {
+		result.Message = msg
+		result.Metadata = nil
+	}
 	return result
 }
 
@@ -239,10 +244,50 @@ func (e *NewAPIError) ToClaudeError() ClaudeError {
 	if result.Message == "" {
 		result.Message = string(e.errorType)
 	}
+	// 模糊化上游报错：仅对上游相关错误生效
+	if msg, ok := e.obfuscatedUpstreamMessage(); ok {
+		result.Message = msg
+	}
 	return result
 }
 
 type NewAPIErrorOptions func(*NewAPIError)
+
+// isUpstreamError 判断该错误是否来源于上游（渠道/上游 API），用于模糊化。
+// 本地错误（额度、鉴权、限流、请求体等 new_api_error/channel 错误）不模糊化。
+func (e *NewAPIError) isUpstreamError() bool {
+	if e == nil {
+		return false
+	}
+	switch e.errorType {
+	case ErrorTypeOpenAIError, ErrorTypeClaudeError, ErrorTypeGeminiError, ErrorTypeUpstreamError, ErrorTypeRerankError:
+		return true
+	default:
+		return false
+	}
+}
+
+// obfuscatedUpstreamMessage 在开启模糊化开关且为上游错误时，返回统一的模糊化消息。
+// 第二个返回值表示是否需要替换。
+func (e *NewAPIError) obfuscatedUpstreamMessage() (string, bool) {
+	if e == nil || !common.UpstreamErrorObfuscationEnabled {
+		return "", false
+	}
+	if !e.isUpstreamError() {
+		return "", false
+	}
+	msg := "upstream error"
+	if e.StatusCode > 0 {
+		msg = fmt.Sprintf("upstream error (status_code: %d)", e.StatusCode)
+	}
+	if common.UpstreamErrorObfuscationMode == "with_code" {
+		if code := string(e.errorCode); code != "" && code != "unknown_error" && ErrorCode(code) != ErrorCodeBadResponseStatusCode {
+			msg = fmt.Sprintf("%s (code: %s)", msg, code)
+		}
+	}
+	return msg, true
+}
+
 
 func NewError(err error, errorCode ErrorCode, ops ...NewAPIErrorOptions) *NewAPIError {
 	var newErr *NewAPIError

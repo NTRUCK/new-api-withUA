@@ -100,9 +100,39 @@ func formatUserLogs(logs []*Log, startIdx int) {
 			// delete(otherMap, "reject_reason")
 			delete(otherMap, "stream_status")
 		}
+		// 面向普通用户模糊化上游错误日志内容（管理员日志不走此函数，保留真实内容）
+		if logs[i].Type == LogTypeError && common.UpstreamErrorObfuscationEnabled {
+			logs[i].Content = obfuscateUserErrorLogContent(otherMap)
+		}
 		logs[i].Other = common.MapToJsonStr(otherMap)
 		logs[i].Id = startIdx + i + 1
 	}
+}
+
+// obfuscateUserErrorLogContent 根据错误日志的 other 字段生成模糊化后的错误内容，
+// 仅用于普通用户可见的日志。
+func obfuscateUserErrorLogContent(otherMap map[string]interface{}) string {
+	msg := "upstream error"
+	if otherMap != nil {
+		if sc, ok := otherMap["status_code"]; ok {
+			switch v := sc.(type) {
+			case float64:
+				if v > 0 {
+					msg = fmt.Sprintf("upstream error (status_code: %d)", int(v))
+				}
+			case int:
+				if v > 0 {
+					msg = fmt.Sprintf("upstream error (status_code: %d)", v)
+				}
+			}
+		}
+		if common.UpstreamErrorObfuscationMode == "with_code" {
+			if ec, ok := otherMap["error_code"].(string); ok && ec != "" && ec != "unknown_error" && ec != "bad_response_status_code" {
+				msg = fmt.Sprintf("%s (code: %s)", msg, ec)
+			}
+		}
+	}
+	return msg
 }
 
 func GetLogByTokenId(tokenId int) (logs []*Log, err error) {
@@ -535,6 +565,62 @@ func GetDistinctLogUserIds(logType int, startTimestamp int64, endTimestamp int64
 	}
 	err = tx.Distinct("logs.user_id").Pluck("logs.user_id", &userIds).Error
 	return userIds, err
+}
+
+// GetLogCountByUserIds 统计每个用户在给定筛选条件（含 User-Agent）下的日志条数，
+// 用于违规榜展示「使用违规客户端的次数」。返回 map[userId]count。
+func GetLogCountByUserIds(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, requestId string, upstreamRequestId string, userAgent string) (map[int]int, error) {
+	result := make(map[int]int)
+	if strings.TrimSpace(userAgent) == "" {
+		return result, nil
+	}
+	tx := LOG_DB.Model(&Log{}).Where("logs.user_id > 0")
+	if logType != LogTypeUnknown {
+		tx = tx.Where("logs.type = ?", logType)
+	}
+	var err error
+	if tx, err = applyExplicitLogTextFilter(tx, "logs.model_name", modelName); err != nil {
+		return nil, err
+	}
+	if tx, err = applyExplicitLogTextFilter(tx, "logs.username", username); err != nil {
+		return nil, err
+	}
+	if tokenName != "" {
+		tx = tx.Where("logs.token_name = ?", tokenName)
+	}
+	if requestId != "" {
+		tx = tx.Where("logs.request_id = ?", requestId)
+	}
+	if upstreamRequestId != "" {
+		tx = tx.Where("logs.upstream_request_id = ?", upstreamRequestId)
+	}
+	if startTimestamp != 0 {
+		tx = tx.Where("logs.created_at >= ?", startTimestamp)
+	}
+	if endTimestamp != 0 {
+		tx = tx.Where("logs.created_at <= ?", endTimestamp)
+	}
+	if channel != 0 {
+		tx = tx.Where("logs.channel_id = ?", channel)
+	}
+	if group != "" {
+		tx = tx.Where("logs."+logGroupCol+" = ?", group)
+	}
+	if tx, err = applyUserAgentFilter(tx, "logs.other", userAgent); err != nil {
+		return nil, err
+	}
+	type userCountRow struct {
+		UserId int
+		Cnt    int
+	}
+	var rows []userCountRow
+	if err = tx.Select("logs.user_id as user_id, COUNT(*) as cnt").Group("logs.user_id").Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.UserId] = row.Cnt
+	}
+	return result, nil
 }
 
 const logSearchCountLimit = 10000

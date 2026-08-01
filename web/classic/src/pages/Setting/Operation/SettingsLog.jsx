@@ -46,6 +46,8 @@ export default function SettingsLog(props) {
   const [loadingCleanHistoryLog, setLoadingCleanHistoryLog] = useState(false);
   const [inputs, setInputs] = useState({
     LogConsumeEnabled: false,
+    UpstreamErrorObfuscationEnabled: false,
+    UpstreamErrorObfuscationMode: 'with_code',
     historyTimestamp: dayjs().subtract(1, 'month').toDate(),
   });
   const refForm = useRef();
@@ -251,6 +253,50 @@ export default function SettingsLog(props) {
             <Row>
               <Button size='default' onClick={onSubmit}>
                 {t('保存日志设置')}
+              </Button>
+            </Row>
+          </Form.Section>
+          <Form.Section text={t('上游报错模糊化')}>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'UpstreamErrorObfuscationEnabled'}
+                  label={t('模糊化上游报错')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  extraText={t(
+                    '开启后，返回给用户的上游报错统一为「upstream error」，管理员日志仍保留真实报错',
+                  )}
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      UpstreamErrorObfuscationEnabled: value,
+                    });
+                  }}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Select
+                  field={'UpstreamErrorObfuscationMode'}
+                  label={t('模糊化模式')}
+                  style={{ width: '100%' }}
+                  optionList={[
+                    { label: t('仅状态码'), value: 'simple' },
+                    { label: t('状态码 + 上游错误码'), value: 'with_code' },
+                  ]}
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      UpstreamErrorObfuscationMode: value,
+                    });
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Button size='default' onClick={onSubmit}>
+                {t('保存')}
               </Button>
             </Row>
           </Form.Section>

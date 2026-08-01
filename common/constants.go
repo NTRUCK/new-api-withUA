@@ -118,6 +118,11 @@ var MemoryCacheEnabled bool
 
 var LogConsumeEnabled = true
 
+// UpstreamErrorObfuscationEnabled 开启后，返回给客户端的上游报错会被模糊化为 "upstream error"
+// UpstreamErrorObfuscationMode: "simple" 仅返回状态码；"with_code" 额外保留上游错误 code
+var UpstreamErrorObfuscationEnabled = false
+var UpstreamErrorObfuscationMode = "with_code"
+
 var TLSInsecureSkipVerify bool
 var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}
 
