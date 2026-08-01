@@ -263,6 +263,7 @@ func migrateDB() error {
 		&PasskeyCredential{},
 		&Option{},
 		&Redemption{},
+		&RedemptionUsage{},
 		&Ability{},
 		&Log{},
 		&MonitorContent{},

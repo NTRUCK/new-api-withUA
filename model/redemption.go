@@ -34,6 +34,15 @@ type Redemption struct {
 	RemainQuota  int            `json:"remain_quota" gorm:"default:0"` // 拼手气模式下剩余可发放额度
 }
 
+// RedemptionUsage 记录每个用户对每个兑换码的兑换记录，用于限制同一用户对同一兑换码只能兑换一次
+type RedemptionUsage struct {
+	Id           int   `json:"id"`
+	RedemptionId int   `json:"redemption_id" gorm:"uniqueIndex:idx_redemption_user"`
+	UserId       int   `json:"user_id" gorm:"uniqueIndex:idx_redemption_user"`
+	Quota        int   `json:"quota"`
+	CreatedTime  int64 `json:"created_time" gorm:"bigint"`
+}
+
 func GetAllRedemptions(startIdx int, num int) (redemptions []*Redemption, total int64, err error) {
 	// 开始事务
 	tx := DB.Begin()
@@ -157,6 +166,14 @@ func Redeem(key string, userId int) (quota int, err error) {
 		if redemption.UsedCount >= maxUses {
 			return errors.New("该兑换码已达到最大兑换次数")
 		}
+		// 同一用户对同一兑换码只能兑换一次
+		var usedBefore int64
+		if err = tx.Model(&RedemptionUsage{}).Where("redemption_id = ? AND user_id = ?", redemption.Id, userId).Count(&usedBefore).Error; err != nil {
+			return err
+		}
+		if usedBefore > 0 {
+			return ErrRedeemDuplicate
+		}
 
 		remainingUses := maxUses - redemption.UsedCount
 		awardedQuota = computeRedeemQuota(redemption, remainingUses)
@@ -166,6 +183,15 @@ func Redeem(key string, userId int) (quota int, err error) {
 
 		if err = tx.Model(&User{}).Where("id = ?", userId).Update("quota", gorm.Expr("quota + ?", awardedQuota)).Error; err != nil {
 			return err
+		}
+		// 记录兑换明细（唯一索引兜底并发重复兑换）
+		if err = tx.Create(&RedemptionUsage{
+			RedemptionId: redemption.Id,
+			UserId:       userId,
+			Quota:        awardedQuota,
+			CreatedTime:  common.GetTimestamp(),
+		}).Error; err != nil {
+			return ErrRedeemDuplicate
 		}
 		redemption.RedeemedTime = common.GetTimestamp()
 		redemption.UsedCount++
@@ -184,6 +210,9 @@ func Redeem(key string, userId int) (quota int, err error) {
 		return err
 	})
 	if err != nil {
+		if errors.Is(err, ErrRedeemDuplicate) {
+			return 0, ErrRedeemDuplicate
+		}
 		common.SysError("redemption failed: " + err.Error())
 		return 0, ErrRedeemFailed
 	}

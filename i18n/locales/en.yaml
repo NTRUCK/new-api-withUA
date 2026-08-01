@@ -252,6 +252,7 @@ oauth.trust_level_low: "Linux DO trust level does not meet the minimum required 
 
 # Model layer error messages
 redeem.failed: "Redemption failed, please try again later"
+redeem.duplicate: "You have already redeemed this code"
 user.create_default_token_error: "Failed to create default token"
 common.uuid_duplicate: "Please retry, the system generated a duplicate UUID!"
 common.invalid_input: "Invalid input"

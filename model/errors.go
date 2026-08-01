@@ -21,6 +21,7 @@ var (
 
 // Redemption errors
 var ErrRedeemFailed = errors.New("redeem.failed")
+var ErrRedeemDuplicate = errors.New("redeem.duplicate")
 
 // 2FA errors
 var ErrTwoFANotEnabled = errors.New("2fa not enabled")
