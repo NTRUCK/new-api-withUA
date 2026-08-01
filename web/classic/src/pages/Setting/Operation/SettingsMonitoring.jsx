@@ -30,26 +30,28 @@ import {
 import { useTranslation } from 'react-i18next';
 import HttpStatusCodeRulesInput from '../../../components/settings/HttpStatusCodeRulesInput';
 
+const DEFAULT_INPUTS = {
+  ChannelDisableThreshold: '',
+  QuotaRemindThreshold: '',
+  AutomaticDisableChannelEnabled: false,
+  AutomaticEnableChannelEnabled: false,
+  AutomaticDisableKeywords: '',
+  AutomaticDisableStatusCodes: '401',
+  AutomaticRetryStatusCodes:
+    '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
+  UserAgentBanEnabled: false,
+  UserAgentBanKeywords: 'tavo',
+  UserAgentGroupBlacklist: '',
+  UserAgentGroupWhitelist: '',
+  UserAgentGroupBanThreshold: '5',
+  'monitor_setting.auto_test_channel_enabled': false,
+  'monitor_setting.auto_test_channel_minutes': 10,
+};
+
 export default function SettingsMonitoring(props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [inputs, setInputs] = useState({
-    ChannelDisableThreshold: '',
-    QuotaRemindThreshold: '',
-    AutomaticDisableChannelEnabled: false,
-    AutomaticEnableChannelEnabled: false,
-    AutomaticDisableKeywords: '',
-    AutomaticDisableStatusCodes: '401',
-    AutomaticRetryStatusCodes:
-      '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
-    UserAgentBanEnabled: false,
-    UserAgentBanKeywords: 'tavo',
-    UserAgentGroupBlacklist: '',
-    UserAgentGroupWhitelist: '',
-    UserAgentGroupBanThreshold: '5',
-    'monitor_setting.auto_test_channel_enabled': false,
-    'monitor_setting.auto_test_channel_minutes': 10,
-  });
+  const [inputs, setInputs] = useState({ ...DEFAULT_INPUTS });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
   const parsedAutoDisableStatusCodes = parseHttpStatusCodeRules(
@@ -115,10 +117,12 @@ export default function SettingsMonitoring(props) {
   }
 
   useEffect(() => {
-    const currentInputs = {};
-    for (let key in props.options) {
-      if (Object.keys(inputs).includes(key)) {
-        if (typeof inputs[key] === 'boolean') {
+    // 以 DEFAULT_INPUTS 为基底，确保所有字段始终存在（含新增的 UA 相关项），
+    // 避免父组件首次以缺少这些键的默认对象渲染时把字段丢失，导致后续无法回显/保存。
+    const currentInputs = { ...DEFAULT_INPUTS };
+    for (let key in DEFAULT_INPUTS) {
+      if (props.options[key] !== undefined) {
+        if (typeof DEFAULT_INPUTS[key] === 'boolean') {
           currentInputs[key] =
             props.options[key] === 'true' || props.options[key] === true;
         } else {
