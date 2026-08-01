@@ -156,6 +156,8 @@ const UserStatsModal = (logsData) => {
     userStatsTotal,
     userStatsExcludeAdmins,
     setUserStatsExcludeAdmins,
+    userStatsWhitelist,
+    setUserStatsWhitelist,
     loadUserStats,
     isAdminUser,
     batchDisableLoading,
@@ -210,6 +212,7 @@ const UserStatsModal = (logsData) => {
       return;
     }
     let formApi;
+    const whitelistCount = userStatsWhitelist.length;
     Modal.confirm({
       title: t('确认批量封禁用户'),
       content: (
@@ -220,6 +223,13 @@ const UserStatsModal = (logsData) => {
           <Typography.Text strong type='danger'>
             {t('User ID 1 和所有管理员永远不会被封禁。')}
           </Typography.Text>
+          {whitelistCount > 0 && (
+            <Typography.Text strong type='warning'>
+              {t('已勾选 {{count}} 个白名单用户，本次将被跳过。', {
+                count: whitelistCount,
+              })}
+            </Typography.Text>
+          )}
           <ViolationForm
             t={t}
             getFormApi={(api) => {
@@ -242,6 +252,14 @@ const UserStatsModal = (logsData) => {
         });
       },
     });
+  };
+
+  const toggleWhitelist = (userId) => {
+    setUserStatsWhitelist((current) =>
+      current.includes(userId)
+        ? current.filter((id) => id !== userId)
+        : [...current, userId],
+    );
   };
 
   const loadInactive = (page = 1, range = inactiveRange) => {
@@ -280,6 +298,18 @@ const UserStatsModal = (logsData) => {
   });
 
   const logColumns = [
+    {
+      title: t('白名单'),
+      key: 'whitelist',
+      width: 70,
+      render: (_, record) => (
+        <Checkbox
+          checked={userStatsWhitelist.includes(record.user_id)}
+          onClick={(event) => event.stopPropagation()}
+          onChange={() => toggleWhitelist(record.user_id)}
+        />
+      ),
+    },
     { title: t('用户 ID'), dataIndex: 'user_id', key: 'user_id', width: 90 },
     { title: t('用户名'), dataIndex: 'username', key: 'username' },
     { title: t('日志数量'), dataIndex: 'log_count', key: 'log_count' },
@@ -378,14 +408,32 @@ const UserStatsModal = (logsData) => {
             <Typography.Text strong>{total}</Typography.Text>
           </Typography.Text>
           {!isInactive && (
-            <Button
-              type='danger'
-              theme='solid'
-              loading={batchDisableLoading}
-              onClick={confirmBatchDisable}
-            >
-              {t('按当前筛选批量封禁')}
-            </Button>
+            <>
+              {userStatsWhitelist.length > 0 && (
+                <Typography.Text type='warning'>
+                  {t('白名单')}：
+                  <Typography.Text strong>
+                    {userStatsWhitelist.length}
+                  </Typography.Text>
+                  <Button
+                    size='small'
+                    theme='borderless'
+                    type='tertiary'
+                    onClick={() => setUserStatsWhitelist([])}
+                  >
+                    {t('清空')}
+                  </Button>
+                </Typography.Text>
+              )}
+              <Button
+                type='danger'
+                theme='solid'
+                loading={batchDisableLoading}
+                onClick={confirmBatchDisable}
+              >
+                {t('按当前筛选批量封禁')}
+              </Button>
+            </>
           )}
         </div>
       </div>

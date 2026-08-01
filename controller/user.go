@@ -135,8 +135,26 @@ func Logout(c *gin.Context) {
 	})
 }
 
+// isRegisterUserCountReached 返回是否已达到注册用户数上限（仅统计可用用户）
+func isRegisterUserCountReached() bool {
+	if common.MaxRegisterUserCount <= 0 {
+		return false
+	}
+	count, err := model.CountEnabledUsers()
+	if err != nil {
+		// 查询失败时不阻断注册，避免误伤
+		common.SysLog("failed to count enabled users for register limit: " + err.Error())
+		return false
+	}
+	return count >= int64(common.MaxRegisterUserCount)
+}
+
 func Register(c *gin.Context) {
 	if !common.RegisterEnabled {
+		common.ApiErrorI18n(c, i18n.MsgUserRegisterDisabled)
+		return
+	}
+	if isRegisterUserCountReached() {
 		common.ApiErrorI18n(c, i18n.MsgUserRegisterDisabled)
 		return
 	}
@@ -804,6 +822,34 @@ func DeleteUser(c *gin.Context) {
 	return
 }
 
+// BatchDeregisterDisabledUsers 将所有已禁用用户一键注销（软删除），跳过 User ID 1 和管理员
+func BatchDeregisterDisabledUsers(c *gin.Context) {
+	deregisteredIds, err := model.BatchDeregisterDisabledUsers()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	// 清理被注销用户令牌缓存，避免 TTL 内仍可鉴权
+	for _, userId := range deregisteredIds {
+		if err := model.InvalidateUserTokensCache(userId); err != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate tokens cache for user %d: %s", userId, err.Error()))
+		}
+	}
+	adminInfo := map[string]interface{}{
+		"admin_id":            c.GetInt("id"),
+		"admin_username":      c.GetString("username"),
+		"deregistered_count":  len(deregisteredIds),
+	}
+	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("一键注销已禁用用户，共注销 %d 个用户", len(deregisteredIds)), adminInfo)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"deregistered_count": len(deregisteredIds),
+		},
+	})
+}
+
 func DeleteSelf(c *gin.Context) {
 	id := c.GetInt("id")
 	user, _ := model.GetUserById(id, false)
@@ -883,6 +929,7 @@ type BatchDisableLogUsersRequest struct {
 	UpstreamRequestId string                        `json:"upstream_request_id"`
 	UserAgent         string                        `json:"user_agent"`
 	Confirm           bool                          `json:"confirm"`
+	WhitelistUserIds  []int                         `json:"whitelist_user_ids"`
 	Violation         *BatchDisableViolationRequest `json:"violation"`
 }
 
@@ -896,6 +943,24 @@ func BatchDisableLogUsers(c *gin.Context) {
 	if err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	matchedCount := len(userIds)
+	// 白名单：排除管理员本次勾选保护的用户，永不封禁
+	whitelistedCount := 0
+	if len(req.WhitelistUserIds) > 0 {
+		whitelist := make(map[int]bool, len(req.WhitelistUserIds))
+		for _, id := range req.WhitelistUserIds {
+			whitelist[id] = true
+		}
+		filtered := make([]int, 0, len(userIds))
+		for _, id := range userIds {
+			if whitelist[id] {
+				whitelistedCount++
+				continue
+			}
+			filtered = append(filtered, id)
+		}
+		userIds = filtered
 	}
 	var violation *model.BatchDisableViolation
 	if req.Violation != nil {
@@ -912,22 +977,24 @@ func BatchDisableLogUsers(c *gin.Context) {
 		return
 	}
 	adminInfo := map[string]interface{}{
-		"admin_id":       c.GetInt("id"),
-		"admin_username": c.GetString("username"),
-		"matched_count":  len(userIds),
-		"disabled_count": len(disabledIds),
-		"listed_count":   listedCount,
-		"user_agent":     req.UserAgent,
+		"admin_id":         c.GetInt("id"),
+		"admin_username":   c.GetString("username"),
+		"matched_count":    matchedCount,
+		"disabled_count":   len(disabledIds),
+		"listed_count":     listedCount,
+		"whitelisted_count": whitelistedCount,
+		"user_agent":       req.UserAgent,
 	}
 	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("按日志筛选批量封禁用户，共封禁 %d 个用户", len(disabledIds)), adminInfo)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"matched_count":  len(userIds),
-			"disabled_count": len(disabledIds),
-			"listed_count":   listedCount,
-			"skipped_count":  len(userIds) - len(disabledIds),
+			"matched_count":     matchedCount,
+			"disabled_count":    len(disabledIds),
+			"listed_count":      listedCount,
+			"whitelisted_count": whitelistedCount,
+			"skipped_count":     matchedCount - len(disabledIds) - whitelistedCount,
 		},
 	})
 }

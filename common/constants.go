@@ -91,6 +91,10 @@ var TelegramOAuthEnabled = false
 var TurnstileCheckEnabled = false
 var RegisterEnabled = true
 
+// MaxRegisterUserCount 当可用（已启用，不含禁用/注销）用户数达到该值时自动关闭新用户注册。
+// <= 0 表示不限制。
+var MaxRegisterUserCount = 0
+
 var EmailDomainRestrictionEnabled = false // 是否启用邮箱域名限制
 var EmailAliasRestrictionEnabled = false  // 是否启用邮箱别名限制
 var EmailDomainWhitelist = []string{

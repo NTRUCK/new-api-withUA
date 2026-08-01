@@ -199,6 +199,7 @@ export const useLogsData = () => {
   const [userStatsPage, setUserStatsPage] = useState(1);
   const [userStatsTotal, setUserStatsTotal] = useState(0);
   const [userStatsExcludeAdmins, setUserStatsExcludeAdmins] = useState(true);
+  const [userStatsWhitelist, setUserStatsWhitelist] = useState([]);
   const [userStatsLogs, setUserStatsLogs] = useState({});
   const [userStatsLogsLoading, setUserStatsLogsLoading] = useState({});
   const [batchDisableLoading, setBatchDisableLoading] = useState(false);
@@ -551,6 +552,7 @@ export const useLogsData = () => {
         request_id,
         user_agent,
         confirm: true,
+        whitelist_user_ids: userStatsWhitelist,
         violation,
       });
       const { success, message, data } = res.data;
@@ -1154,6 +1156,8 @@ export const useLogsData = () => {
     userStatsTotal,
     userStatsExcludeAdmins,
     setUserStatsExcludeAdmins,
+    userStatsWhitelist,
+    setUserStatsWhitelist,
     userStatsLogs,
     userStatsLogsLoading,
     batchDisableLoading,

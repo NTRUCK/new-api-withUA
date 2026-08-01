@@ -249,6 +249,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	if !common.RegisterEnabled {
 		return nil, &OAuthRegistrationDisabledError{}
 	}
+	if isRegisterUserCountReached() {
+		return nil, &OAuthRegistrationDisabledError{}
+	}
 
 	// Set up new user
 	user.Username = provider.GetProviderPrefix() + strconv.Itoa(model.GetMaxUserId()+1)

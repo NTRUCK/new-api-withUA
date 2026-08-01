@@ -228,6 +228,10 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 	return users, total, nil
 }
 
+// userStatusDeregistered 是仅用于列表筛选的伪状态值，表示「已注销」（软删除）。
+// 真实用户状态只有 UserStatusEnabled(1)/UserStatusDisabled(2)。
+const userStatusDeregistered = 3
+
 func SearchUsers(keyword string, group string, role *int, status *int, startIdx int, num int) ([]*User, int64, error) {
 	var users []*User
 	var total int64
@@ -267,7 +271,13 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 		query = query.Where("role = ?", *role)
 	}
 	if status != nil {
-		query = query.Where("status = ?", *status)
+		// 特殊值 3 表示「已注销」(软删除)；1/2 为启用/禁用且未注销
+		switch *status {
+		case userStatusDeregistered:
+			query = query.Where("deleted_at IS NOT NULL")
+		default:
+			query = query.Where("status = ? AND deleted_at IS NULL", *status)
+		}
 	}
 
 	// 获取总数
@@ -304,6 +314,13 @@ func GetUserById(id int, selectAll bool) (*User, error) {
 		err = DB.Omit("password").First(&user, "id = ?", id).Error
 	}
 	return &user, err
+}
+
+// CountEnabledUsers 统计可用（已启用，不含禁用/软删除）用户数
+func CountEnabledUsers() (int64, error) {
+	var count int64
+	err := DB.Model(&User{}).Where("status = ?", common.UserStatusEnabled).Count(&count).Error
+	return count, err
 }
 
 func GetUserIdByAffCode(affCode string) (int, error) {
@@ -557,6 +574,39 @@ func BatchDisableUsersWithViolation(userIds []int, violation *BatchDisableViolat
 func BatchDisableUsers(userIds []int) (disabledIds []int, err error) {
 	disabledIds, _, err = BatchDisableUsersWithViolation(userIds, nil)
 	return disabledIds, err
+}
+
+// BatchDeregisterDisabledUsers 将所有「已禁用」用户软删除（注销）。
+// 跳过 User ID 1 和管理员。返回实际注销的用户 ID 列表。
+func BatchDeregisterDisabledUsers() (deregisteredIds []int, err error) {
+	var targetIds []int
+	err = DB.Model(&User{}).
+		Where("status = ? AND id <> ? AND role < ?", common.UserStatusDisabled, 1, common.RoleAdminUser).
+		Pluck("id", &targetIds).Error
+	if err != nil {
+		return nil, err
+	}
+	if len(targetIds) == 0 {
+		return deregisteredIds, nil
+	}
+	for _, userId := range targetIds {
+		result := DB.Delete(&User{}, "id = ?", userId)
+		if result.Error != nil {
+			return deregisteredIds, result.Error
+		}
+		if result.RowsAffected == 1 {
+			deregisteredIds = append(deregisteredIds, userId)
+		}
+	}
+	for _, userId := range deregisteredIds {
+		if cacheErr := InvalidateUserCache(userId); cacheErr != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", userId, cacheErr.Error()))
+		}
+		if cacheErr := InvalidateUserTokensCache(userId); cacheErr != nil {
+			common.SysLog(fmt.Sprintf("failed to invalidate token cache for user %d: %s", userId, cacheErr.Error()))
+		}
+	}
+	return deregisteredIds, nil
 }
 
 func (user *User) Update(updatePassword bool) error {

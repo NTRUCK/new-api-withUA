@@ -18,18 +18,40 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Button } from '@douyinfe/semi-ui';
+import { Button, Modal } from '@douyinfe/semi-ui';
 
-const UsersActions = ({ setShowAddUser, t }) => {
+const UsersActions = ({ setShowAddUser, batchDeregisterDisabled, t }) => {
   // Add new user
   const handleAddUser = () => {
     setShowAddUser(true);
+  };
+
+  const handleBatchDeregister = () => {
+    Modal.confirm({
+      title: t('一键注销已禁用用户'),
+      content: t(
+        '将把所有「已禁用」状态的用户注销（软删除），User ID 1 和管理员会被跳过。此操作不可撤销，确定继续？',
+      ),
+      okText: t('确认注销'),
+      cancelText: t('取消'),
+      okType: 'danger',
+      centered: true,
+      onOk: () => batchDeregisterDisabled(),
+    });
   };
 
   return (
     <div className='flex gap-2 w-full md:w-auto order-2 md:order-1'>
       <Button className='w-full md:w-auto' onClick={handleAddUser} size='small'>
         {t('添加用户')}
+      </Button>
+      <Button
+        type='danger'
+        className='w-full md:w-auto'
+        onClick={handleBatchDeregister}
+        size='small'
+      >
+        {t('注销已禁用用户')}
       </Button>
     </div>
   );

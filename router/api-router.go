@@ -145,6 +145,7 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.POST("/", controller.CreateUser)
 				adminRoute.POST("/manage", controller.ManageUser)
 				adminRoute.POST("/batch_disable_by_logs", middleware.CriticalRateLimit(), controller.BatchDisableLogUsers)
+				adminRoute.POST("/batch_deregister_disabled", middleware.CriticalRateLimit(), controller.BatchDeregisterDisabledUsers)
 				adminRoute.PUT("/", controller.UpdateUser)
 				adminRoute.DELETE("/:id", controller.DeleteUser)
 				adminRoute.DELETE("/:id/reset_passkey", controller.AdminResetPasskey)

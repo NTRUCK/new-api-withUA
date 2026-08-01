@@ -81,6 +81,7 @@ const SystemSetting = () => {
     TurnstileSiteKey: '',
     TurnstileSecretKey: '',
     RegisterEnabled: '',
+    MaxRegisterUserCount: '',
     'passkey.enabled': '',
     'passkey.rp_display_name': '',
     'passkey.rp_id': '',
@@ -457,6 +458,15 @@ const SystemSetting = () => {
     if (options.length > 0) {
       await updateOptions(options);
     }
+  };
+
+  const submitMaxRegisterUserCount = async () => {
+    await updateOptions([
+      {
+        key: 'MaxRegisterUserCount',
+        value: String(parseInt(inputs.MaxRegisterUserCount, 10) || 0),
+      },
+    ]);
   };
 
   const submitGitHubOAuth = async () => {
@@ -1035,6 +1045,24 @@ const SystemSetting = () => {
                       >
                         {t('允许 Turnstile 用户校验')}
                       </Form.Checkbox>
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.InputNumber
+                        field='MaxRegisterUserCount'
+                        label={t('注册用户数上限（可用用户）')}
+                        placeholder={t('0 表示不限制')}
+                        min={0}
+                        style={{ width: '100%' }}
+                        extraText={t(
+                          '当可用（已启用，不含禁用/注销）用户数达到该值时自动关闭新用户注册。0 表示不限制。',
+                        )}
+                      />
+                      <Button
+                        style={{ marginTop: 12 }}
+                        onClick={submitMaxRegisterUserCount}
+                      >
+                        {t('保存注册上限')}
+                      </Button>
                     </Col>
                     <Col xs={24} sm={24} md={12} lg={12} xl={12}>
                       <Form.Checkbox

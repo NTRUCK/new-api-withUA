@@ -47,6 +47,7 @@ export const useUsersData = () => {
   const formInitValues = {
     searchKeyword: '',
     searchGroup: '',
+    searchStatus: '',
   };
 
   // Form API reference
@@ -58,6 +59,8 @@ export const useUsersData = () => {
     return {
       searchKeyword: formValues.searchKeyword || '',
       searchGroup: formValues.searchGroup || '',
+      searchStatus:
+        formValues.searchStatus === undefined ? '' : formValues.searchStatus,
     };
   };
 
@@ -91,23 +94,32 @@ export const useUsersData = () => {
     pageSize,
     searchKeyword = null,
     searchGroup = null,
+    searchStatus = null,
   ) => {
     // If no parameters passed, get values from form
-    if (searchKeyword === null || searchGroup === null) {
+    if (searchKeyword === null || searchGroup === null || searchStatus === null) {
       const formValues = getFormValues();
       searchKeyword = formValues.searchKeyword;
       searchGroup = formValues.searchGroup;
+      searchStatus = formValues.searchStatus;
     }
 
-    if (searchKeyword === '' && searchGroup === '') {
-      // If keyword is blank, load files instead
+    if (searchKeyword === '' && searchGroup === '' && searchStatus === '') {
+      // If all filters are blank, load all users instead
       await loadUsers(startIdx, pageSize);
       return;
     }
     setSearching(true);
-    const res = await API.get(
-      `/api/user/search?keyword=${searchKeyword}&group=${searchGroup}&p=${startIdx}&page_size=${pageSize}`,
-    );
+    const params = new URLSearchParams({
+      keyword: searchKeyword,
+      group: searchGroup,
+      p: startIdx,
+      page_size: pageSize,
+    });
+    if (searchStatus !== '' && searchStatus !== undefined) {
+      params.append('status', searchStatus);
+    }
+    const res = await API.get(`/api/user/search?${params.toString()}`);
     const { success, message, data } = res.data;
     if (success) {
       const newPageData = data.items;
@@ -118,6 +130,22 @@ export const useUsersData = () => {
       showError(message);
     }
     setSearching(false);
+  };
+
+  // Batch deregister all disabled users (soft delete)
+  const batchDeregisterDisabled = async () => {
+    const res = await API.post('/api/user/batch_deregister_disabled');
+    const { success, message, data } = res.data;
+    if (success) {
+      showSuccess(
+        t('已注销 {{count}} 个已禁用用户', {
+          count: data?.deregistered_count ?? 0,
+        }),
+      );
+      await refresh();
+    } else {
+      showError(message);
+    }
   };
 
   // Manage user operations (promote, demote, enable, disable, delete)
@@ -191,11 +219,11 @@ export const useUsersData = () => {
   // Handle page change
   const handlePageChange = (page) => {
     setActivePage(page);
-    const { searchKeyword, searchGroup } = getFormValues();
-    if (searchKeyword === '' && searchGroup === '') {
+    const { searchKeyword, searchGroup, searchStatus } = getFormValues();
+    if (searchKeyword === '' && searchGroup === '' && searchStatus === '') {
       loadUsers(page, pageSize).then();
     } else {
-      searchUsers(page, pageSize, searchKeyword, searchGroup).then();
+      searchUsers(page, pageSize, searchKeyword, searchGroup, searchStatus).then();
     }
   };
 
@@ -226,11 +254,11 @@ export const useUsersData = () => {
 
   // Refresh data
   const refresh = async (page = activePage) => {
-    const { searchKeyword, searchGroup } = getFormValues();
-    if (searchKeyword === '' && searchGroup === '') {
+    const { searchKeyword, searchGroup, searchStatus } = getFormValues();
+    if (searchKeyword === '' && searchGroup === '' && searchStatus === '') {
       await loadUsers(page, pageSize);
     } else {
-      await searchUsers(page, pageSize, searchKeyword, searchGroup);
+      await searchUsers(page, pageSize, searchKeyword, searchGroup, searchStatus);
     }
   };
 
@@ -305,6 +333,7 @@ export const useUsersData = () => {
     loadUsers,
     searchUsers,
     manageUser,
+    batchDeregisterDisabled,
     resetUserPasskey,
     resetUserTwoFA,
     handlePageChange,

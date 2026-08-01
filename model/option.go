@@ -45,6 +45,7 @@ func InitOptionMap() {
 	common.OptionMap["WeChatAuthEnabled"] = strconv.FormatBool(common.WeChatAuthEnabled)
 	common.OptionMap["TurnstileCheckEnabled"] = strconv.FormatBool(common.TurnstileCheckEnabled)
 	common.OptionMap["RegisterEnabled"] = strconv.FormatBool(common.RegisterEnabled)
+	common.OptionMap["MaxRegisterUserCount"] = strconv.Itoa(common.MaxRegisterUserCount)
 	common.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(common.AutomaticDisableChannelEnabled)
 	common.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(common.AutomaticEnableChannelEnabled)
 	common.OptionMap["LogConsumeEnabled"] = strconv.FormatBool(common.LogConsumeEnabled)
@@ -505,6 +506,8 @@ func updateOptionMap(key string, value string) (err error) {
 		common.QuotaForInviter, _ = strconv.Atoi(value)
 	case "QuotaForInvitee":
 		common.QuotaForInvitee, _ = strconv.Atoi(value)
+	case "MaxRegisterUserCount":
+		common.MaxRegisterUserCount, _ = strconv.Atoi(value)
 	case "QuotaRemindThreshold":
 		common.QuotaRemindThreshold, _ = strconv.Atoi(value)
 	case "PreConsumedQuota":
