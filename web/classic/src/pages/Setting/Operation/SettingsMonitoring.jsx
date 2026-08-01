@@ -42,6 +42,8 @@ export default function SettingsMonitoring(props) {
     AutomaticDisableStatusCodes: '401',
     AutomaticRetryStatusCodes:
       '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
+    UserAgentBanEnabled: false,
+    UserAgentBanKeywords: 'tavo',
     'monitor_setting.auto_test_channel_enabled': false,
     'monitor_setting.auto_test_channel_minutes': 10,
   });
@@ -273,6 +275,37 @@ export default function SettingsMonitoring(props) {
                   autosize={{ minRows: 6, maxRows: 12 }}
                   onChange={(value) =>
                     setInputs({ ...inputs, AutomaticDisableKeywords: value })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'UserAgentBanEnabled'}
+                  label={t('自动封禁违规 User-Agent')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  extraText={t(
+                    '开启后，请求客户端 User-Agent 命中下方关键词时，自动封禁该用户并公开上榜',
+                  )}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, UserAgentBanEnabled: value })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('封禁 User-Agent 关键词')}
+                  placeholder={t('一行一个，不区分大小写，子串包含即命中')}
+                  extraText={t(
+                    '例如填写 tavo，则任何 User-Agent 中包含 tavo 的请求都会被封禁并上榜',
+                  )}
+                  field={'UserAgentBanKeywords'}
+                  autosize={{ minRows: 3, maxRows: 8 }}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, UserAgentBanKeywords: value })
                   }
                 />
               </Col>

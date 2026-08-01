@@ -3939,6 +3939,15 @@
     "将对余额在 {{min}} ~ {{max}} 区间内的所有用户{{action}} {{delta}} 额度（跳过 User ID 1 和管理员）。此操作不可撤销，确定继续？": "Will {{action}} {{delta}} quota for all users with balance in {{min}} ~ {{max}} (User ID 1 and admins skipped). This cannot be undone. Continue?",
     "确认调整": "Confirm",
     "增加": "add",
-    "已调整 {{count}} 个用户额度（匹配 {{matched}} 个）": "Adjusted quota for {{count}} users ({{matched}} matched)"
+    "已调整 {{count}} 个用户额度（匹配 {{matched}} 个）": "Adjusted quota for {{count}} users ({{matched}} matched)",
+    "一键下榜": "Remove all",
+    "确认一键下榜": "Confirm remove all",
+    "确定将公开违规榜上的所有用户全部下榜吗？此操作会清空当前榜单。": "Remove all users from the public violation board? This will clear the current list.",
+    "已下榜 {{count}} 人": "Removed {{count}} users",
+    "自动封禁违规 User-Agent": "Auto-ban violating User-Agents",
+    "开启后，请求客户端 User-Agent 命中下方关键词时，自动封禁该用户并公开上榜": "When enabled, requests whose client User-Agent matches the keywords below will have the user auto-banned and publicly listed.",
+    "封禁 User-Agent 关键词": "Ban User-Agent keywords",
+    "一行一个，不区分大小写，子串包含即命中": "One per line, case-insensitive, matched as substring",
+    "例如填写 tavo，则任何 User-Agent 中包含 tavo 的请求都会被封禁并上榜": "e.g. enter tavo, and any request whose User-Agent contains tavo will be banned and listed"
   }
 }

@@ -43,6 +43,7 @@ func SetApiRouter(router *gin.Engine) {
 		violationAdminRoute.Use(middleware.AdminAuth(), middleware.CriticalRateLimit())
 		{
 			violationAdminRoute.POST("", controller.AdminUpsertViolation)
+			violationAdminRoute.DELETE("", controller.AdminRemoveAllViolations)
 			violationAdminRoute.DELETE("/:user_id", controller.AdminRemoveViolation)
 		}
 		apiRouter.GET("/verification", middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), controller.SendEmailVerification)

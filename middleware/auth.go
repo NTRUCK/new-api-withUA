@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 
@@ -366,6 +367,16 @@ func TokenAuth() func(c *gin.Context) {
 
 		if !token.IsUserAgentAllowed(c.Request.UserAgent()) {
 			abortWithOpenAiMessage(c, http.StatusForbidden, "当前客户端 User-Agent 不在令牌允许访问的列表中", types.ErrorCodeAccessDenied)
+			return
+		}
+
+		// 命中封禁关键词的 User-Agent：自动禁用用户并公开上榜
+		if hit := operation_setting.MatchUserAgentBan(c.Request.UserAgent()); hit != "" {
+			reasonText := fmt.Sprintf("使用违规客户端（User-Agent 命中关键词：%s）", hit)
+			if _, err := model.BanUserByUserAgent(token.UserId, c.Request.UserAgent(), reasonText); err != nil {
+				common.SysLog(fmt.Sprintf("failed to ban user %d by user-agent: %s", token.UserId, err.Error()))
+			}
+			abortWithOpenAiMessage(c, http.StatusForbidden, common.TranslateMessage(c, i18n.MsgAuthUserBanned))
 			return
 		}
 

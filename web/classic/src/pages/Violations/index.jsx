@@ -47,6 +47,7 @@ const Violations = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [removingId, setRemovingId] = useState(null);
+  const [removingAll, setRemovingAll] = useState(false);
   const admin = isAdmin();
 
   const load = async (nextPage = 1) => {
@@ -96,13 +97,52 @@ const Violations = () => {
     });
   };
 
+  const handleRemoveAll = () => {
+    Modal.confirm({
+      title: t('确认一键下榜'),
+      content: t('确定将公开违规榜上的所有用户全部下榜吗？此操作会清空当前榜单。'),
+      okText: t('确认一键下榜'),
+      cancelText: t('取消'),
+      okType: 'danger',
+      centered: true,
+      onOk: async () => {
+        setRemovingAll(true);
+        try {
+          const res = await API.delete('/api/violation/admin');
+          const { success, message, data } = res.data;
+          if (!success) return showError(message);
+          showSuccess(
+            t('已下榜 {{count}} 人', { count: data?.removed_count ?? 0 }),
+          );
+          load(1);
+        } catch (error) {
+          showError(error.message);
+        } finally {
+          setRemovingAll(false);
+        }
+      },
+    });
+  };
+
   return (
     <div className='mt-[60px] max-w-6xl mx-auto px-4 py-8'>
-      <div className='mb-6'>
-        <Typography.Title heading={2}>{t('公开违规榜')}</Typography.Title>
-        <Typography.Text type='tertiary'>
-          {t('公开展示已确认的违规记录')}
-        </Typography.Text>
+      <div className='mb-6 flex flex-wrap items-start justify-between gap-3'>
+        <div>
+          <Typography.Title heading={2}>{t('公开违规榜')}</Typography.Title>
+          <Typography.Text type='tertiary'>
+            {t('公开展示已确认的违规记录')}
+          </Typography.Text>
+        </div>
+        {admin && items.length > 0 && (
+          <Button
+            type='danger'
+            theme='light'
+            loading={removingAll}
+            onClick={handleRemoveAll}
+          >
+            {t('一键下榜')}
+          </Button>
+        )}
       </div>
       <Spin spinning={loading} style={{ width: '100%' }}>
         {items.length === 0 && !loading ? (

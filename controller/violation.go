@@ -86,6 +86,24 @@ func AdminRemoveViolation(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": ""})
 }
 
+// AdminRemoveAllViolations 一键将公开违规榜上的所有用户下榜
+func AdminRemoveAllViolations(c *gin.Context) {
+	count, err := model.RemoveAllListedViolations(c.GetInt("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage,
+		fmt.Sprintf("管理员一键下榜全部违规记录，共下榜 %d 人", count), gin.H{
+			"admin_id": c.GetInt("id"), "admin_username": c.GetString("username"), "removed_count": count,
+		})
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    gin.H{"removed_count": count},
+	})
+}
+
 type publicViolationItem struct {
 	UserId          int    `json:"user_id"`
 	DisplayName     string `json:"display_name"`
