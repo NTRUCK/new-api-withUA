@@ -4258,6 +4258,13 @@
     "注销已禁用用户": "Hủy người dùng bị vô hiệu hóa",
     "一键注销已禁用用户": "Hủy tất cả người dùng bị vô hiệu hóa",
     "将把所有「已禁用」状态的用户注销（软删除），User ID 1 和管理员会被跳过。此操作不可撤销，确定继续？": "Thao tác này sẽ hủy (xóa mềm) tất cả người dùng bị vô hiệu hóa; User ID 1 và quản trị viên được bỏ qua. Không thể hoàn tác. Tiếp tục?",
-    "确认注销": "Xác nhận hủy"
+    "确认注销": "Xác nhận hủy",
+    "清理已注销用户": "Dọn người dùng đã hủy",
+    "彻底清理已注销用户": "Xóa vĩnh viễn người dùng đã hủy",
+    "将从数据库中永久删除所有「已注销」用户及其数据，无法恢复。确定继续？": "Thao tác này sẽ xóa vĩnh viễn tất cả người dùng đã hủy và dữ liệu của họ khỏi cơ sở dữ liệu. Không thể hoàn tác. Tiếp tục?",
+    "确认清理": "Xác nhận dọn",
+    "已彻底清理 {{count}} 个已注销用户": "Đã xóa vĩnh viễn {{count}} người dùng đã hủy",
+    "当前可用用户数": "Người dùng hoạt động",
+    "已注销用户数": "Người dùng đã hủy"
   }
 }

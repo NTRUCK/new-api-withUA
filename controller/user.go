@@ -850,6 +850,50 @@ func BatchDeregisterDisabledUsers(c *gin.Context) {
 	})
 }
 
+// GetUserStatusCounts 返回用户各状态数量，供后台展示（可用/已禁用/已注销）
+func GetUserStatusCounts(c *gin.Context) {
+	enabled, err := model.CountEnabledUsers()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	deregistered, err := model.CountDeregisteredUsers()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"enabled":      enabled,
+			"deregistered": deregistered,
+		},
+	})
+}
+
+// PurgeDeregisteredUsers 彻底清理所有已注销（软删除）用户
+func PurgeDeregisteredUsers(c *gin.Context) {
+	purgedCount, err := model.PurgeDeregisteredUsers()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	adminInfo := map[string]interface{}{
+		"admin_id":       c.GetInt("id"),
+		"admin_username": c.GetString("username"),
+		"purged_count":   purgedCount,
+	}
+	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("彻底清理已注销用户，共清理 %d 个用户", purgedCount), adminInfo)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"purged_count": purgedCount,
+		},
+	})
+}
+
 func DeleteSelf(c *gin.Context) {
 	id := c.GetInt("id")
 	user, _ := model.GetUserById(id, false)

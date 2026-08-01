@@ -3870,6 +3870,13 @@
     "注销已禁用用户": "Deregister disabled users",
     "一键注销已禁用用户": "Deregister all disabled users",
     "将把所有「已禁用」状态的用户注销（软删除），User ID 1 和管理员会被跳过。此操作不可撤销，确定继续？": "This will deregister (soft delete) all disabled users; User ID 1 and admins are skipped. This action cannot be undone. Continue?",
-    "确认注销": "Confirm deregister"
+    "确认注销": "Confirm deregister",
+    "清理已注销用户": "Purge deregistered users",
+    "彻底清理已注销用户": "Purge deregistered users permanently",
+    "将从数据库中永久删除所有「已注销」用户及其数据，无法恢复。确定继续？": "This will permanently delete all deregistered users and their data from the database. This cannot be undone. Continue?",
+    "确认清理": "Confirm purge",
+    "已彻底清理 {{count}} 个已注销用户": "Purged {{count}} deregistered user(s)",
+    "当前可用用户数": "Active users",
+    "已注销用户数": "Deregistered users"
   }
 }

@@ -20,7 +20,12 @@ For commercial licensing, please contact support@quantumnous.com
 import React from 'react';
 import { Button, Modal } from '@douyinfe/semi-ui';
 
-const UsersActions = ({ setShowAddUser, batchDeregisterDisabled, t }) => {
+const UsersActions = ({
+  setShowAddUser,
+  batchDeregisterDisabled,
+  purgeDeregistered,
+  t,
+}) => {
   // Add new user
   const handleAddUser = () => {
     setShowAddUser(true);
@@ -40,6 +45,20 @@ const UsersActions = ({ setShowAddUser, batchDeregisterDisabled, t }) => {
     });
   };
 
+  const handlePurgeDeregistered = () => {
+    Modal.confirm({
+      title: t('彻底清理已注销用户'),
+      content: t(
+        '将从数据库中永久删除所有「已注销」用户及其数据，无法恢复。确定继续？',
+      ),
+      okText: t('确认清理'),
+      cancelText: t('取消'),
+      okType: 'danger',
+      centered: true,
+      onOk: () => purgeDeregistered(),
+    });
+  };
+
   return (
     <div className='flex gap-2 w-full md:w-auto order-2 md:order-1'>
       <Button className='w-full md:w-auto' onClick={handleAddUser} size='small'>
@@ -52,6 +71,14 @@ const UsersActions = ({ setShowAddUser, batchDeregisterDisabled, t }) => {
         size='small'
       >
         {t('注销已禁用用户')}
+      </Button>
+      <Button
+        type='danger'
+        className='w-full md:w-auto'
+        onClick={handlePurgeDeregistered}
+        size='small'
+      >
+        {t('清理已注销用户')}
       </Button>
     </div>
   );

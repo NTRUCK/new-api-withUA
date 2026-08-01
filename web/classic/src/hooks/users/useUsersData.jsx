@@ -148,6 +148,22 @@ export const useUsersData = () => {
     }
   };
 
+  // Purge all deregistered (soft-deleted) users permanently
+  const purgeDeregistered = async () => {
+    const res = await API.post('/api/user/purge_deregistered');
+    const { success, message, data } = res.data;
+    if (success) {
+      showSuccess(
+        t('已彻底清理 {{count}} 个已注销用户', {
+          count: data?.purged_count ?? 0,
+        }),
+      );
+      await refresh();
+    } else {
+      showError(message);
+    }
+  };
+
   // Manage user operations (promote, demote, enable, disable, delete)
   const manageUser = async (userId, action, record) => {
     // Trigger loading state to force table re-render
@@ -334,6 +350,7 @@ export const useUsersData = () => {
     searchUsers,
     manageUser,
     batchDeregisterDisabled,
+    purgeDeregistered,
     resetUserPasskey,
     resetUserTwoFA,
     handlePageChange,

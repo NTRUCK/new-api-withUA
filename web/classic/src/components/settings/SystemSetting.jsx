@@ -127,6 +127,25 @@ const SystemSetting = () => {
   const [domainList, setDomainList] = useState([]);
   const [ipList, setIpList] = useState([]);
   const [allowedPorts, setAllowedPorts] = useState([]);
+  const [userStatusCounts, setUserStatusCounts] = useState({
+    enabled: null,
+    deregistered: null,
+  });
+
+  const fetchUserStatusCounts = async () => {
+    try {
+      const res = await API.get('/api/user/status_counts');
+      const { success, data } = res.data;
+      if (success && data) {
+        setUserStatusCounts({
+          enabled: data.enabled,
+          deregistered: data.deregistered,
+        });
+      }
+    } catch (e) {
+      // 忽略统计获取失败，不影响设置页
+    }
+  };
 
   const getOptions = async () => {
     setLoading(true);
@@ -239,6 +258,7 @@ const SystemSetting = () => {
 
   useEffect(() => {
     getOptions();
+    fetchUserStatusCounts();
   }, []);
 
   const updateOptions = async (options) => {
@@ -1053,9 +1073,23 @@ const SystemSetting = () => {
                         placeholder={t('0 表示不限制')}
                         min={0}
                         style={{ width: '100%' }}
-                        extraText={t(
-                          '当可用（已启用，不含禁用/注销）用户数达到该值时自动关闭新用户注册。0 表示不限制。',
-                        )}
+                        extraText={
+                          <span>
+                            {t(
+                              '当可用（已启用，不含禁用/注销）用户数达到该值时自动关闭新用户注册。0 表示不限制。',
+                            )}
+                            {userStatusCounts.enabled !== null && (
+                              <>
+                                <br />
+                                {t('当前可用用户数')}：
+                                <b>{userStatusCounts.enabled}</b>
+                                {'　'}
+                                {t('已注销用户数')}：
+                                <b>{userStatusCounts.deregistered}</b>
+                              </>
+                            )}
+                          </span>
+                        }
                       />
                       <Button
                         style={{ marginTop: 12 }}

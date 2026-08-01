@@ -323,6 +323,22 @@ func CountEnabledUsers() (int64, error) {
 	return count, err
 }
 
+// CountDeregisteredUsers 统计已注销（软删除）用户数
+func CountDeregisteredUsers() (int64, error) {
+	var count int64
+	err := DB.Unscoped().Model(&User{}).Where("deleted_at IS NOT NULL").Count(&count).Error
+	return count, err
+}
+
+// PurgeDeregisteredUsers 彻底删除所有已注销（软删除）用户，返回清理数量
+func PurgeDeregisteredUsers() (int64, error) {
+	result := DB.Unscoped().Where("deleted_at IS NOT NULL").Delete(&User{})
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
 func GetUserIdByAffCode(affCode string) (int, error) {
 	if affCode == "" {
 		return 0, errors.New("affCode 为空！")

@@ -3724,6 +3724,13 @@
     "注销已禁用用户": "Résilier les utilisateurs désactivés",
     "一键注销已禁用用户": "Résilier tous les utilisateurs désactivés",
     "将把所有「已禁用」状态的用户注销（软删除），User ID 1 和管理员会被跳过。此操作不可撤销，确定继续？": "Cela résiliera (suppression logique) tous les utilisateurs désactivés ; User ID 1 et les administrateurs sont ignorés. Cette action est irréversible. Continuer ?",
-    "确认注销": "Confirmer la résiliation"
+    "确认注销": "Confirmer la résiliation",
+    "清理已注销用户": "Purger les utilisateurs résiliés",
+    "彻底清理已注销用户": "Purger définitivement les utilisateurs résiliés",
+    "将从数据库中永久删除所有「已注销」用户及其数据，无法恢复。确定继续？": "Cela supprimera définitivement tous les utilisateurs résiliés et leurs données de la base de données. Irréversible. Continuer ?",
+    "确认清理": "Confirmer la purge",
+    "已彻底清理 {{count}} 个已注销用户": "{{count}} utilisateur(s) résilié(s) purgé(s)",
+    "当前可用用户数": "Utilisateurs actifs",
+    "已注销用户数": "Utilisateurs résiliés"
   }
 }
