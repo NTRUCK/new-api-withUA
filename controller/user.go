@@ -823,8 +823,10 @@ func DeleteUser(c *gin.Context) {
 }
 
 // BatchDeregisterDisabledUsers 将所有已禁用用户一键注销（软删除），跳过 User ID 1 和管理员
+// query 参数 exclude_violation=true 时跳过违规榜用户，使其保持被封禁状态
 func BatchDeregisterDisabledUsers(c *gin.Context) {
-	deregisteredIds, err := model.BatchDeregisterDisabledUsers()
+	excludeViolation := c.Query("exclude_violation") == "true"
+	deregisteredIds, err := model.BatchDeregisterDisabledUsers(excludeViolation)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -839,8 +841,9 @@ func BatchDeregisterDisabledUsers(c *gin.Context) {
 		"admin_id":            c.GetInt("id"),
 		"admin_username":      c.GetString("username"),
 		"deregistered_count":  len(deregisteredIds),
+		"exclude_violation":   excludeViolation,
 	}
-	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("一键注销已禁用用户，共注销 %d 个用户", len(deregisteredIds)), adminInfo)
+	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("一键注销已禁用用户，共注销 %d 个用户（排除违规榜：%v）", len(deregisteredIds), excludeViolation), adminInfo)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",

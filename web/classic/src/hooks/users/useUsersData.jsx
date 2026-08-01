@@ -133,8 +133,11 @@ export const useUsersData = () => {
   };
 
   // Batch deregister all disabled users (soft delete)
-  const batchDeregisterDisabled = async () => {
-    const res = await API.post('/api/user/batch_deregister_disabled');
+  // excludeViolation=true 时跳过违规榜用户，保持其被封禁状态
+  const batchDeregisterDisabled = async (excludeViolation = false) => {
+    const res = await API.post(
+      `/api/user/batch_deregister_disabled${excludeViolation ? '?exclude_violation=true' : ''}`,
+    );
     const { success, message, data } = res.data;
     if (success) {
       showSuccess(

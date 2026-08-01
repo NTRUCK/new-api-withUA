@@ -18,7 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Button, Modal } from '@douyinfe/semi-ui';
+import { Button, Modal, Dropdown } from '@douyinfe/semi-ui';
+import { IconChevronDown } from '@douyinfe/semi-icons';
 
 const UsersActions = ({
   setShowAddUser,
@@ -31,17 +32,21 @@ const UsersActions = ({
     setShowAddUser(true);
   };
 
-  const handleBatchDeregister = () => {
+  const handleBatchDeregister = (excludeViolation) => {
     Modal.confirm({
       title: t('一键注销已禁用用户'),
-      content: t(
-        '将把所有「已禁用」状态的用户注销（软删除），User ID 1 和管理员会被跳过。此操作不可撤销，确定继续？',
-      ),
+      content: excludeViolation
+        ? t(
+            '将把所有「已禁用」状态的用户注销（软删除），但会跳过违规榜上的用户，使其保持被封禁状态。User ID 1 和管理员也会被跳过。此操作不可撤销，确定继续？',
+          )
+        : t(
+            '将把所有「已禁用」状态的用户注销（软删除），User ID 1 和管理员会被跳过。此操作不可撤销，确定继续？',
+          ),
       okText: t('确认注销'),
       cancelText: t('取消'),
       okType: 'danger',
       centered: true,
-      onOk: () => batchDeregisterDisabled(),
+      onOk: () => batchDeregisterDisabled(excludeViolation),
     });
   };
 
@@ -64,14 +69,32 @@ const UsersActions = ({
       <Button className='w-full md:w-auto' onClick={handleAddUser} size='small'>
         {t('添加用户')}
       </Button>
-      <Button
-        type='danger'
-        className='w-full md:w-auto'
-        onClick={handleBatchDeregister}
-        size='small'
+      <Dropdown
+        trigger='click'
+        position='bottomLeft'
+        menu={[
+          {
+            node: 'item',
+            name: t('注销全部已禁用用户'),
+            onClick: () => handleBatchDeregister(false),
+          },
+          {
+            node: 'item',
+            name: t('注销时排除违规榜用户'),
+            onClick: () => handleBatchDeregister(true),
+          },
+        ]}
       >
-        {t('注销已禁用用户')}
-      </Button>
+        <Button
+          type='danger'
+          className='w-full md:w-auto'
+          size='small'
+          icon={<IconChevronDown />}
+          iconPosition='right'
+        >
+          {t('注销已禁用用户')}
+        </Button>
+      </Dropdown>
       <Button
         type='danger'
         className='w-full md:w-auto'

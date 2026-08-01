@@ -593,12 +593,18 @@ func BatchDisableUsers(userIds []int) (disabledIds []int, err error) {
 }
 
 // BatchDeregisterDisabledUsers 将所有「已禁用」用户软删除（注销）。
-// 跳过 User ID 1 和管理员。返回实际注销的用户 ID 列表。
-func BatchDeregisterDisabledUsers() (deregisteredIds []int, err error) {
+// 跳过 User ID 1 和管理员。excludeViolation 为 true 时跳过违规榜（listed）用户，
+// 让违规榜上的人保持被封禁状态。返回实际注销的用户 ID 列表。
+func BatchDeregisterDisabledUsers(excludeViolation bool) (deregisteredIds []int, err error) {
 	var targetIds []int
-	err = DB.Model(&User{}).
-		Where("status = ? AND id <> ? AND role < ?", common.UserStatusDisabled, 1, common.RoleAdminUser).
-		Pluck("id", &targetIds).Error
+	query := DB.Model(&User{}).
+		Where("status = ? AND id <> ? AND role < ?", common.UserStatusDisabled, 1, common.RoleAdminUser)
+	if excludeViolation {
+		// 排除在违规榜（listed=true）上的用户
+		query = query.Where("id NOT IN (?)",
+			DB.Model(&ViolationEntry{}).Select("user_id").Where("listed = ?", true))
+	}
+	err = query.Pluck("id", &targetIds).Error
 	if err != nil {
 		return nil, err
 	}
