@@ -113,6 +113,28 @@ func AddRedemption(c *gin.Context) {
 			common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
 			return
 		}
+		// 可选每份下限/上限校验：min>=0，max>=0，min<=max（max=0 表示不限）
+		if redemption.MinQuota < 0 || redemption.MaxQuota < 0 {
+			common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
+			return
+		}
+		if redemption.MaxQuota > 0 && redemption.MinQuota > redemption.MaxQuota {
+			common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
+			return
+		}
+		// 可行性校验：份数 * 下限 <= 总额 <= 份数 * 上限
+		floor := redemption.MinQuota
+		if floor < 1 {
+			floor = 1
+		}
+		if redemption.TotalQuota < floor*maxUses {
+			common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
+			return
+		}
+		if redemption.MaxQuota > 0 && redemption.TotalQuota > redemption.MaxQuota*maxUses {
+			common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
+			return
+		}
 	default:
 		common.ApiErrorI18n(c, i18n.MsgRedemptionModeParamInvalid)
 		return

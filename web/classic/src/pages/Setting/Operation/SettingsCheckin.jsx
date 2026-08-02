@@ -27,11 +27,21 @@ import {
   showWarning,
   verifyJSON,
 } from '../../../helpers';
+import {
+  quotaToDisplayAmount,
+  displayAmountToQuota,
+  getQuotaPerUnit,
+} from '../../../helpers/quota';
+import { getCurrencyConfig } from '../../../helpers/render';
 import { useTranslation } from 'react-i18next';
 
 export default function SettingsCheckin(props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  // 额度换算小工具：金额 <-> quota（用于填写下方梯度 JSON 的 quota 数值）
+  const [convAmount, setConvAmount] = useState(10);
+  const [convQuota, setConvQuota] = useState(displayAmountToQuota(10));
+  const currencySymbol = getCurrencyConfig().symbol;
   const [inputs, setInputs] = useState({
     'checkin_setting.enabled': false,
     'checkin_setting.min_quota': 1000,
@@ -144,6 +154,65 @@ export default function SettingsCheckin(props) {
                   min={0}
                   disabled={!inputs['checkin_setting.enabled']}
                 />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={16}>
+                <Form.Slot label={t('额度换算工具')}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <Typography.Text type='tertiary'>
+                      {t('金额')}
+                    </Typography.Text>
+                    <Form.InputNumber
+                      noLabel
+                      field='__conv_amount'
+                      prefix={currencySymbol}
+                      precision={6}
+                      min={0}
+                      step={0.000001}
+                      initValue={convAmount}
+                      style={{ width: 160 }}
+                      onChange={(v) => {
+                        const amount = Number(v || 0);
+                        setConvAmount(amount);
+                        setConvQuota(displayAmountToQuota(amount));
+                      }}
+                    />
+                    <Typography.Text type='tertiary'>=</Typography.Text>
+                    <Form.InputNumber
+                      noLabel
+                      field='__conv_quota'
+                      min={0}
+                      step={1}
+                      initValue={convQuota}
+                      style={{ width: 200 }}
+                      onChange={(v) => {
+                        const quota = Number(v || 0);
+                        setConvQuota(quota);
+                        setConvAmount(
+                          Number(quotaToDisplayAmount(quota).toFixed(6)),
+                        );
+                      }}
+                    />
+                    <Typography.Text type='tertiary'>quota</Typography.Text>
+                  </div>
+                  <Typography.Text
+                    type='tertiary'
+                    size='small'
+                    style={{ display: 'block', marginTop: 4 }}
+                  >
+                    {t('当前换算比例：1')}
+                    {currencySymbol} = {getQuotaPerUnit()} quota。
+                    {t('在此换算后，将 quota 值填入下方梯度 JSON。')}
+                  </Typography.Text>
+                </Form.Slot>
               </Col>
             </Row>
             <Row>

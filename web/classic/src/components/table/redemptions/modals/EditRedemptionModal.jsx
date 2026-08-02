@@ -74,6 +74,8 @@ const EditRedemptionModal = (props) => {
     min_amount: Number(quotaToDisplayAmount(0).toFixed(6)),
     max_amount: Number(quotaToDisplayAmount(100000).toFixed(6)),
     total_amount: Number(quotaToDisplayAmount(100000).toFixed(6)),
+    lucky_min_amount: 0,
+    lucky_max_amount: 0,
     expired_time: null,
   });
 
@@ -100,6 +102,13 @@ const EditRedemptionModal = (props) => {
       );
       data.total_amount = Number(
         quotaToDisplayAmount(data.total_quota || 0).toFixed(6),
+      );
+      // 拼手气模式复用 min_quota/max_quota 承载每份下限/上限，回填到独立字段
+      data.lucky_min_amount = Number(
+        quotaToDisplayAmount(data.min_quota || 0).toFixed(6),
+      );
+      data.lucky_max_amount = Number(
+        quotaToDisplayAmount(data.max_quota || 0).toFixed(6),
       );
       if (!data.mode) data.mode = 1;
       formApiRef.current?.setValues({ ...getInitValues(), ...data });
@@ -153,8 +162,33 @@ const EditRedemptionModal = (props) => {
       }
     }
     if (localInputs.mode === 3) {
+      // 拼手气模式复用 min_quota/max_quota 承载「每份下限/上限」
+      localInputs.min_quota = displayAmountToQuota(localInputs.lucky_min_amount);
+      localInputs.max_quota = displayAmountToQuota(localInputs.lucky_max_amount);
       if (localInputs.total_quota < localInputs.max_uses) {
         showError(t('拼手气总额度需不小于份数'));
+        setLoading(false);
+        return;
+      }
+      if (
+        localInputs.max_quota > 0 &&
+        localInputs.min_quota > localInputs.max_quota
+      ) {
+        showError(t('每份最小金额不能大于最大金额'));
+        setLoading(false);
+        return;
+      }
+      const floor = localInputs.min_quota > 0 ? localInputs.min_quota : 1;
+      if (localInputs.total_quota < floor * localInputs.max_uses) {
+        showError(t('总额度需不小于「每份最小金额 × 份数」'));
+        setLoading(false);
+        return;
+      }
+      if (
+        localInputs.max_quota > 0 &&
+        localInputs.total_quota > localInputs.max_quota * localInputs.max_uses
+      ) {
+        showError(t('总额度不能大于「每份最大金额 × 份数」'));
         setLoading(false);
         return;
       }
@@ -435,6 +469,32 @@ const EditRedemptionModal = (props) => {
                         step={0.000001}
                         style={{ width: '100%' }}
                         extraText={t('总额度将随机拆分为「可兑换次数」份，抢完即失效')}
+                        showClear
+                      />
+                    </Col>
+                    <Col span={12} style={{ display: values.mode === 3 ? 'block' : 'none' }}>
+                      <Form.InputNumber
+                        field='lucky_min_amount'
+                        label={t('每份最小金额（可选）')}
+                        prefix={getCurrencyConfig().symbol}
+                        precision={6}
+                        min={0}
+                        step={0.000001}
+                        style={{ width: '100%' }}
+                        extraText={t('留空或 0 表示每份至少发放最小额度')}
+                        showClear
+                      />
+                    </Col>
+                    <Col span={12} style={{ display: values.mode === 3 ? 'block' : 'none' }}>
+                      <Form.InputNumber
+                        field='lucky_max_amount'
+                        label={t('每份最大金额（可选）')}
+                        prefix={getCurrencyConfig().symbol}
+                        precision={6}
+                        min={0}
+                        step={0.000001}
+                        style={{ width: '100%' }}
+                        extraText={t('留空或 0 表示每份不设上限')}
                         showClear
                       />
                     </Col>

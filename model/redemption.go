@@ -236,23 +236,43 @@ func computeRedeemQuota(redemption *Redemption, remainingUses int) int {
 		if remain <= 0 {
 			return 0
 		}
+		// 每份下限（floor，至少 1）与上限（ceil，0 表示不限制）
+		floor := redemption.MinQuota
+		if floor < 1 {
+			floor = 1
+		}
+		ceil := redemption.MaxQuota // 0 表示不限制
+
 		if remainingUses <= 1 {
-			// 最后一份，把剩余全部发出
+			// 最后一份，把剩余全部发出（受 ceil 兜底，正常情况下已由创建校验保证 remain<=ceil）
+			if ceil > 0 && remain > ceil {
+				return ceil
+			}
 			return remain
 		}
-		// 微信拼手气算法：本次随机范围 [1, remain/remainingUses*2]，保证后续每份至少 1
-		max := remain - (remainingUses - 1)
-		if max <= 1 {
-			return 1
+
+		others := remainingUses - 1
+		// 为保证后续每份 >= floor，本次最多可发 remain - floor*others
+		hi := remain - floor*others
+		// 为保证后续每份 <= ceil，本次至少需发 remain - ceil*others
+		lo := floor
+		if ceil > 0 {
+			if need := remain - ceil*others; need > lo {
+				lo = need
+			}
 		}
-		limit := remain / remainingUses * 2
-		if limit < 1 {
-			limit = 1
+		// ceil 对本次上限的约束
+		if ceil > 0 && hi > ceil {
+			hi = ceil
 		}
-		if limit > max {
-			limit = max
+		if hi < lo {
+			// 参数冲突时兜底，保证不小于 floor
+			if lo < floor {
+				return floor
+			}
+			return lo
 		}
-		return 1 + rand.Intn(limit)
+		return lo + rand.Intn(hi-lo+1)
 	default:
 		return redemption.Quota
 	}
