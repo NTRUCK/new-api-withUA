@@ -148,8 +148,6 @@ const DiceGamePanel = () => {
   }
 
   const displayDice = lastResult ? lastResult.dice : [1, 1, 1];
-  const nextIsPaid =
-    status && status.plays_today >= status.daily_free_plays;
   const reachedLimit =
     status &&
     status.daily_max_plays > 0 &&
@@ -278,13 +276,7 @@ const DiceGamePanel = () => {
             disabled={reachedLimit}
             onClick={play}
           >
-            {reachedLimit
-              ? t('今日次数已用完')
-              : nextIsPaid
-                ? t('掷骰子（入场费 {{fee}}）', {
-                    fee: renderQuota(status.entry_fee),
-                  })
-                : t('掷骰子（免费）')}
+            {reachedLimit ? t('今日次数已用完') : t('掷骰子')}
           </Button>
 
           {status && (
@@ -296,7 +288,7 @@ const DiceGamePanel = () => {
                 {t('今日已玩')}: {status.plays_today}/{status.daily_max_plays}
               </Typography.Text>
               <Typography.Text type='tertiary'>
-                {t('剩余免费')}: {status.free_left}
+                {t('剩余次数')}: {status.plays_left}
               </Typography.Text>
               <Typography.Text type='tertiary'>
                 {t('当前余额')}: {renderQuota(status.balance)}

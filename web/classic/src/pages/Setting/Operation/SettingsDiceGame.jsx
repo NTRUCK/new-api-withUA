@@ -37,9 +37,7 @@ export default function SettingsDiceGame(props) {
     'dice_game_setting.min_bet': 500,
     'dice_game_setting.max_bet': 500000,
     'dice_game_setting.payout_rate': 2.0,
-    'dice_game_setting.daily_free_plays': 3,
-    'dice_game_setting.entry_fee': 5,
-    'dice_game_setting.daily_max_plays': 20,
+    'dice_game_setting.daily_max_plays': 3,
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -163,28 +161,6 @@ export default function SettingsDiceGame(props) {
                   label={t('单局最大下注额度')}
                   min={1}
                   onChange={handleFieldChange('dice_game_setting.max_bet')}
-                  disabled={disabled}
-                />
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col xs={24} sm={12} md={8}>
-                <Form.InputNumber
-                  field={'dice_game_setting.daily_free_plays'}
-                  label={t('每日免费局数')}
-                  min={0}
-                  onChange={handleFieldChange(
-                    'dice_game_setting.daily_free_plays',
-                  )}
-                  disabled={disabled}
-                />
-              </Col>
-              <Col xs={24} sm={12} md={8}>
-                <Form.InputNumber
-                  field={'dice_game_setting.entry_fee'}
-                  label={t('超出免费后每局入场费')}
-                  min={0}
-                  onChange={handleFieldChange('dice_game_setting.entry_fee')}
                   disabled={disabled}
                 />
               </Col>

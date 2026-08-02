@@ -35,17 +35,16 @@ func (DiceGameRecord) TableName() string {
 
 // DiceGameResult 单局游戏结果（返回给前端）
 type DiceGameResult struct {
-	Dice        [3]int `json:"dice"`
-	Sum         int    `json:"sum"`
-	IsTriple    bool   `json:"is_triple"`
-	Win         bool   `json:"win"`
-	Bet         int    `json:"bet"`
-	EntryFee    int    `json:"entry_fee"`
-	Payout      int    `json:"payout"`
-	NetChange   int    `json:"net_change"`
-	Balance     int    `json:"balance"`      // 结算后剩余额度
-	PlaysToday  int    `json:"plays_today"`  // 今日已玩局数（含本局）
-	FreeLeft    int    `json:"free_left"`    // 今日剩余免费局数
+	Dice       [3]int `json:"dice"`
+	Sum        int    `json:"sum"`
+	IsTriple   bool   `json:"is_triple"`
+	Win        bool   `json:"win"`
+	Bet        int    `json:"bet"`
+	Payout     int    `json:"payout"`
+	NetChange  int    `json:"net_change"`
+	Balance    int    `json:"balance"`     // 结算后剩余额度
+	PlaysToday int    `json:"plays_today"` // 今日已玩局数（含本局）
+	PlaysLeft  int    `json:"plays_left"`  // 今日剩余可玩局数
 }
 
 // countDiceGamePlaysToday 今日已玩局数
@@ -68,9 +67,9 @@ func GetDiceGameStatus(userId int) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	freeLeft := setting.DailyFreePlays - playsToday
-	if freeLeft < 0 {
-		freeLeft = 0
+	playsLeft := setting.DailyMaxPlays - playsToday
+	if playsLeft < 0 {
+		playsLeft = 0
 	}
 	balance, _ := GetUserQuota(userId, false)
 
@@ -78,17 +77,15 @@ func GetDiceGameStatus(userId int) (map[string]interface{}, error) {
 	DB.Where("user_id = ?", userId).Order("created_at DESC").Limit(20).Find(&records)
 
 	return map[string]interface{}{
-		"enabled":          setting.Enabled,
-		"min_bet":          setting.MinBet,
-		"max_bet":          setting.MaxBet,
-		"payout_rate":      setting.PayoutRate,
-		"daily_free_plays": setting.DailyFreePlays,
-		"entry_fee":        setting.EntryFee,
-		"daily_max_plays":  setting.DailyMaxPlays,
-		"plays_today":      playsToday,
-		"free_left":        freeLeft,
-		"balance":          balance,
-		"records":          records,
+		"enabled":         setting.Enabled,
+		"min_bet":         setting.MinBet,
+		"max_bet":         setting.MaxBet,
+		"payout_rate":     setting.PayoutRate,
+		"daily_max_plays": setting.DailyMaxPlays,
+		"plays_today":     playsToday,
+		"plays_left":      playsLeft,
+		"balance":         balance,
+		"records":         records,
 	}, nil
 }
 
@@ -114,18 +111,12 @@ func PlayDiceGame(userId int, choice string, bet int) (*DiceGameResult, error) {
 		return nil, errors.New("今日游戏次数已用完")
 	}
 
-	// 计算入场费：超出免费局数后每局收取
-	entryFee := 0
-	if playsToday >= setting.DailyFreePlays {
-		entryFee = setting.EntryFee
-	}
-
-	// 校验余额是否足够支付「下注 + 入场费」
+	// 下注本身即为成本，不额外收取入场费
 	balance, err := GetUserQuota(userId, false)
 	if err != nil {
 		return nil, err
 	}
-	cost := bet + entryFee
+	cost := bet
 	if balance < cost {
 		return nil, errors.New("额度不足")
 	}
@@ -157,7 +148,7 @@ func PlayDiceGame(userId int, choice string, bet int) (*DiceGameResult, error) {
 		UserId:    userId,
 		Choice:    choice,
 		Bet:       bet,
-		EntryFee:  entryFee,
+		EntryFee:  0,
 		Dice1:     d1,
 		Dice2:     d2,
 		Dice3:     d3,
@@ -174,9 +165,9 @@ func PlayDiceGame(userId int, choice string, bet int) (*DiceGameResult, error) {
 	}
 
 	newBalance := balance + netChange
-	freeLeft := setting.DailyFreePlays - (playsToday + 1)
-	if freeLeft < 0 {
-		freeLeft = 0
+	playsLeft := setting.DailyMaxPlays - (playsToday + 1)
+	if playsLeft < 0 {
+		playsLeft = 0
 	}
 
 	return &DiceGameResult{
@@ -185,12 +176,11 @@ func PlayDiceGame(userId int, choice string, bet int) (*DiceGameResult, error) {
 		IsTriple:   isTriple,
 		Win:        win,
 		Bet:        bet,
-		EntryFee:   entryFee,
 		Payout:     payout,
 		NetChange:  netChange,
 		Balance:    newBalance,
 		PlaysToday: playsToday + 1,
-		FreeLeft:   freeLeft,
+		PlaysLeft:  playsLeft,
 	}, nil
 }
 

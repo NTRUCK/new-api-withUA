@@ -87,9 +87,7 @@ const OperationSetting = () => {
     'dice_game_setting.min_bet': 500,
     'dice_game_setting.max_bet': 500000,
     'dice_game_setting.payout_rate': 2.0,
-    'dice_game_setting.daily_free_plays': 3,
-    'dice_game_setting.entry_fee': 5,
-    'dice_game_setting.daily_max_plays': 20,
+    'dice_game_setting.daily_max_plays': 3,
 
     /* 令牌设置 */
     'token_setting.max_user_tokens': 1000,
