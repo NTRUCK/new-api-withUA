@@ -29,7 +29,7 @@ import {
   Avatar,
 } from '@douyinfe/semi-ui';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
-import { Copy, Activity } from 'lucide-react';
+import { Copy, Activity, MessageSquareWarning } from 'lucide-react';
 import {
   IllustrationNoResult,
   IllustrationNoResultDark,
@@ -42,6 +42,7 @@ import {
   getLobeHubIcon,
 } from '../../../../../helpers';
 import PricingCardSkeleton from './PricingCardSkeleton';
+import ModelFeedbackModal from './ModelFeedbackModal';
 import { useMinimumLoadingTime } from '../../../../../hooks/common/useMinimumLoadingTime';
 import { renderLimitedItems } from '../../../../common/ui/RenderUtils';
 import { useIsMobile } from '../../../../../hooks/common/useIsMobile';
@@ -142,6 +143,7 @@ const PricingCardView = ({
   selectedRowKeys = [],
   setSelectedRowKeys,
   openModelDetail,
+  userState,
 }) => {
   const showSkeleton = useMinimumLoadingTime(loading);
   const startIndex = (currentPage - 1) * pageSize;
@@ -151,6 +153,10 @@ const PricingCardView = ({
   );
   const getModelKey = (model) => model.key ?? model.model_name ?? model.id;
   const isMobile = useIsMobile();
+
+  // 模型反馈弹窗状态
+  const [feedbackModel, setFeedbackModel] = React.useState(null);
+  const isLoggedIn = !!(userState && userState.user);
 
   const handleCheckboxChange = (model, checked) => {
     if (!setSelectedRowKeys) return;
@@ -360,6 +366,22 @@ const PricingCardView = ({
                       }}
                     />
 
+                    {/* 反馈按钮：仅登录用户可见 */}
+                    {isLoggedIn && (
+                      <Tooltip content={t('反馈模型问题')}>
+                        <Button
+                          size='small'
+                          theme='outline'
+                          type='warning'
+                          icon={<MessageSquareWarning size={12} />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFeedbackModel(model.model_name);
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+
                     {/* 选择框 */}
                     {rowSelection && (
                       <Checkbox
@@ -452,6 +474,13 @@ const PricingCardView = ({
           />
         </div>
       )}
+
+      <ModelFeedbackModal
+        visible={!!feedbackModel}
+        modelName={feedbackModel}
+        onClose={() => setFeedbackModel(null)}
+        t={t}
+      />
     </div>
   );
 };

@@ -46,6 +46,13 @@ func SetApiRouter(router *gin.Engine) {
 			violationAdminRoute.DELETE("", controller.AdminRemoveAllViolations)
 			violationAdminRoute.DELETE("/:user_id", controller.AdminRemoveViolation)
 		}
+		// 模型反馈：登录用户提交，管理员查看/处理
+		modelFeedbackRoute := apiRouter.Group("/model_feedback")
+		{
+			modelFeedbackRoute.POST("", middleware.UserAuth(), middleware.CriticalRateLimit(), controller.SubmitModelFeedback)
+			modelFeedbackRoute.GET("", middleware.AdminAuth(), controller.GetModelFeedbacks)
+			modelFeedbackRoute.POST("/:id/handle", middleware.AdminAuth(), controller.HandleModelFeedback)
+		}
 		apiRouter.GET("/verification", middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), controller.SendEmailVerification)
 		apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), controller.ResetPassword)

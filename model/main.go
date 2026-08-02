@@ -284,6 +284,7 @@ func migrateDB() error {
 		&CustomOAuthProvider{},
 		&UserOAuthBinding{},
 		&PerfMetric{},
+		&ModelFeedback{},
 	)
 	if err != nil {
 		return err
