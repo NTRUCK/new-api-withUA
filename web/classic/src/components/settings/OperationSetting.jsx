@@ -27,6 +27,7 @@ import SettingsLog from '../../pages/Setting/Operation/SettingsLog';
 import SettingsMonitoring from '../../pages/Setting/Operation/SettingsMonitoring';
 import SettingsCreditLimit from '../../pages/Setting/Operation/SettingsCreditLimit';
 import SettingsCheckin from '../../pages/Setting/Operation/SettingsCheckin';
+import SettingsDiceGame from '../../pages/Setting/Operation/SettingsDiceGame';
 import { API, showError, toBoolean } from '../../helpers';
 
 const OperationSetting = () => {
@@ -79,6 +80,16 @@ const OperationSetting = () => {
     'checkin_setting.min_quota': 1000,
     'checkin_setting.max_quota': 10000,
     'checkin_setting.tiers': '[]',
+
+    /* 小游戏设置 */
+    'dice_game_setting.enabled': false,
+    'dice_game_setting.show_entry': false,
+    'dice_game_setting.min_bet': 500,
+    'dice_game_setting.max_bet': 500000,
+    'dice_game_setting.payout_rate': 2.0,
+    'dice_game_setting.daily_free_plays': 3,
+    'dice_game_setting.entry_fee': 5,
+    'dice_game_setting.daily_max_plays': 20,
 
     /* 令牌设置 */
     'token_setting.max_user_tokens': 1000,
@@ -154,6 +165,10 @@ const OperationSetting = () => {
         {/* 签到设置 */}
         <Card style={{ marginTop: '10px' }}>
           <SettingsCheckin options={inputs} refresh={onRefresh} />
+        </Card>
+        {/* 小游戏设置 */}
+        <Card style={{ marginTop: '10px' }}>
+          <SettingsDiceGame options={inputs} refresh={onRefresh} />
         </Card>
       </Spin>
     </>

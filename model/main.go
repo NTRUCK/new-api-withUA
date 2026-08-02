@@ -285,6 +285,7 @@ func migrateDB() error {
 		&UserOAuthBinding{},
 		&PerfMetric{},
 		&ModelFeedback{},
+		&DiceGameRecord{},
 	)
 	if err != nil {
 		return err

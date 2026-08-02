@@ -42,6 +42,7 @@ import Chat2Link from './pages/Chat2Link';
 import Midjourney from './pages/Midjourney';
 import Pricing from './pages/Pricing';
 import Task from './pages/Task';
+import DiceGame from './pages/DiceGame';
 import ModelPage from './pages/Model';
 import ModelDeploymentPage from './pages/ModelDeployment';
 import Playground from './pages/Playground';
@@ -322,6 +323,16 @@ function App() {
             <PrivateRoute>
               <Suspense fallback={<Loading></Loading>} key={location.pathname}>
                 <Task />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/dice-game'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <DiceGame />
               </Suspense>
             </PrivateRoute>
           }

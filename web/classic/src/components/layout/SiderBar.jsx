@@ -50,6 +50,7 @@ const routerMap = {
   playground: '/console/playground',
   personal: '/console/personal',
   feedback: '/console/feedback',
+  dice_game: '/console/dice-game',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -131,6 +132,15 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         to: '/topup',
       },
       {
+        text: t('幸运骰子'),
+        itemKey: 'dice_game',
+        to: '/dice-game',
+        className:
+          localStorage.getItem('dice_game_show_entry') === 'true'
+            ? ''
+            : 'tableHiddle',
+      },
+      {
         text: t('个人设置'),
         itemKey: 'personal',
         to: '/personal',
@@ -144,7 +154,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
     });
 
     return filteredItems;
-  }, [t, isModuleVisible]);
+  }, [t, isModuleVisible, localStorage.getItem('dice_game_show_entry')]);
 
   const adminItems = useMemo(() => {
     const items = [
