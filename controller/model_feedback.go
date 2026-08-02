@@ -98,16 +98,25 @@ func GetModelFeedbacks(c *gin.Context) {
 		return
 	}
 
-	var items []model.ModelFeedback
-	if err := query.Order("created_at DESC").
+	// 联表带出用户展示名与 Discord 用户名，便于管理员识别反馈来源
+	type feedbackRow struct {
+		model.ModelFeedback
+		UserDisplayName  string `json:"user_display_name"`
+		UserDiscordName  string `json:"user_discord_name"`
+	}
+	var rows []feedbackRow
+	if err := query.
+		Select("model_feedbacks.*, users.display_name as user_display_name, users.discord_username as user_discord_name").
+		Joins("LEFT JOIN users ON users.id = model_feedbacks.user_id").
+		Order("model_feedbacks.created_at DESC").
 		Offset(pageInfo.GetStartIdx()).Limit(pageInfo.GetPageSize()).
-		Find(&items).Error; err != nil {
+		Scan(&rows).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}
 
 	pageInfo.SetTotal(int(total))
-	pageInfo.SetItems(items)
+	pageInfo.SetItems(rows)
 	common.ApiSuccess(c, pageInfo)
 }
 
