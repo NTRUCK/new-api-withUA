@@ -56,6 +56,10 @@ const SystemSetting = () => {
     'discord.enabled': '',
     'discord.client_id': '',
     'discord.client_secret': '',
+    'discord.guild_gating': '',
+    'discord.guild_id': '',
+    'discord.require_role': '',
+    'discord.role_id': '',
     'oidc.enabled': '',
     'oidc.client_id': '',
     'oidc.client_secret': '',
@@ -206,6 +210,8 @@ const SystemSetting = () => {
           case 'SMTPForceAuthLogin':
           case 'LinuxDOOAuthEnabled':
           case 'discord.enabled':
+          case 'discord.guild_gating':
+          case 'discord.require_role':
           case 'oidc.enabled':
           case 'passkey.enabled':
           case 'passkey.allow_insecure_origin':
@@ -527,6 +533,30 @@ const SystemSetting = () => {
       options.push({
         key: 'discord.client_secret',
         value: inputs['discord.client_secret'],
+      });
+    }
+    if (originInputs['discord.guild_gating'] !== inputs['discord.guild_gating']) {
+      options.push({
+        key: 'discord.guild_gating',
+        value: String(inputs['discord.guild_gating']),
+      });
+    }
+    if (originInputs['discord.guild_id'] !== inputs['discord.guild_id']) {
+      options.push({
+        key: 'discord.guild_id',
+        value: inputs['discord.guild_id'],
+      });
+    }
+    if (originInputs['discord.require_role'] !== inputs['discord.require_role']) {
+      options.push({
+        key: 'discord.require_role',
+        value: String(inputs['discord.require_role']),
+      });
+    }
+    if (originInputs['discord.role_id'] !== inputs['discord.role_id']) {
+      options.push({
+        key: 'discord.role_id',
+        value: inputs['discord.role_id'],
       });
     }
 
@@ -1545,6 +1575,65 @@ const SystemSetting = () => {
                         label={t('Discord Client Secret')}
                         type='password'
                         placeholder={t('敏感信息不会发送到前端显示')}
+                      />
+                    </Col>
+                  </Row>
+                  <Banner
+                    type='warning'
+                    description={t(
+                      '服务器准入：启用后，只有加入指定 Discord 服务器（可选：并持有指定身份组）的用户才能登录/注册，且每次登录都会校验。需确保上方 OAuth 授权范围包含 guilds.members.read（本站登录按钮已自动申请）。',
+                    )}
+                    style={{ marginBottom: 16, marginTop: 8 }}
+                  />
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Switch
+                        field="['discord.guild_gating']"
+                        label={t('启用服务器准入校验')}
+                        onChange={(value) => {
+                          setInputs({
+                            ...inputs,
+                            'discord.guild_gating': value,
+                          });
+                        }}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field="['discord.guild_id']"
+                        label={t('限定服务器 ID（Guild ID）')}
+                        placeholder={t('例如 1134557553011998840')}
+                        disabled={!inputs['discord.guild_gating']}
+                      />
+                    </Col>
+                  </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Switch
+                        field="['discord.require_role']"
+                        label={t('要求持有指定身份组')}
+                        disabled={!inputs['discord.guild_gating']}
+                        onChange={(value) => {
+                          setInputs({
+                            ...inputs,
+                            'discord.require_role': value,
+                          });
+                        }}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field="['discord.role_id']"
+                        label={t('身份组 ID（Role ID）')}
+                        placeholder={t('例如 1335363403870502912')}
+                        disabled={
+                          !inputs['discord.guild_gating'] ||
+                          !inputs['discord.require_role']
+                        }
                       />
                     </Col>
                   </Row>

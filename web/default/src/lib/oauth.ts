@@ -40,7 +40,8 @@ export function buildDiscordOAuthUrl(clientId: string, state: string): string {
     `${window.location.origin}/oauth/discord`
   )
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope', 'identify+openid')
+  // guilds.members.read 用于服务器准入校验（校验成员身份及身份组）
+  url.searchParams.set('scope', 'identify openid guilds.members.read')
   url.searchParams.set('state', state)
   return url.toString()
 }

@@ -295,6 +295,9 @@ const (
 	MsgOAuthTokenFailed     = "oauth.token_failed"
 	MsgOAuthUserInfoEmpty   = "oauth.user_info_empty"
 	MsgOAuthTrustLevelLow   = "oauth.trust_level_low"
+
+	MsgOAuthDiscordNotGuildMember = "oauth.discord_not_guild_member"
+	MsgOAuthDiscordMissingRole    = "oauth.discord_missing_role"
 )
 
 // Model layer error messages (for translation in controller)

@@ -103,6 +103,14 @@ func HandleOAuth(c *gin.Context) {
 		return
 	}
 
+	// 6.5 Discord 服务器准入校验（每次登录/注册都执行）
+	if provider.GetName() == "Discord" {
+		if err := oauth.CheckGuildAccess(c, token); err != nil {
+			handleOAuthError(c, err)
+			return
+		}
+	}
+
 	// 7. Find or create user
 	user, err := findOrCreateOAuthUser(c, provider, oauthUser, session)
 	if err != nil {
@@ -147,6 +155,14 @@ func handleOAuthBind(c *gin.Context, provider oauth.Provider) {
 	if err != nil {
 		handleOAuthError(c, err)
 		return
+	}
+
+	// Discord 服务器准入校验（绑定时同样要求满足服务器/身份组条件）
+	if provider.GetName() == "Discord" {
+		if err := oauth.CheckGuildAccess(c, token); err != nil {
+			handleOAuthError(c, err)
+			return
+		}
 	}
 
 	// Check if this OAuth account is already bound (check both new ID and legacy ID)

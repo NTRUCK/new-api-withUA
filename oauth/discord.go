@@ -164,6 +164,69 @@ func (p *DiscordProvider) IsUserIDTaken(providerUserID string) bool {
 	return model.IsDiscordIdAlreadyTaken(providerUserID)
 }
 
+// discordGuildMember 为 GET /users/@me/guilds/{guild.id}/member 的部分响应
+type discordGuildMember struct {
+	Roles []string `json:"roles"`
+	// 当非成员时，Discord 返回 { "code": ..., "message": ... }
+	Code int `json:"code"`
+}
+
+// CheckGuildAccess 校验用户是否满足服务器准入要求：
+//   - 未启用 GuildGating 或未配置 GuildId：直接放行
+//   - 调 GET /users/@me/guilds/{guild_id}/member，非成员则拒绝
+//   - RequireRole=true 时进一步要求持有指定 RoleId
+//
+// 需要 access token 具备 guilds.members.read scope。
+func CheckGuildAccess(c *gin.Context, token *OAuthToken) error {
+	settings := system_setting.GetDiscordSettings()
+	if !settings.GuildGating || settings.GuildId == "" {
+		return nil
+	}
+
+	ctx := c.Request.Context()
+	url := fmt.Sprintf("https://discord.com/api/v10/users/@me/guilds/%s/member", settings.GuildId)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+
+	client := http.Client{Timeout: 5 * time.Second}
+	res, err := client.Do(req)
+	if err != nil {
+		logger.LogError(ctx, fmt.Sprintf("[OAuth-Discord] CheckGuildAccess error: %s", err.Error()))
+		return NewOAuthErrorWithRaw(i18n.MsgOAuthConnectFailed, map[string]any{"Provider": "Discord"}, err.Error())
+	}
+	defer res.Body.Close()
+
+	// 非 200 视为非该服务器成员
+	if res.StatusCode != http.StatusOK {
+		logger.LogDebug(ctx, "[OAuth-Discord] CheckGuildAccess: user is not a guild member, status=%d", res.StatusCode)
+		return &AccessDeniedError{Message: i18n.T(c, i18n.MsgOAuthDiscordNotGuildMember)}
+	}
+
+	if settings.RequireRole && settings.RoleId != "" {
+		var member discordGuildMember
+		if err := json.NewDecoder(res.Body).Decode(&member); err != nil {
+			logger.LogError(ctx, fmt.Sprintf("[OAuth-Discord] CheckGuildAccess decode error: %s", err.Error()))
+			return err
+		}
+		hasRole := false
+		for _, r := range member.Roles {
+			if r == settings.RoleId {
+				hasRole = true
+				break
+			}
+		}
+		if !hasRole {
+			logger.LogDebug(ctx, "[OAuth-Discord] CheckGuildAccess: user lacks required role %s", settings.RoleId)
+			return &AccessDeniedError{Message: i18n.T(c, i18n.MsgOAuthDiscordMissingRole)}
+		}
+	}
+
+	return nil
+}
+
 func (p *DiscordProvider) FillUserByProviderID(user *model.User, providerUserID string) error {
 	user.DiscordId = providerUserID
 	return user.FillUserByDiscordId()

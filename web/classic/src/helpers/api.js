@@ -273,7 +273,8 @@ export async function onDiscordOAuthClicked(client_id, options = {}) {
   if (!state) return;
   const redirect_uri = `${window.location.origin}/oauth/discord`;
   const response_type = 'code';
-  const scope = 'identify+openid';
+  // guilds.members.read 用于服务器准入校验（校验成员身份及身份组）
+  const scope = encodeURIComponent('identify openid guilds.members.read');
   redirectToOAuthUrl(
     `https://discord.com/oauth2/authorize?client_id=${client_id}&redirect_uri=${redirect_uri}&response_type=${response_type}&scope=${scope}&state=${state}`,
   );
