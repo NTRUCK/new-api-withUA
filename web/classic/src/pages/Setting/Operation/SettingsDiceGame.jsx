@@ -18,7 +18,15 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Button, Col, Form, Row, Spin, Typography } from '@douyinfe/semi-ui';
+import {
+  Button,
+  Col,
+  Form,
+  InputNumber,
+  Row,
+  Spin,
+  Typography,
+} from '@douyinfe/semi-ui';
 import {
   compareObjects,
   API,
@@ -26,11 +34,19 @@ import {
   showSuccess,
   showWarning,
 } from '../../../helpers';
+import {
+  quotaToDisplayAmount,
+  displayAmountToQuota,
+} from '../../../helpers/quota';
+import { getCurrencyConfig } from '../../../helpers/render';
 import { useTranslation } from 'react-i18next';
 
 export default function SettingsDiceGame(props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const currency = getCurrencyConfig();
+  const currencySymbol = currency.type === 'TOKENS' ? '' : currency.symbol;
+  const currencyPrecision = currency.type === 'TOKENS' ? 0 : 6;
   const [inputs, setInputs] = useState({
     'dice_game_setting.enabled': false,
     'dice_game_setting.show_entry': false,
@@ -45,6 +61,14 @@ export default function SettingsDiceGame(props) {
   function handleFieldChange(fieldName) {
     return (value) => {
       setInputs((inputs) => ({ ...inputs, [fieldName]: value }));
+    };
+  }
+
+  // 金额字段（存 quota，显示金额）变更：将输入的金额换算为 quota 存入
+  function handleAmountChange(fieldName) {
+    return (amount) => {
+      const quota = displayAmountToQuota(amount);
+      setInputs((inputs) => ({ ...inputs, [fieldName]: quota }));
     };
   }
 
@@ -147,22 +171,32 @@ export default function SettingsDiceGame(props) {
             </Row>
             <Row gutter={16}>
               <Col xs={24} sm={12} md={8}>
-                <Form.InputNumber
-                  field={'dice_game_setting.min_bet'}
-                  label={t('单局最小下注额度')}
-                  min={1}
-                  onChange={handleFieldChange('dice_game_setting.min_bet')}
-                  disabled={disabled}
-                />
+                <Form.Slot label={t('单局最小下注金额')}>
+                  <InputNumber
+                    min={0}
+                    step={0.01}
+                    precision={currencyPrecision}
+                    prefix={currencySymbol}
+                    value={quotaToDisplayAmount(inputs['dice_game_setting.min_bet'])}
+                    onChange={handleAmountChange('dice_game_setting.min_bet')}
+                    disabled={disabled}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Slot>
               </Col>
               <Col xs={24} sm={12} md={8}>
-                <Form.InputNumber
-                  field={'dice_game_setting.max_bet'}
-                  label={t('单局最大下注额度')}
-                  min={1}
-                  onChange={handleFieldChange('dice_game_setting.max_bet')}
-                  disabled={disabled}
-                />
+                <Form.Slot label={t('单局最大下注金额')}>
+                  <InputNumber
+                    min={0}
+                    step={0.01}
+                    precision={currencyPrecision}
+                    prefix={currencySymbol}
+                    value={quotaToDisplayAmount(inputs['dice_game_setting.max_bet'])}
+                    onChange={handleAmountChange('dice_game_setting.max_bet')}
+                    disabled={disabled}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Slot>
               </Col>
             </Row>
           </Form.Section>

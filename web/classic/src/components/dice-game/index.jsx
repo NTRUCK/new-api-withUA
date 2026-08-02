@@ -40,6 +40,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess, renderQuota } from '../../helpers';
 import { timestamp2string } from '../../helpers/utils';
+import {
+  quotaToDisplayAmount,
+  displayAmountToQuota,
+} from '../../helpers/quota';
+import { getCurrencyConfig } from '../../helpers/render';
 
 const DICE_ICONS = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
 
@@ -55,6 +60,9 @@ const DiceFace = ({ value, rolling }) => {
 
 const DiceGamePanel = () => {
   const { t } = useTranslation();
+  const currency = getCurrencyConfig();
+  const currencySymbol = currency.type === 'TOKENS' ? '' : currency.symbol;
+  const currencyType = currency.type;
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [bet, setBet] = useState(1000);
@@ -258,14 +266,16 @@ const DiceGamePanel = () => {
           </div>
 
           <div className='flex items-center gap-2'>
-            <Typography.Text>{t('下注额度')}:</Typography.Text>
+            <Typography.Text>{t('下注金额')}:</Typography.Text>
             <InputNumber
-              value={bet}
-              min={status?.min_bet}
-              max={status?.max_bet}
-              step={status?.min_bet}
-              onChange={(v) => setBet(v)}
-              style={{ width: 160 }}
+              value={quotaToDisplayAmount(bet)}
+              min={quotaToDisplayAmount(status?.min_bet || 0)}
+              max={quotaToDisplayAmount(status?.max_bet || 0)}
+              step={0.01}
+              precision={currencyType === 'TOKENS' ? 0 : 6}
+              prefix={currencySymbol}
+              onChange={(v) => setBet(displayAmountToQuota(v))}
+              style={{ width: 200 }}
             />
           </div>
 
