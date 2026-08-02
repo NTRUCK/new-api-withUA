@@ -48,7 +48,7 @@ const ModelHealth = () => {
   const { t } = useTranslation();
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [hours, setHours] = useState(24);
+  const [hours, setHours] = useState(1);
   const [keyword, setKeyword] = useState('');
 
   const load = async (h) => {

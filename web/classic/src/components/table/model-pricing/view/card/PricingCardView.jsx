@@ -110,7 +110,7 @@ const renderSuccessRate = (model, t) => {
   else if (rate < 95) color = 'amber';
   return (
     <Tooltip
-      content={t('近 24 小时成功率（{{count}} 次请求）', {
+      content={t('近 1 小时成功率（{{count}} 次请求）', {
         count: (perf.request_count ?? 0).toLocaleString(),
       })}
     >

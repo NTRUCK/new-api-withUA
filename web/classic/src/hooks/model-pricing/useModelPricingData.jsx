@@ -259,7 +259,7 @@ export const useModelPricingData = () => {
       // 拉取模型性能概览（成功率等），失败不影响定价展示
       let perfMap = {};
       try {
-        const perfRes = await API.get('/api/perf-metrics/summary?hours=24');
+        const perfRes = await API.get('/api/perf-metrics/summary?hours=1');
         if (perfRes.data?.success) {
           const perfModels = perfRes.data.data?.models || [];
           perfModels.forEach((pm) => {
