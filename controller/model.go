@@ -336,6 +336,34 @@ func EnabledListModels(c *gin.Context) {
 	})
 }
 
+// ModelsWithChannels 返回所有已启用模型及其绑定的渠道名称列表，
+// 用于「模型每日限额」等配置页的下拉选择，方便管理员按渠道识别模型。
+func ModelsWithChannels(c *gin.Context) {
+	models := model.GetEnabledModels()
+	boundMap, _ := model.GetBoundChannelsByModelsMap(models)
+	type item struct {
+		Model    string   `json:"model"`
+		Channels []string `json:"channels"`
+	}
+	result := make([]item, 0, len(models))
+	for _, name := range models {
+		names := make([]string, 0)
+		seen := make(map[string]bool)
+		for _, bc := range boundMap[name] {
+			if bc.Name == "" || seen[bc.Name] {
+				continue
+			}
+			seen[bc.Name] = true
+			names = append(names, bc.Name)
+		}
+		result = append(result, item{Model: name, Channels: names})
+	}
+	c.JSON(200, gin.H{
+		"success": true,
+		"data":    result,
+	})
+}
+
 func RetrieveModel(c *gin.Context, modelType int) {
 	modelId := c.Param("model")
 	if aiModel, ok := openAIModelsMap[modelId]; ok {
