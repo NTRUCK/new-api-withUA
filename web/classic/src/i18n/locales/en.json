@@ -3921,6 +3921,7 @@
     "近 24 小时成功率（{{count}} 次请求）": "Success rate in last 24h ({{count}} requests)",
     "近 1 小时成功率（{{count}} 次请求）": "Success rate in last 1h ({{count}} requests)",
     "全站活跃人数（近 1 小时调用 ≥ 10 次）": "Site-wide active users (≥10 calls in last 1h)",
+    "北京时间前一天调用次数最多的用户": "Top caller yesterday (Beijing time)",
     "近 1 小时有调用的人数": "Users with calls in last 1h",
     "近 24 小时有调用的人数": "Users with calls in last 24h",
     "近 24 小时调用 ≥ 10 次的人数": "Users with ≥10 calls in last 24h",

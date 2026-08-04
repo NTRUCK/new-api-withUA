@@ -19,12 +19,12 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React, { useEffect, useState } from 'react';
 import { Tooltip } from '@douyinfe/semi-ui';
-import { Flame } from 'lucide-react';
+import { Crown, Flame } from 'lucide-react';
 import { API } from '../../../helpers';
 
 // 全站活跃人数（近 1 小时调用 >=10 次），仅登录用户可见，显示在通知按钮左侧
 const ActiveUsersBadge = ({ userState, t }) => {
-  const [count, setCount] = useState(null);
+  const [stats, setStats] = useState(null);
   const isLoggedIn = !!(userState && userState.user);
 
   useEffect(() => {
@@ -34,7 +34,11 @@ const ActiveUsersBadge = ({ userState, t }) => {
       try {
         const res = await API.get('/api/user/active_users');
         if (res.data?.success) {
-          setCount(res.data.data?.active_users_1h ?? 0);
+          setStats({
+            activeUsers: res.data.data?.active_users_1h ?? 0,
+            topUser: res.data.data?.yesterday_top_user || '',
+            topCalls: res.data.data?.yesterday_top_calls ?? 0,
+          });
         }
       } catch (e) {
         // 静默失败，不影响头部
@@ -45,15 +49,26 @@ const ActiveUsersBadge = ({ userState, t }) => {
     return () => timer && clearInterval(timer);
   }, [isLoggedIn]);
 
-  if (!isLoggedIn || count === null) return null;
+  if (!isLoggedIn || stats === null) return null;
 
   return (
-    <Tooltip content={t('全站活跃人数（近 1 小时调用 ≥ 10 次）')}>
-      <div className='flex items-center gap-1 px-2 py-1 rounded-full bg-semi-color-fill-0 dark:bg-semi-color-fill-1 text-sm font-medium select-none'>
-        <Flame size={15} className='text-orange-500' />
-        <span>{count}</span>
-      </div>
-    </Tooltip>
+    <div className='flex items-center gap-2'>
+      {stats.topUser && (
+        <Tooltip content={t('北京时间前一天调用次数最多的用户')}>
+          <div className='flex items-center gap-1 px-2 py-1 rounded-full bg-semi-color-fill-0 dark:bg-semi-color-fill-1 text-sm font-medium select-none'>
+            <Crown size={15} className='text-yellow-500' />
+            <span className='max-w-24 truncate'>{stats.topUser}</span>
+            <span>{stats.topCalls.toLocaleString()}</span>
+          </div>
+        </Tooltip>
+      )}
+      <Tooltip content={t('全站活跃人数（近 1 小时调用 ≥ 10 次）')}>
+        <div className='flex items-center gap-1 px-2 py-1 rounded-full bg-semi-color-fill-0 dark:bg-semi-color-fill-1 text-sm font-medium select-none'>
+          <Flame size={15} className='text-orange-500' />
+          <span>{stats.activeUsers}</span>
+        </div>
+      </Tooltip>
+    </div>
   );
 };
 

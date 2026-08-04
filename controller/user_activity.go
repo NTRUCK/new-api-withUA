@@ -44,7 +44,9 @@ func GetActiveUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"active_users_1h": stats.ActiveUsers1h,
+			"active_users_1h":     stats.ActiveUsers1h,
+			"yesterday_top_user":  stats.YesterdayTopUser,
+			"yesterday_top_calls": stats.YesterdayTopCalls,
 		},
 	})
 }

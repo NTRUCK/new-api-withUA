@@ -6,10 +6,12 @@ import (
 
 // ActiveUserStats 站点用户活跃度统计（基于消费日志）
 type ActiveUserStats struct {
-	ActiveUsers1h    int `json:"active_users_1h"`     // 近 1 小时调用次数 >=10 的活跃人数（全站展示）
-	Users1h          int `json:"users_1h"`            // 近 1 小时有调用的人数
-	Users24h         int `json:"users_24h"`           // 近 24 小时有调用的人数
-	ActiveUsers24h   int `json:"active_users_24h"`    // 近 24 小时调用次数 >=10 的人数
+	ActiveUsers1h     int    `json:"active_users_1h"`      // 近 1 小时调用次数 >=10 的活跃人数（全站展示）
+	Users1h           int    `json:"users_1h"`             // 近 1 小时有调用的人数
+	Users24h          int    `json:"users_24h"`            // 近 24 小时有调用的人数
+	ActiveUsers24h    int    `json:"active_users_24h"`     // 近 24 小时调用次数 >=10 的人数
+	YesterdayTopUser  string `json:"yesterday_top_user"`   // 北京时间前一天调用次数最多的用户名
+	YesterdayTopCalls int64  `json:"yesterday_top_calls"`  // 北京时间前一天调用次数最多用户的调用次数
 }
 
 // activeThreshold 视为“活跃/高频”的调用次数阈值（包含该值）
@@ -37,6 +39,31 @@ func countUsersWithMinCalls(since int64, threshold int) (int, error) {
 	return int(count), err
 }
 
+// getYesterdayTopCaller 获取北京时间前一天消费日志调用次数最多的用户
+func getYesterdayTopCaller() (username string, calls int64, err error) {
+	beijing, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		return "", 0, err
+	}
+	now := time.Now().In(beijing)
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, beijing)
+	start := todayStart.AddDate(0, 0, -1).Unix()
+	end := todayStart.Unix()
+
+	var result struct {
+		Username string
+		Calls    int64
+	}
+	err = LOG_DB.Model(&Log{}).
+		Select("username, COUNT(*) AS calls").
+		Where("type = ? AND user_id > 0 AND created_at >= ? AND created_at < ?", LogTypeConsume, start, end).
+		Group("user_id, username").
+		Order("calls DESC").
+		Limit(1).
+		Scan(&result).Error
+	return result.Username, result.Calls, err
+}
+
 // GetActiveUserStats 汇总站点用户活跃度指标
 func GetActiveUserStats() (ActiveUserStats, error) {
 	var stats ActiveUserStats
@@ -55,6 +82,9 @@ func GetActiveUserStats() (ActiveUserStats, error) {
 		return stats, err
 	}
 	if stats.ActiveUsers24h, err = countUsersWithMinCalls(since24h, activeThreshold); err != nil {
+		return stats, err
+	}
+	if stats.YesterdayTopUser, stats.YesterdayTopCalls, err = getYesterdayTopCaller(); err != nil {
 		return stats, err
 	}
 	return stats, nil
