@@ -13,20 +13,20 @@ import (
 
 // DiceGameRecord 骰子猜大小游戏记录
 type DiceGameRecord struct {
-	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
-	UserId     int    `json:"user_id" gorm:"index;not null"`
-	Choice     string `json:"choice" gorm:"type:varchar(8);not null"` // big / small
-	Bet        int    `json:"bet" gorm:"not null"`
-	EntryFee   int    `json:"entry_fee" gorm:"not null"`
-	Dice1      int    `json:"dice1" gorm:"not null"`
-	Dice2      int    `json:"dice2" gorm:"not null"`
-	Dice3      int    `json:"dice3" gorm:"not null"`
-	Sum        int    `json:"sum" gorm:"not null"`
-	IsTriple   bool   `json:"is_triple" gorm:"not null"`
-	Win        bool   `json:"win" gorm:"not null"`
-	Payout     int    `json:"payout" gorm:"not null"`     // 猜中返还额度（含本金）
-	NetChange  int    `json:"net_change" gorm:"not null"` // 本局额度净变化（payout - bet - entry_fee）
-	CreatedAt  int64  `json:"created_at" gorm:"bigint;index"`
+	Id        int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	UserId    int    `json:"user_id" gorm:"index;not null"`
+	Choice    string `json:"choice" gorm:"type:varchar(8);not null"` // big / small
+	Bet       int    `json:"bet" gorm:"not null"`
+	EntryFee  int    `json:"entry_fee" gorm:"not null"`
+	Dice1     int    `json:"dice1" gorm:"not null"`
+	Dice2     int    `json:"dice2" gorm:"not null"`
+	Dice3     int    `json:"dice3" gorm:"not null"`
+	Sum       int    `json:"sum" gorm:"not null"`
+	IsTriple  bool   `json:"is_triple" gorm:"not null"`
+	Win       bool   `json:"win" gorm:"not null"`
+	Payout    int    `json:"payout" gorm:"not null"`     // 猜中返还额度（含本金）
+	NetChange int    `json:"net_change" gorm:"not null"` // 本局额度净变化（payout - bet - entry_fee）
+	CreatedAt int64  `json:"created_at" gorm:"bigint;index"`
 }
 
 func (DiceGameRecord) TableName() string {
@@ -191,7 +191,7 @@ func PlayDiceGame(userId int, choice string, bet int) (*DiceGameResult, error) {
 func settleDiceGame(record *DiceGameRecord, userId int, netChange int) (int, error) {
 	if common.UsingSQLite {
 		if err := DB.Create(record).Error; err != nil {
-			return errors.New("游戏记录写入失败")
+			return 0, errors.New("游戏记录写入失败")
 		}
 		if err := applyDiceGameQuota(userId, netChange); err != nil {
 			DB.Delete(record)
@@ -204,7 +204,7 @@ func settleDiceGame(record *DiceGameRecord, userId int, netChange int) (int, err
 	var newBalance int
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(record).Error; err != nil {
-			return 0, errors.New("游戏记录写入失败")
+			return errors.New("游戏记录写入失败")
 		}
 		// netChange < 0 时需保证不会扣成负数
 		if netChange < 0 {
@@ -223,20 +223,20 @@ func settleDiceGame(record *DiceGameRecord, userId int, netChange int) (int, err
 				return errors.New("额度结算失败")
 			}
 		}
+		if err := tx.Model(&User{}).Where("id = ?", userId).Select("quota").Scan(&newBalance).Error; err != nil {
+			return errors.New("读取结算后额度失败")
+		}
 		return nil
 	})
+	return newBalance, err
 }
 
 // applyDiceGameQuota SQLite 下顺序调整额度（无事务）
 func applyDiceGameQuota(userId int, netChange int) error {
 	if netChange == 0 {
 		return nil
-		if err := tx.Model(&User{}).Where("id = ?", userId).Select("quota").Scan(&newBalance).Error; err != nil {
-			return errors.New("读取结算后额度失败")
-		}
 	}
 	if netChange > 0 {
-	return newBalance, err
 		return IncreaseUserQuota(userId, netChange, true)
 	}
 	return DecreaseUserQuota(userId, -netChange, true)
