@@ -71,7 +71,7 @@ func GetDiceGameStatus(userId int) (map[string]interface{}, error) {
 	if playsLeft < 0 {
 		playsLeft = 0
 	}
-	balance, _ := GetUserQuota(userId, false)
+	balance, _ := GetUserQuota(userId, true)
 
 	var records []DiceGameRecord
 	DB.Where("user_id = ?", userId).Order("created_at DESC").Limit(20).Find(&records)
@@ -112,7 +112,7 @@ func PlayDiceGame(userId int, choice string, bet int) (*DiceGameResult, error) {
 	}
 
 	// 下注本身即为成本，不额外收取入场费
-	balance, err := GetUserQuota(userId, false)
+	balance, err := GetUserQuota(userId, true)
 	if err != nil {
 		return nil, err
 	}
@@ -160,11 +160,14 @@ func PlayDiceGame(userId int, choice string, bet int) (*DiceGameResult, error) {
 		CreatedAt: time.Now().Unix(),
 	}
 
-	if err := settleDiceGame(record, userId, netChange); err != nil {
+	newBalance, err := settleDiceGame(record, userId, netChange)
+	if err != nil {
 		return nil, err
 	}
 
-	newBalance := balance + netChange
+	if err := updateUserQuotaCache(userId, newBalance); err != nil {
+		common.SysLog("failed to update user quota cache after dice game: " + err.Error())
+	}
 	playsLeft := setting.DailyMaxPlays - (playsToday + 1)
 	if playsLeft < 0 {
 		playsLeft = 0
@@ -184,22 +187,24 @@ func PlayDiceGame(userId int, choice string, bet int) (*DiceGameResult, error) {
 	}, nil
 }
 
-// settleDiceGame 原子结算：写入记录并按净变化调整额度
-func settleDiceGame(record *DiceGameRecord, userId int, netChange int) error {
+// settleDiceGame 原子结算：写入记录并按净变化调整额度，返回数据库中的结算后余额
+func settleDiceGame(record *DiceGameRecord, userId int, netChange int) (int, error) {
 	if common.UsingSQLite {
 		if err := DB.Create(record).Error; err != nil {
 			return errors.New("游戏记录写入失败")
 		}
 		if err := applyDiceGameQuota(userId, netChange); err != nil {
 			DB.Delete(record)
-			return errors.New("额度结算失败")
+			return 0, errors.New("额度结算失败")
 		}
-		return nil
+		balance, err := GetUserQuota(userId, true)
+		return balance, err
 	}
 
-	return DB.Transaction(func(tx *gorm.DB) error {
+	var newBalance int
+	err := DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(record).Error; err != nil {
-			return errors.New("游戏记录写入失败")
+			return 0, errors.New("游戏记录写入失败")
 		}
 		// netChange < 0 时需保证不会扣成负数
 		if netChange < 0 {
@@ -226,8 +231,12 @@ func settleDiceGame(record *DiceGameRecord, userId int, netChange int) error {
 func applyDiceGameQuota(userId int, netChange int) error {
 	if netChange == 0 {
 		return nil
+		if err := tx.Model(&User{}).Where("id = ?", userId).Select("quota").Scan(&newBalance).Error; err != nil {
+			return errors.New("读取结算后额度失败")
+		}
 	}
 	if netChange > 0 {
+	return newBalance, err
 		return IncreaseUserQuota(userId, netChange, true)
 	}
 	return DecreaseUserQuota(userId, -netChange, true)

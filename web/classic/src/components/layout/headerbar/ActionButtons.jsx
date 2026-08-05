@@ -42,10 +42,10 @@ const ActionButtons = ({
   t,
 }) => {
   return (
-    <div className='flex items-center gap-2 md:gap-3'>
-      <NewYearButton isNewYear={isNewYear} />
+    <div className='flex shrink-0 items-center gap-1 md:gap-3'>
+      {!isMobile && <NewYearButton isNewYear={isNewYear} />}
 
-      <ActiveUsersBadge userState={userState} t={t} />
+      {!isMobile && <ActiveUsersBadge userState={userState} t={t} />}
 
       <NotificationButton
         unreadCount={unreadCount}

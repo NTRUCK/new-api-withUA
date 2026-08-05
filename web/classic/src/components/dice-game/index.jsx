@@ -112,6 +112,16 @@ const DiceGamePanel = () => {
         setRolling(false);
         return showError(message);
       }
+      setStatus((prev) =>
+        prev
+          ? {
+              ...prev,
+              balance: data.balance,
+              plays_today: data.plays_today,
+              plays_left: data.plays_left,
+            }
+          : prev,
+      );
       // 骰子动画后再展示结果
       setTimeout(() => {
         setRolling(false);
@@ -283,7 +293,13 @@ const DiceGamePanel = () => {
             size='large'
             theme='solid'
             loading={playing || rolling}
-            disabled={reachedLimit}
+            disabled={
+              reachedLimit ||
+              playing ||
+              rolling ||
+              !status ||
+              bet > status.balance
+            }
             onClick={play}
           >
             {reachedLimit ? t('今日次数已用完') : t('掷骰子')}
