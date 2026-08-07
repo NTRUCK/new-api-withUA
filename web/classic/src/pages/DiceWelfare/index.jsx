@@ -12,7 +12,7 @@ const DiceWelfare = () => {
 
   const loadStatus = async () => {
     try {
-      const res = await API.get('/api/user/dice_game');
+      const res = await API.get('/api/user/welfare');
       if (!res.data?.success) return showError(res.data?.message);
       setStatus(res.data.data);
     } catch (e) {

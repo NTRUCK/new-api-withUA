@@ -51,6 +51,7 @@ const routerMap = {
   personal: '/console/personal',
   feedback: '/console/feedback',
   dice_game: '/console/dice-game',
+  dice_welfare: '/console/dice-welfare',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
