@@ -383,7 +383,14 @@ function App() {
             </Suspense>
           }
         />
-        <Route path='/violations' element={<Violations />} />
+        <Route
+          path='/violations'
+          element={
+            <PrivateRoute>
+              <Violations />
+            </PrivateRoute>
+          }
+        />
         <Route path='/model-health' element={<ModelHealth />} />
         <Route
           path='/privacy-policy'

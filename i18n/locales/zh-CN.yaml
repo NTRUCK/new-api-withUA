@@ -31,7 +31,7 @@ auth.user_info_invalid: "无权进行此操作，用户信息无效"
 auth.user_id_not_provided: "无权进行此操作，未提供 New-Api-User"
 auth.user_id_format_error: "无权进行此操作，New-Api-User 格式错误"
 auth.user_id_mismatch: "无权进行此操作，New-Api-User 与登录用户不匹配"
-auth.user_banned: "用户已被封禁"
+auth.user_banned: "用户已被封禁，请在公益站帖子内联系站长，请勿私信"
 auth.insufficient_privilege: "无权进行此操作，权限不足"
 
 # Token messages

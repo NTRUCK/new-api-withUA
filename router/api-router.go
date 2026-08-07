@@ -38,7 +38,7 @@ func SetApiRouter(router *gin.Engine) {
 			perfMetricsRoute.GET("", controller.GetPerfMetrics)
 		}
 		apiRouter.GET("/rankings", middleware.HeaderNavModuleAuth("rankings"), controller.GetRankings)
-		apiRouter.GET("/violations", controller.GetPublicViolations)
+		apiRouter.GET("/violations", middleware.UserAuth(), controller.GetPublicViolations)
 		violationAdminRoute := apiRouter.Group("/violation/admin")
 		violationAdminRoute.Use(middleware.AdminAuth(), middleware.CriticalRateLimit())
 		{

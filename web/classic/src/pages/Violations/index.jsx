@@ -128,9 +128,9 @@ const Violations = () => {
     <div className='mt-[60px] max-w-6xl mx-auto px-4 py-8'>
       <div className='mb-6 flex flex-wrap items-start justify-between gap-3'>
         <div>
-          <Typography.Title heading={2}>{t('公开违规榜')}</Typography.Title>
+          <Typography.Title heading={2}>违规榜</Typography.Title>
           <Typography.Text type='tertiary'>
-            {t('公开展示已确认的违规记录')}
+            仅登录用户可查看已确认的违规记录
           </Typography.Text>
         </div>
         {admin && items.length > 0 && (

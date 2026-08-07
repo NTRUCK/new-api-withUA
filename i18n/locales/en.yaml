@@ -30,7 +30,7 @@ auth.user_info_invalid: "Unauthorized, invalid user info"
 auth.user_id_not_provided: "Unauthorized, New-Api-User header not provided"
 auth.user_id_format_error: "Unauthorized, New-Api-User header format error"
 auth.user_id_mismatch: "Unauthorized, New-Api-User does not match logged in user"
-auth.user_banned: "User has been banned"
+auth.user_banned: "User has been banned. Please contact the administrator in the public welfare site post; do not send private messages."
 auth.insufficient_privilege: "Unauthorized, insufficient privileges"
 
 # Token messages

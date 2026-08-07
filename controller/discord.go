@@ -182,7 +182,7 @@ func DiscordOAuth(c *gin.Context) {
 
 	if user.Status != common.UserStatusEnabled {
 		c.JSON(http.StatusOK, gin.H{
-			"message": "用户已被封禁",
+			"message": "用户已被封禁，请在公益站帖子内联系站长，请勿私信",
 			"success": false,
 		})
 		return
