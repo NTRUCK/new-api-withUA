@@ -137,7 +137,8 @@ func SetApiRouter(router *gin.Engine) {
 				// Dice game routes
 				selfRoute.GET("/dice_game", controller.GetDiceGameStatus)
 				selfRoute.POST("/dice_game", controller.PlayDiceGame)
-				selfRoute.POST("/dice_game/welfare", middleware.CriticalRateLimit(), controller.ClaimDiceWelfare)
+				selfRoute.GET("/welfare", controller.GetDiceWelfareStatus)
+				selfRoute.POST("/welfare", middleware.CriticalRateLimit(), controller.ClaimDiceWelfare)
 
 				// Custom OAuth bindings
 				selfRoute.GET("/oauth/bindings", controller.GetUserOAuthBindings)

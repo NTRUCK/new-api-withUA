@@ -105,15 +105,15 @@ func AdminRemoveAllViolations(c *gin.Context) {
 }
 
 type publicViolationItem struct {
-	UserId          int    `json:"user_id"`
-	DisplayName     string `json:"display_name"`
-	DiscordUsername string `json:"discord_username"`
-	AvatarURL       string `json:"avatar_url"`
-	Reason          string `json:"reason"`
-	HitCount        int    `json:"hit_count"`
-	ClientUsageCount int   `json:"client_usage_count"`
-	FirstRecordedAt int64  `json:"first_recorded_at"`
-	LastRecordedAt  int64  `json:"last_recorded_at"`
+	UserId           int    `json:"user_id"`
+	DisplayName      string `json:"display_name"`
+	DiscordUsername  string `json:"discord_username"`
+	AvatarURL        string `json:"avatar_url"`
+	Reason           string `json:"reason"`
+	HitCount         int    `json:"hit_count"`
+	ClientUsageCount int    `json:"client_usage_count"`
+	FirstRecordedAt  int64  `json:"first_recorded_at"`
+	LastRecordedAt   int64  `json:"last_recorded_at"`
 }
 
 type publicViolationRow struct {
@@ -232,7 +232,7 @@ func GetInactiveUsers(c *gin.Context) {
 	items := make([]inactiveUserItem, 0)
 	if len(inactiveIds) > 0 {
 		if err := model.DB.Model(&model.User{}).
-			Select("users.id, users.username, users.display_name, users.status, users.created_at, users.last_login_at, CASE WHEN violation_entries.listed = ? THEN ? ELSE ? END AS on_violation_board", true, true, false).
+			Select("users.id, users.username, users.display_name, users.status, users.created_at, users.last_login_at, COALESCE(violation_entries.listed, false) AS on_violation_board").
 			Joins("LEFT JOIN violation_entries ON violation_entries.user_id = users.id").Where("users.id IN ?", inactiveIds).
 			Order("users.id DESC").Offset(pageInfo.GetStartIdx()).Limit(pageInfo.GetPageSize()).Scan(&items).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			common.ApiError(c, err)

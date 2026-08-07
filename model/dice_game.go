@@ -115,6 +115,24 @@ func getDiceWelfareStatus(userId, balance int) (pool int64, claimed bool, eligib
 	return
 }
 
+func GetDiceWelfareStatus(userId int) (map[string]interface{}, error) {
+	balance, err := GetUserQuota(userId, true)
+	if err != nil {
+		return nil, err
+	}
+	pool, claimed, eligible, err := getDiceWelfareStatus(userId, balance)
+	if err != nil {
+		return nil, err
+	}
+	setting := operation_setting.GetDiceGameSetting()
+	return map[string]interface{}{
+		"balance": balance, "welfare_pool": pool,
+		"welfare_balance_threshold": setting.WelfareBalanceThreshold,
+		"welfare_daily_grant":       setting.WelfareDailyGrant,
+		"welfare_claimed_today":     claimed, "welfare_eligible": eligible,
+	}, nil
+}
+
 func GetDiceGameStatus(userId int) (map[string]interface{}, error) {
 	setting := operation_setting.GetDiceGameSetting()
 	playsToday, err := countDiceGamePlaysToday(userId)

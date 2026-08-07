@@ -35,12 +35,16 @@ type diceGamePlayRequest struct {
 	Bet    int    `json:"bet"`
 }
 
-// PlayDiceGame 执行一局骰子猜大小
-func ClaimDiceWelfare(c *gin.Context) {
-	if !operation_setting.IsDiceGameEnabled() {
-		common.ApiErrorMsg(c, "小游戏功能未启用")
+func GetDiceWelfareStatus(c *gin.Context) {
+	data, err := model.GetDiceWelfareStatus(c.GetInt("id"))
+	if err != nil {
+		common.ApiError(c, err)
 		return
 	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+}
+
+func ClaimDiceWelfare(c *gin.Context) {
 	userId := c.GetInt("id")
 	result, err := model.ClaimDiceWelfare(userId)
 	if err != nil {

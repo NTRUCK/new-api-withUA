@@ -29,7 +29,7 @@ const DiceWelfare = () => {
   const claim = async () => {
     setClaiming(true);
     try {
-      const res = await API.post('/api/user/dice_game/welfare');
+      const res = await API.post('/api/user/welfare');
       if (!res.data?.success) return showError(res.data?.message);
       showSuccess(
         t('成功领取低保 {{quota}}', {
@@ -50,10 +50,6 @@ const DiceWelfare = () => {
         <Card><Spin spinning><div style={{ height: 180 }} /></Spin></Card>
       </div>
     );
-  }
-
-  if (!status?.enabled) {
-    return <div className='mt-[60px] px-2'><Card><Empty description={t('小游戏功能未启用')} /></Card></div>;
   }
 
   return (
