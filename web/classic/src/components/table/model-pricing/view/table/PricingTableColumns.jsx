@@ -120,6 +120,7 @@ function renderDailyLimit(record, selectedGroup, t) {
         .map(([group, usage]) => {
           const limit = usage?.limit ?? 0;
           const used = usage?.used ?? 0;
+          const resetHour = usage?.reset_hour ?? 0;
           const reached = used >= limit;
           return (
             <div
@@ -135,6 +136,13 @@ function renderDailyLimit(record, selectedGroup, t) {
               <Tag size='small' color={reached ? 'red' : 'green'} shape='circle'>
                 {used.toLocaleString()}/{limit.toLocaleString()}
               </Tag>
+              {resetHour !== 0 && (
+                <Tag size='small' color='orange' shape='circle'>
+                  {t('北京时间 {{hour}}:00 刷新', {
+                    hour: String(resetHour).padStart(2, '0'),
+                  })}
+                </Tag>
+              )}
             </div>
           );
         })}

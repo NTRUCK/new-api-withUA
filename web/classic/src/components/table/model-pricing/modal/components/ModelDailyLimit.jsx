@@ -39,6 +39,7 @@ const ModelDailyLimit = ({ modelData, t }) => {
         used,
         limit,
         remaining: Math.max(limit - used, 0),
+        resetHour: usage?.reset_hour ?? 0,
         reached: used >= limit,
       };
     })
@@ -63,6 +64,15 @@ const ModelDailyLimit = ({ modelData, t }) => {
       render: (v) => <span className='font-mono'>{v.toLocaleString()}</span>,
     },
     {
+      title: t('刷新时间'),
+      dataIndex: 'resetHour',
+      align: 'right',
+      render: (v) =>
+        t('北京时间 {{hour}}:00', {
+          hour: String(v).padStart(2, '0'),
+        }),
+    },
+    {
       title: t('剩余'),
       dataIndex: 'remaining',
       align: 'right',
@@ -83,7 +93,7 @@ const ModelDailyLimit = ({ modelData, t }) => {
         <div>
           <Text className='text-lg font-medium'>{t('每日调用限额')}</Text>
           <div className='text-xs text-gray-600'>
-            {t('同分组用户共享额度，每日零点（服务器时区）重置，仅统计成功调用')}
+            {t('同分组用户共享额度，按表中北京时间刷新，仅统计成功调用')}
           </div>
         </div>
       </div>
