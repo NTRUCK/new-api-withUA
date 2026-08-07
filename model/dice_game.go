@@ -91,6 +91,14 @@ func diceWelfareDate() string {
 	return time.Now().In(time.FixedZone("Asia/Shanghai", 8*60*60)).Format("2006-01-02")
 }
 
+func GetDiceWelfarePoolQuota() (int64, error) {
+	var poolRow DiceWelfarePool
+	if err := DB.FirstOrCreate(&poolRow, DiceWelfarePool{Id: 1}).Error; err != nil {
+		return 0, err
+	}
+	return poolRow.Quota, nil
+}
+
 func getDiceWelfareStatus(userId, balance int) (pool int64, claimed bool, eligible bool, err error) {
 	var poolRow DiceWelfarePool
 	if err = DB.FirstOrCreate(&poolRow, DiceWelfarePool{Id: 1}).Error; err != nil {

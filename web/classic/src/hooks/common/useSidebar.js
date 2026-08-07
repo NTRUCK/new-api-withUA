@@ -44,6 +44,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     topup: true,
     personal: true,
     dice_game: true,
+    dice_welfare: true,
   },
   admin: {
     enabled: true,

@@ -3972,6 +3972,7 @@
     "每日低保领取上限": "Daily welfare grant limit",
     "骰子低保池": "Dice welfare pool",
     "当前低保池": "Current welfare pool",
+    "当前骰子低保池额度": "Current dice welfare pool balance",
     "余额低于 {{threshold}} 时，每天可领取最多 {{grant}}": "When your balance is below {{threshold}}, claim up to {{grant}} daily",
     "用户输掉的下注会进入低保池；池不足每日上限时，将领取池中剩余额度。": "Lost bets enter the welfare pool. If the pool is below the daily limit, the remaining pool balance is granted.",
     "今日已领取": "Claimed today",

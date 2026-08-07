@@ -41,12 +41,18 @@ func GetActiveUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
 		return
 	}
+	welfarePool, err := model.GetDiceWelfarePoolQuota()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
 			"active_users_1h":     stats.ActiveUsers1h,
 			"yesterday_top_user":  stats.YesterdayTopUser,
 			"yesterday_top_calls": stats.YesterdayTopCalls,
+			"welfare_pool":        welfarePool,
 			"richest_user":        stats.RichestUser,
 			"richest_user_quota":  stats.RichestUserQuota,
 		},

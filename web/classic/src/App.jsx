@@ -43,6 +43,7 @@ import Midjourney from './pages/Midjourney';
 import Pricing from './pages/Pricing';
 import Task from './pages/Task';
 import DiceGame from './pages/DiceGame';
+import DiceWelfare from './pages/DiceWelfare';
 import ModelPage from './pages/Model';
 import ModelDeploymentPage from './pages/ModelDeployment';
 import Playground from './pages/Playground';
@@ -333,6 +334,16 @@ function App() {
             <PrivateRoute>
               <Suspense fallback={<Loading></Loading>} key={location.pathname}>
                 <DiceGame />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/dice-welfare'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <DiceWelfare />
               </Suspense>
             </PrivateRoute>
           }

@@ -141,6 +141,15 @@ const SiderBar = ({ onNavigate = () => {} }) => {
             : 'tableHiddle',
       },
       {
+        text: t('领取低保'),
+        itemKey: 'dice_welfare',
+        to: '/dice-welfare',
+        className:
+          localStorage.getItem('dice_game_show_entry') === 'true'
+            ? ''
+            : 'tableHiddle',
+      },
+      {
         text: t('个人设置'),
         itemKey: 'personal',
         to: '/personal',
