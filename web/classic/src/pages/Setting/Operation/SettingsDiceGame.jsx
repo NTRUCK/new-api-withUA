@@ -54,6 +54,7 @@ export default function SettingsDiceGame(props) {
     'dice_game_setting.max_bet': 500000,
     'dice_game_setting.payout_rate': 2.0,
     'dice_game_setting.daily_max_plays': 3,
+    'dice_game_setting.daily_reset_hour': 0,
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -164,6 +165,22 @@ export default function SettingsDiceGame(props) {
                   min={0}
                   onChange={handleFieldChange(
                     'dice_game_setting.daily_max_plays',
+                  )}
+                  disabled={disabled}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Form.Select
+                  field={'dice_game_setting.daily_reset_hour'}
+                  label={t('每日限额重置时间')}
+                  optionList={Array.from({ length: 24 }, (_, hour) => ({
+                    label: t('每天 {{hour}}:00（北京时间）', {
+                      hour: String(hour).padStart(2, '0'),
+                    }),
+                    value: hour,
+                  }))}
+                  onChange={handleFieldChange(
+                    'dice_game_setting.daily_reset_hour',
                   )}
                   disabled={disabled}
                 />

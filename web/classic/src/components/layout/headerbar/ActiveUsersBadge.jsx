@@ -19,10 +19,10 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React, { useEffect, useState } from 'react';
 import { Tooltip } from '@douyinfe/semi-ui';
-import { Crown, Flame } from 'lucide-react';
-import { API } from '../../../helpers';
+import { Coins, Crown, Flame } from 'lucide-react';
+import { API, renderQuota } from '../../../helpers';
 
-// 全站活跃人数（近 1 小时调用 >=10 次），仅登录用户可见，显示在通知按钮左侧
+// 全站榜单与活跃人数，仅登录用户可见，显示在通知按钮左侧
 const ActiveUsersBadge = ({ userState, t }) => {
   const [stats, setStats] = useState(null);
   const isLoggedIn = !!(userState && userState.user);
@@ -38,6 +38,8 @@ const ActiveUsersBadge = ({ userState, t }) => {
             activeUsers: res.data.data?.active_users_1h ?? 0,
             topUser: res.data.data?.yesterday_top_user || '',
             topCalls: res.data.data?.yesterday_top_calls ?? 0,
+            richestUser: res.data.data?.richest_user || '',
+            richestQuota: res.data.data?.richest_user_quota ?? 0,
           });
         }
       } catch (e) {
@@ -53,6 +55,15 @@ const ActiveUsersBadge = ({ userState, t }) => {
 
   return (
     <div className='flex items-center gap-2'>
+      {stats.richestUser && (
+        <Tooltip content={t('当前额度最多的普通用户（已排除管理员和 ID 1）')}>
+          <div className='flex items-center gap-1 px-2 py-1 rounded-full bg-semi-color-fill-0 dark:bg-semi-color-fill-1 text-sm font-medium select-none'>
+            <Coins size={15} className='text-amber-500' />
+            <span className='max-w-24 truncate'>{stats.richestUser}</span>
+            <span>{renderQuota(stats.richestQuota)}</span>
+          </div>
+        </Tooltip>
+      )}
       {stats.topUser && (
         <Tooltip content={t('北京时间前一天调用次数最多的用户')}>
           <div className='flex items-center gap-1 px-2 py-1 rounded-full bg-semi-color-fill-0 dark:bg-semi-color-fill-1 text-sm font-medium select-none'>

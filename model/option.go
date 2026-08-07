@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -143,6 +144,11 @@ func InitOptionMap() {
 	common.OptionMap["ModelDailyLimitEnabled"] = strconv.FormatBool(setting.ModelDailyLimitEnabled)
 	common.OptionMap["ModelDailyLimit"] = setting.ModelDailyLimit2JSONString()
 	common.OptionMap["ModelDailyLimitGroups"] = setting.ModelDailyLimitGroups2JSONString()
+	common.OptionMap["UserDailyTierEnabled"] = strconv.FormatBool(setting.UserDailyTierEnabled)
+	common.OptionMap["UserDailyTierAdminExempt"] = strconv.FormatBool(setting.UserDailyTierAdminExempt)
+	common.OptionMap["UserDailyTierResetHour"] = strconv.Itoa(setting.UserDailyTierResetHour)
+	common.OptionMap["UserDailyTierHardLimit"] = strconv.Itoa(setting.UserDailyTierHardLimit)
+	common.OptionMap["UserDailyTier"] = setting.UserDailyTier2JSONString()
 	common.OptionMap["ModelRatio"] = ratio_setting.ModelRatio2JSONString()
 	common.OptionMap["ModelPrice"] = ratio_setting.ModelPrice2JSONString()
 	common.OptionMap["CacheRatio"] = ratio_setting.CacheRatio2JSONString()
@@ -363,6 +369,10 @@ func updateOptionMap(key string, value string) (err error) {
 			setting.ModelRequestRateLimitEnabled = boolValue
 		case "ModelDailyLimitEnabled":
 			setting.ModelDailyLimitEnabled = boolValue
+		case "UserDailyTierEnabled":
+			setting.UserDailyTierEnabled = boolValue
+		case "UserDailyTierAdminExempt":
+			setting.UserDailyTierAdminExempt = boolValue
 		case "StopOnSensitiveEnabled":
 			setting.StopOnSensitiveEnabled = boolValue
 		case "SMTPSSLEnabled":
@@ -537,6 +547,19 @@ func updateOptionMap(key string, value string) (err error) {
 		err = setting.UpdateModelDailyLimitByJSONString(value)
 	case "ModelDailyLimitGroups":
 		err = setting.UpdateModelDailyLimitGroupsByJSONString(value)
+	case "UserDailyTierResetHour":
+		var hour int
+		hour, err = strconv.Atoi(value)
+		if err == nil && (hour < 0 || hour > 23) {
+			err = fmt.Errorf("每日重置小时需在 0~23 之间")
+		}
+		if err == nil {
+			setting.UserDailyTierResetHour = hour
+		}
+	case "UserDailyTierHardLimit":
+		setting.UserDailyTierHardLimit, _ = strconv.Atoi(value)
+	case "UserDailyTier":
+		err = setting.UpdateUserDailyTierByJSONString(value)
 	case "RetryTimes":
 		common.RetryTimes, _ = strconv.Atoi(value)
 	case "DataExportInterval":

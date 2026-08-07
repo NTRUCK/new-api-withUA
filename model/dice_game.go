@@ -47,15 +47,23 @@ type DiceGameResult struct {
 	PlaysLeft  int    `json:"plays_left"`  // 今日剩余可玩局数
 }
 
-// countDiceGamePlaysToday 今日已玩局数
+// countDiceGamePlaysToday 当前重置周期内已玩局数
 func countDiceGamePlaysToday(userId int) (int, error) {
-	// 本地时区当天 00:00
-	y, m, d := time.Now().Date()
-	loc := time.Now().Location()
-	startOfDay := time.Date(y, m, d, 0, 0, 0, 0, loc)
+	now := time.Now()
+	resetHour := operation_setting.GetDiceGameSetting().DailyResetHour
+	if resetHour < 0 || resetHour > 23 {
+		resetHour = 0
+	}
+
+	y, m, d := now.Date()
+	startOfPeriod := time.Date(y, m, d, resetHour, 0, 0, 0, now.Location())
+	if now.Before(startOfPeriod) {
+		startOfPeriod = startOfPeriod.AddDate(0, 0, -1)
+	}
+
 	var count int64
 	err := DB.Model(&DiceGameRecord{}).
-		Where("user_id = ? AND created_at >= ?", userId, startOfDay.Unix()).
+		Where("user_id = ? AND created_at >= ?", userId, startOfPeriod.Unix()).
 		Count(&count).Error
 	return int(count), err
 }

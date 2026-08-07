@@ -47,6 +47,8 @@ func GetActiveUsers(c *gin.Context) {
 			"active_users_1h":     stats.ActiveUsers1h,
 			"yesterday_top_user":  stats.YesterdayTopUser,
 			"yesterday_top_calls": stats.YesterdayTopCalls,
+			"richest_user":        stats.RichestUser,
+			"richest_user_quota":  stats.RichestUserQuota,
 		},
 	})
 }

@@ -2,16 +2,20 @@ package model
 
 import (
 	"time"
+
+	"github.com/QuantumNous/new-api/common"
 )
 
 // ActiveUserStats 站点用户活跃度统计（基于消费日志）
 type ActiveUserStats struct {
-	ActiveUsers1h     int    `json:"active_users_1h"`      // 近 1 小时调用次数 >=10 的活跃人数（全站展示）
-	Users1h           int    `json:"users_1h"`             // 近 1 小时有调用的人数
-	Users24h          int    `json:"users_24h"`            // 近 24 小时有调用的人数
-	ActiveUsers24h    int    `json:"active_users_24h"`     // 近 24 小时调用次数 >=10 的人数
-	YesterdayTopUser  string `json:"yesterday_top_user"`   // 北京时间前一天调用次数最多的用户名
-	YesterdayTopCalls int64  `json:"yesterday_top_calls"`  // 北京时间前一天调用次数最多用户的调用次数
+	ActiveUsers1h     int    `json:"active_users_1h"`     // 近 1 小时调用次数 >=10 的活跃人数（全站展示）
+	Users1h           int    `json:"users_1h"`            // 近 1 小时有调用的人数
+	Users24h          int    `json:"users_24h"`           // 近 24 小时有调用的人数
+	ActiveUsers24h    int    `json:"active_users_24h"`    // 近 24 小时调用次数 >=10 的人数
+	YesterdayTopUser  string `json:"yesterday_top_user"`  // 北京时间前一天调用次数最多的用户名
+	YesterdayTopCalls int64  `json:"yesterday_top_calls"` // 北京时间前一天调用次数最多用户的调用次数
+	RichestUser       string `json:"richest_user"`        // 普通用户中当前额度最高的用户名
+	RichestUserQuota  int    `json:"richest_user_quota"`  // 普通用户中当前最高额度
 }
 
 // activeThreshold 视为“活跃/高频”的调用次数阈值（包含该值）
@@ -64,6 +68,21 @@ func getYesterdayTopCaller() (username string, calls int64, err error) {
 	return result.Username, result.Calls, err
 }
 
+// getRichestUser 获取当前额度最高的普通用户，排除 ID 1 和管理员。
+func getRichestUser() (username string, quota int, err error) {
+	var result struct {
+		Username string
+		Quota    int
+	}
+	err = DB.Model(&User{}).
+		Select("username, quota").
+		Where("id <> ? AND role < ?", 1, common.RoleAdminUser).
+		Order("quota DESC").
+		Limit(1).
+		Scan(&result).Error
+	return result.Username, result.Quota, err
+}
+
 // GetActiveUserStats 汇总站点用户活跃度指标
 func GetActiveUserStats() (ActiveUserStats, error) {
 	var stats ActiveUserStats
@@ -85,6 +104,9 @@ func GetActiveUserStats() (ActiveUserStats, error) {
 		return stats, err
 	}
 	if stats.YesterdayTopUser, stats.YesterdayTopCalls, err = getYesterdayTopCaller(); err != nil {
+		return stats, err
+	}
+	if stats.RichestUser, stats.RichestUserQuota, err = getRichestUser(); err != nil {
 		return stats, err
 	}
 	return stats, nil

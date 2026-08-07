@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/billing_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -59,6 +60,12 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.
 	} else {
 		// normal group ratio
 		groupRatioInfo.GroupRatio = ratio_setting.GetGroupRatio(relayInfo.UsingGroup)
+	}
+
+	// 用户级每日请求次数梯度计费：在分组倍率上乘以当前梯度倍率
+	// 管理员（按配置豁免）与未启用时倍率为 1，不影响原价
+	if mult := service.GetUserDailyTierMultiplier(relayInfo.UserId, model.IsAdmin(relayInfo.UserId)); mult != 1.0 {
+		groupRatioInfo.GroupRatio *= mult
 	}
 
 	return groupRatioInfo
