@@ -36,6 +36,7 @@ const RateLimitSetting = () => {
     ModelRequestRateLimitGroup: '',
     ModelDailyLimitEnabled: false,
     ModelDailyLimit: '',
+    ModelDailyLimitResetHours: '',
     ModelDailyLimitGroups: '',
     UserDailyTierEnabled: false,
     UserDailyTierAdminExempt: true,
@@ -55,6 +56,7 @@ const RateLimitSetting = () => {
         if (
           item.key === 'ModelRequestRateLimitGroup' ||
           item.key === 'ModelDailyLimit' ||
+          item.key === 'ModelDailyLimitResetHours' ||
           item.key === 'ModelDailyLimitGroups'
         ) {
           try {

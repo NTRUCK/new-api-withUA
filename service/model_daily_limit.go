@@ -10,115 +10,96 @@ import (
 	"github.com/QuantumNous/new-api/setting"
 )
 
-// 模型每日调用计数服务
-// 统计口径：仅成功调用；重置方式：自然日零点（按服务器本地时区）
-// 计数粒度：模型名 + 分组，分组内所有用户共享同一计数
-
+// 模型每日调用计数服务。统计口径：仅成功调用；重置时间：服务器时区配置整点。
 const modelDailyLimitRedisPrefix = "modelDailyLimit"
 
-// 内存计数回退实现
 type memoryDailyCounter struct {
 	mu    sync.Mutex
-	day   string           // 当前统计的自然日 (2006-01-02)
-	count map[string]int64 // key(model:group) -> 已用次数
+	count map[string]int64
 }
 
-var memDailyCounter = &memoryDailyCounter{
-	count: make(map[string]int64),
-}
+var memDailyCounter = &memoryDailyCounter{count: make(map[string]int64)}
 
-// dayString 返回当前自然日字符串（服务器本地时区）
-func dayString() string {
-	return time.Now().Format("2006-01-02")
-}
-
-// secondsUntilEndOfDay 返回距离当天 24:00 的剩余秒数，用于设置计数 key 的过期时间
-func secondsUntilEndOfDay() int64 {
-	now := time.Now()
-	year, month, day := now.Date()
-	endOfDay := time.Date(year, month, day, 23, 59, 59, 0, now.Location())
-	secs := int64(endOfDay.Sub(now).Seconds()) + 1
-	if secs < 1 {
-		secs = 1
+// modelDailyLimitPeriod 返回当前请求所属的服务器时区计数周期及下一次重置时间。
+func modelDailyLimitPeriod(now time.Time, resetHour int) (string, time.Time) {
+	localNow := now.In(time.Local)
+	year, month, day := localNow.Date()
+	todayReset := time.Date(year, month, day, resetHour, 0, 0, 0, time.Local)
+	periodStart := todayReset
+	if localNow.Before(todayReset) {
+		periodStart = todayReset.AddDate(0, 0, -1)
 	}
-	return secs
+	return periodStart.Format("2006-01-02T15"), periodStart.AddDate(0, 0, 1)
 }
 
-func modelDailyLimitKey(modelName, group string) string {
-	return fmt.Sprintf("%s:%s:%s:%s", modelDailyLimitRedisPrefix, dayString(), modelName, group)
+func modelDailyLimitKey(counterName, group string, resetHour int) string {
+	period, _ := modelDailyLimitPeriod(time.Now(), resetHour)
+	return fmt.Sprintf("%s:%s:%s:%s", modelDailyLimitRedisPrefix, period, counterName, group)
 }
 
-func memoryCounterKey(modelName, group string) string {
-	return fmt.Sprintf("%s:%s", modelName, group)
+func memoryCounterKey(counterName, group string, resetHour int) string {
+	period, _ := modelDailyLimitPeriod(time.Now(), resetHour)
+	return fmt.Sprintf("%s:%s:%s", period, counterName, group)
 }
 
-// GetModelDailyUsage 返回指定模型在指定分组当天已用的成功调用次数
-func GetModelDailyUsage(modelName, group string) int64 {
+func secondsUntilNextReset(resetHour int) int64 {
+	_, nextReset := modelDailyLimitPeriod(time.Now(), resetHour)
+	seconds := int64(time.Until(nextReset).Seconds())
+	if seconds < 1 {
+		return 1
+	}
+	return seconds
+}
+
+// GetModelDailyUsage 返回指定计数标识在当前配置周期内已用的成功调用次数。
+func GetModelDailyUsage(counterName, group string, resetHour int) int64 {
 	if common.RedisEnabled {
-		ctx := context.Background()
-		val, err := common.RDB.Get(ctx, modelDailyLimitKey(modelName, group)).Int64()
+		value, err := common.RDB.Get(context.Background(), modelDailyLimitKey(counterName, group, resetHour)).Int64()
 		if err != nil {
 			return 0
 		}
-		return val
+		return value
 	}
 
 	memDailyCounter.mu.Lock()
 	defer memDailyCounter.mu.Unlock()
-	if memDailyCounter.day != dayString() {
-		return 0
-	}
-	return memDailyCounter.count[memoryCounterKey(modelName, group)]
+	return memDailyCounter.count[memoryCounterKey(counterName, group, resetHour)]
 }
 
-// CheckModelDailyLimit 检查是否超过每日限额。返回 (allowed, limit, used)。
-// 当模型/分组未配置限额时，allowed=true 且 found 相关值为 0。
-// 支持共享限额组：组内多个模型共用同一计数。
 func CheckModelDailyLimit(modelName, group string) (allowed bool, limit int, used int64) {
 	if !setting.ModelDailyLimitEnabled {
 		return true, 0, 0
 	}
-	counterName, limit, found := setting.ResolveModelDailyLimit(modelName, group)
+	counterName, limit, resetHour, found := setting.ResolveModelDailyLimit(modelName, group)
 	if !found {
 		return true, 0, 0
 	}
-	used = GetModelDailyUsage(counterName, group)
-	if used >= int64(limit) {
-		return false, limit, used
-	}
-	return true, limit, used
+	used = GetModelDailyUsage(counterName, group, resetHour)
+	return used < int64(limit), limit, used
 }
 
-// IncrModelDailyUsage 在一次成功调用后，将对应模型/分组（或共享组）的当日计数加一
 func IncrModelDailyUsage(modelName, group string) {
 	if !setting.ModelDailyLimitEnabled {
 		return
 	}
-	counterName, _, found := setting.ResolveModelDailyLimit(modelName, group)
+	counterName, _, resetHour, found := setting.ResolveModelDailyLimit(modelName, group)
 	if !found {
 		return
 	}
 
 	if common.RedisEnabled {
 		ctx := context.Background()
-		key := modelDailyLimitKey(counterName, group)
+		key := modelDailyLimitKey(counterName, group, resetHour)
 		pipe := common.RDB.TxPipeline()
-		incr := pipe.Incr(ctx, key)
-		pipe.Expire(ctx, key, time.Duration(secondsUntilEndOfDay())*time.Second)
+		pipe.Incr(ctx, key)
+		pipe.Expire(ctx, key, time.Duration(secondsUntilNextReset(resetHour))*time.Second)
 		if _, err := pipe.Exec(ctx); err != nil {
 			common.SysError("failed to incr model daily usage: " + err.Error())
-			return
 		}
-		_ = incr
 		return
 	}
 
 	memDailyCounter.mu.Lock()
-	defer memDailyCounter.mu.Unlock()
-	today := dayString()
-	if memDailyCounter.day != today {
-		memDailyCounter.day = today
-		memDailyCounter.count = make(map[string]int64)
-	}
-	memDailyCounter.count[memoryCounterKey(counterName, group)]++
+	memDailyCounter.count[memoryCounterKey(counterName, group, resetHour)]++
+	memDailyCounter.mu.Unlock()
 }

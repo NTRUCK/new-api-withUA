@@ -286,6 +286,18 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case "ModelDailyLimitResetHours":
+		err = setting.CheckModelDailyLimitResetHours(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+	case "ModelDailyLimitGroups":
+		err = setting.CheckModelDailyLimitGroups(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
 	case "UserDailyTier":
 		err = setting.CheckUserDailyTier(option.Value.(string))
 		if err != nil {

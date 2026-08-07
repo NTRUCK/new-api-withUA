@@ -47,15 +47,22 @@ import { useTranslation } from 'react-i18next';
 const { Text } = Typography;
 
 // 将 {model:{group:limit}} 的 JSON 字符串解析为行数组 [{model,group,limit}]
-function limitJSONToRows(jsonStr) {
+
+function limitJSONToRows(jsonStr, resetHoursJson) {
   if (!jsonStr) return [];
   try {
     const obj = JSON.parse(jsonStr);
+    const resetHours = resetHoursJson ? JSON.parse(resetHoursJson) : {};
     const rows = [];
     Object.keys(obj || {}).forEach((model) => {
       const groups = obj[model] || {};
       Object.keys(groups).forEach((group) => {
-        rows.push({ model, group, limit: groups[group] });
+        rows.push({
+          model,
+          group,
+          limit: groups[group],
+          resetHour: resetHours[model] ?? 0,
+        });
       });
     });
     return rows;
@@ -77,6 +84,16 @@ function rowsToLimitJSON(rows) {
   return JSON.stringify(obj, null, 2);
 }
 
+function rowsToResetHoursJSON(rows) {
+  const obj = {};
+  (rows || []).forEach(({ model, resetHour }) => {
+    if (!model) return;
+    const hour = parseInt(resetHour, 10);
+    obj[model] = Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 0;
+  });
+  return JSON.stringify(obj, null, 2);
+}
+
 // 共享限额组 JSON -> 卡片数组。每组：{name, models:[], limits:[{group,limit}]}
 function groupsJSONToCards(jsonStr) {
   if (!jsonStr) return [];
@@ -86,6 +103,7 @@ function groupsJSONToCards(jsonStr) {
     return arr.map((g) => ({
       name: g?.name || '',
       models: Array.isArray(g?.models) ? g.models : [],
+      resetHour: g?.reset_hour ?? 0,
       limits: Object.keys(g?.limits || {}).map((group) => ({
         group,
         limit: g.limits[group],
@@ -99,7 +117,7 @@ function groupsJSONToCards(jsonStr) {
 // 卡片数组 -> 共享限额组 JSON 字符串；忽略不完整项
 function cardsToGroupsJSON(cards) {
   const arr = [];
-  (cards || []).forEach(({ name, models, limits }) => {
+  (cards || []).forEach(({ name, models, limits, resetHour }) => {
     if (!name) return;
     const validModels = (models || []).filter(Boolean);
     const limitObj = {};
@@ -110,18 +128,29 @@ function cardsToGroupsJSON(cards) {
       limitObj[group] = n;
     });
     if (validModels.length === 0 && Object.keys(limitObj).length === 0) return;
-    arr.push({ name, models: validModels, limits: limitObj });
+    const hour = parseInt(resetHour, 10);
+    arr.push({
+      name,
+      models: validModels,
+      limits: limitObj,
+      reset_hour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 0,
+    });
   });
   return JSON.stringify(arr, null, 2);
 }
 
 export default function ModelDailyLimit(props) {
   const { t } = useTranslation();
+  const resetHourOptions = Array.from({ length: 24 }, (_, hour) => ({
+    value: hour,
+    label: `${String(hour).padStart(2, '0')}:00${hour === 0 ? '' : `（${t('非标准刷新')}）`}`,
+  }));
 
   const [loading, setLoading] = useState(false);
   const [inputs, setInputs] = useState({
     ModelDailyLimitEnabled: false,
     ModelDailyLimit: '',
+    ModelDailyLimitResetHours: '',
     ModelDailyLimitGroups: '',
   });
   const refForm = useRef();
@@ -170,20 +199,29 @@ export default function ModelDailyLimit(props) {
   }, []);
 
   // 当 JSON 文本变化（外部加载或高级模式编辑）时同步到行编辑器
-  const syncRowsFromJSON = (jsonStr) => {
-    setLimitRows(limitJSONToRows(jsonStr));
+  const syncRowsFromJSON = (jsonStr, resetHoursJson = inputs.ModelDailyLimitResetHours) => {
+    setLimitRows(limitJSONToRows(jsonStr, resetHoursJson));
   };
 
   // 行编辑器变更后回写 JSON
   const applyRowsToInputs = (rows) => {
     setLimitRows(rows);
     const json = rowsToLimitJSON(rows);
-    setInputs((prev) => ({ ...prev, ModelDailyLimit: json }));
+    const resetHoursJson = rowsToResetHoursJSON(rows);
+    setInputs((prev) => ({
+      ...prev,
+      ModelDailyLimit: json,
+      ModelDailyLimitResetHours: resetHoursJson,
+    }));
     refForm.current?.setValue('ModelDailyLimit', json);
+    refForm.current?.setValue('ModelDailyLimitResetHours', resetHoursJson);
   };
 
   const addRow = () => {
-    applyRowsToInputs([...limitRows, { model: '', group: 'default', limit: 100 }]);
+    applyRowsToInputs([
+      ...limitRows,
+      { model: '', group: 'default', limit: 100, resetHour: 0 },
+    ]);
   };
   const removeRow = (idx) => {
     const next = limitRows.slice();
@@ -209,7 +247,12 @@ export default function ModelDailyLimit(props) {
   const addCard = () => {
     applyCardsToInputs([
       ...groupCards,
-      { name: '', models: [], limits: [{ group: 'default', limit: 500 }] },
+      {
+        name: '',
+        models: [],
+        limits: [{ group: 'default', limit: 500 }],
+        resetHour: 0,
+      },
     ]);
   };
   const removeCard = (idx) => {
@@ -291,7 +334,7 @@ export default function ModelDailyLimit(props) {
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
     refForm.current.setValues(currentInputs);
-    syncRowsFromJSON(currentInputs.ModelDailyLimit);
+    syncRowsFromJSON(currentInputs.ModelDailyLimit, currentInputs.ModelDailyLimitResetHours);
     syncCardsFromJSON(currentInputs.ModelDailyLimitGroups);
   }, [props.options]);
 
@@ -346,7 +389,7 @@ export default function ModelDailyLimit(props) {
                   {
                     title: t('模型'),
                     dataIndex: 'model',
-                    width: '45%',
+                    width: '32%',
                     render: (val, record, idx) => (
                       <Select
                         filter={modelFilter}
@@ -378,7 +421,7 @@ export default function ModelDailyLimit(props) {
                   {
                     title: t('每日上限'),
                     dataIndex: 'limit',
-                    width: '20%',
+                    width: '16%',
                     render: (val, record, idx) => (
                       <InputNumber
                         style={{ width: '100%' }}
@@ -386,6 +429,19 @@ export default function ModelDailyLimit(props) {
                         step={1}
                         value={val}
                         onChange={(v) => updateRow(idx, 'limit', v)}
+                      />
+                    ),
+                  },
+                  {
+                    title: t('刷新时间（北京时间）'),
+                    dataIndex: 'resetHour',
+                    width: '20%',
+                    render: (val, record, idx) => (
+                      <Select
+                        style={{ width: '100%' }}
+                        optionList={resetHourOptions}
+                        value={val ?? 0}
+                        onChange={(v) => updateRow(idx, 'resetHour', v)}
                       />
                     ),
                   },
@@ -444,7 +500,7 @@ export default function ModelDailyLimit(props) {
                               )}
                             </li>
                             <li>{t('编辑此处后失焦，会自动同步到上方表格。')}</li>
-                            <li>{t('每日次数按自然日零点（服务器时区）重置。')}</li>
+                            <li>{t('每日次数按所选北京时间整点重置；未配置时默认 00:00。')}</li>
                             <li>{t('仅统计成功的调用，失败请求不计入。')}</li>
                             <li>{t('每日上限必须为大于等于 1 的整数。')}</li>
                             <li>{t('同一分组内所有用户共享该模型的每日额度。')}</li>
@@ -515,6 +571,17 @@ export default function ModelDailyLimit(props) {
                           value={card.models}
                           allowCreate
                           onChange={(v) => updateCard(cardIdx, 'models', v)}
+                        />
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <Text type='tertiary' size='small'>
+                          {t('刷新时间（北京时间）')}
+                        </Text>
+                        <Select
+                          style={{ width: 240, marginTop: 4 }}
+                          optionList={resetHourOptions}
+                          value={card.resetHour ?? 0}
+                          onChange={(v) => updateCard(cardIdx, 'resetHour', v)}
                         />
                       </div>
                       <div>

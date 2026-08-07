@@ -82,8 +82,9 @@ func GetPricing(c *gin.Context) {
 					dailyLimits[modelName] = map[string]gin.H{}
 				}
 				dailyLimits[modelName][g] = gin.H{
-					"limit": entry.Limit,
-					"used":  service.GetModelDailyUsage(entry.CounterName, g),
+					"limit":      entry.Limit,
+					"used":       service.GetModelDailyUsage(entry.CounterName, g, entry.ResetHour),
+					"reset_hour": entry.ResetHour,
 				}
 			}
 		}
