@@ -36,6 +36,21 @@ type diceGamePlayRequest struct {
 }
 
 // PlayDiceGame 执行一局骰子猜大小
+func ClaimDiceWelfare(c *gin.Context) {
+	if !operation_setting.IsDiceGameEnabled() {
+		common.ApiErrorMsg(c, "小游戏功能未启用")
+		return
+	}
+	userId := c.GetInt("id")
+	result, err := model.ClaimDiceWelfare(userId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	model.RecordLog(userId, model.LogTypeSystem, fmt.Sprintf("领取骰子低保：%s", logger.LogQuota(result.Granted)))
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
 func PlayDiceGame(c *gin.Context) {
 	if !operation_setting.IsDiceGameEnabled() {
 		common.ApiErrorMsg(c, "小游戏功能未启用")

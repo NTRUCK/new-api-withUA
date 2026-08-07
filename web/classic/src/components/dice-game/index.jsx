@@ -68,6 +68,7 @@ const DiceGamePanel = () => {
   const [bet, setBet] = useState(1000);
   const [choice, setChoice] = useState('big');
   const [playing, setPlaying] = useState(false);
+  const [claiming, setClaiming] = useState(false);
   const [rolling, setRolling] = useState(false);
   const [lastResult, setLastResult] = useState(null);
 
@@ -144,6 +145,23 @@ const DiceGamePanel = () => {
       showError(e.message);
     } finally {
       setPlaying(false);
+    }
+  };
+
+  const claimWelfare = async () => {
+    setClaiming(true);
+    try {
+      const res = await API.post('/api/user/dice_game/welfare');
+      const { success, message, data } = res.data;
+      if (!success) return showError(message);
+      showSuccess(
+        t('成功领取低保 {{quota}}', { quota: renderQuota(data.granted) }),
+      );
+      await loadStatus();
+    } catch (e) {
+      showError(e.message);
+    } finally {
+      setClaiming(false);
     }
   };
 
@@ -321,6 +339,41 @@ const DiceGamePanel = () => {
               </Typography.Text>
             </div>
           )}
+        </div>
+      </Card>
+
+      <Card title={t('骰子低保池')}>
+        <div className='flex flex-col gap-3'>
+          <div className='flex flex-wrap gap-x-6 gap-y-1'>
+            <Typography.Text>
+              {t('当前低保池')}: {renderQuota(status?.welfare_pool || 0)}
+            </Typography.Text>
+            <Typography.Text type='tertiary'>
+              {t('余额低于 {{threshold}} 时，每天可领取最多 {{grant}}', {
+                threshold: renderQuota(status?.welfare_balance_threshold || 0),
+                grant: renderQuota(status?.welfare_daily_grant || 0),
+              })}
+            </Typography.Text>
+          </div>
+          <Typography.Text type='tertiary'>
+            {t('用户输掉的下注会进入低保池；池不足每日上限时，将领取池中剩余额度。')}
+          </Typography.Text>
+          <Button
+            theme='solid'
+            type='warning'
+            loading={claiming}
+            disabled={!status?.welfare_eligible || claiming}
+            onClick={claimWelfare}
+            style={{ width: 180 }}
+          >
+            {status?.welfare_claimed_today
+              ? t('今日已领取')
+              : status?.welfare_pool <= 0
+                ? t('低保池暂无额度')
+                : status?.balance >= status?.welfare_balance_threshold
+                  ? t('余额未低于领取线')
+                  : t('领取今日低保')}
+          </Button>
         </div>
       </Card>
 

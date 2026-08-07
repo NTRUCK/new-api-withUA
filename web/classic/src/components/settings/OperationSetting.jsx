@@ -89,6 +89,8 @@ const OperationSetting = () => {
     'dice_game_setting.payout_rate': 2.0,
     'dice_game_setting.daily_max_plays': 3,
     'dice_game_setting.daily_reset_hour': 0,
+    'dice_game_setting.welfare_balance_threshold': 5000000,
+    'dice_game_setting.welfare_daily_grant': 15000000,
 
     /* 令牌设置 */
     'token_setting.max_user_tokens': 1000,

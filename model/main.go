@@ -286,6 +286,8 @@ func migrateDB() error {
 		&PerfMetric{},
 		&ModelFeedback{},
 		&DiceGameRecord{},
+		&DiceWelfarePool{},
+		&DiceWelfareClaim{},
 	)
 	if err != nil {
 		return err

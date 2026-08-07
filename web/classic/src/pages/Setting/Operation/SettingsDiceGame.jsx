@@ -55,6 +55,8 @@ export default function SettingsDiceGame(props) {
     'dice_game_setting.payout_rate': 2.0,
     'dice_game_setting.daily_max_plays': 3,
     'dice_game_setting.daily_reset_hour': 0,
+    'dice_game_setting.welfare_balance_threshold': 5000000,
+    'dice_game_setting.welfare_daily_grant': 15000000,
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -210,6 +212,34 @@ export default function SettingsDiceGame(props) {
                     prefix={currencySymbol}
                     value={quotaToDisplayAmount(inputs['dice_game_setting.max_bet'])}
                     onChange={handleAmountChange('dice_game_setting.max_bet')}
+                    disabled={disabled}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Slot>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Form.Slot label={t('低保领取余额线')}>
+                  <InputNumber
+                    min={0}
+                    step={0.01}
+                    precision={currencyPrecision}
+                    prefix={currencySymbol}
+                    value={quotaToDisplayAmount(inputs['dice_game_setting.welfare_balance_threshold'])}
+                    onChange={handleAmountChange('dice_game_setting.welfare_balance_threshold')}
+                    disabled={disabled}
+                    style={{ width: '100%' }}
+                  />
+                </Form.Slot>
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Form.Slot label={t('每日低保领取上限')}>
+                  <InputNumber
+                    min={0}
+                    step={0.01}
+                    precision={currencyPrecision}
+                    prefix={currencySymbol}
+                    value={quotaToDisplayAmount(inputs['dice_game_setting.welfare_daily_grant'])}
+                    onChange={handleAmountChange('dice_game_setting.welfare_daily_grant')}
                     disabled={disabled}
                     style={{ width: '100%' }}
                   />
