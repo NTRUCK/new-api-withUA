@@ -99,15 +99,19 @@ func cleanupMonitorContent(userId int) {
 
 func GetMonitorUsers() ([]MonitorContent, error) {
 	var rows []MonitorContent
+	// 每个用户取最近一条记录。使用窗口函数而非 GROUP BY，
+	// 因为 PostgreSQL 不允许 SELECT 未聚合的列。
 	err := DB.Raw(`
-		SELECT mc.* FROM monitor_contents mc
-		JOIN (
-			SELECT user_id, MAX(created_at) AS max_created_at
+		SELECT id, user_id, username, token_id, token_name, model_name,
+		       request_id, user_agent, ip, is_stream, created_at
+		FROM (
+			SELECT *, ROW_NUMBER() OVER (
+				PARTITION BY user_id ORDER BY created_at DESC, id DESC
+			) AS rn
 			FROM monitor_contents
-			GROUP BY user_id
-		) latest ON latest.user_id = mc.user_id AND latest.max_created_at = mc.created_at
-		GROUP BY mc.user_id
-		ORDER BY mc.created_at DESC
+		) ranked
+		WHERE rn = 1
+		ORDER BY created_at DESC
 	`).Scan(&rows).Error
 	return rows, err
 }
