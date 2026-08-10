@@ -3250,6 +3250,8 @@
     "Partial Submission": "部分提交確認",
     "Pass Headers": "透傳請求頭",
     "Pass request body directly to upstream": "將請求體直接傳遞給上游",
+    "Empty Response No Billing": "空回覆不計費",
+    "Waive billing when upstream returns no output tokens. Enable only for channels that do not charge for empty responses": "當上游返回的輸出 token 為 0 時免除計費。僅對空回覆不收費的渠道啟用",
     "Pass specified request headers to upstream": "把指定請求頭透傳到上游請求",
     "Pass Through Body": "透傳請求體",
     "Pass Through Headers": "請求頭透傳",

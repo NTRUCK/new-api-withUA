@@ -76,6 +76,30 @@ func (s *textQuotaSummary) hasBillableUsage() bool {
 	return s.TotalTokens > 0 || !s.ToolCallSurchargeQuota.IsZero()
 }
 
+// isEmptyResponse 判断本次请求是否为空回：有输入 token，但上游没有产生任何输出 token。
+// 图片、音频、思考等输出最终都会汇入 CompletionTokens，因此以 CompletionTokens 与
+// CompletionTokenDetails 共同判定，避免漏判。
+func isEmptyResponse(summary *textQuotaSummary, usage *dto.Usage) bool {
+	if summary.PromptTokens <= 0 {
+		return false
+	}
+	if summary.CompletionTokens > 0 {
+		return false
+	}
+	if usage != nil {
+		details := usage.CompletionTokenDetails
+		if details.TextTokens > 0 || details.AudioTokens > 0 ||
+			details.ImageTokens > 0 || details.ReasoningTokens > 0 {
+			return false
+		}
+		if usage.OutputTokens > 0 {
+			return false
+		}
+	}
+	// 工具调用附加费独立于输出 token 计费，存在时不视为空回
+	return summary.ToolCallSurchargeQuota.IsZero()
+}
+
 func cacheWriteTokensTotal(summary textQuotaSummary) int {
 	if summary.CacheCreationTokens5m > 0 || summary.CacheCreationTokens1h > 0 {
 		splitCacheWriteTokens := summary.CacheCreationTokens5m + summary.CacheCreationTokens1h
@@ -407,9 +431,16 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	adminRejectReason := common.GetContextKeyString(ctx, constant.ContextKeyAdminRejectReason)
 	summary := calculateTextQuotaSummary(ctx, relayInfo, billingUsage)
 
+	// 空回不扣费：仅在渠道显式开启该设置时生效。上游对空回照常计费的渠道应保持关闭。
+	emptyResponseFree := relayInfo.ChannelSetting.EmptyResponseNoBilling && isEmptyResponse(&summary, billingUsage)
+	if emptyResponseFree {
+		summary.Quota = 0
+		extraContent = append(extraContent, "空回未产生有效输出，已免除本次计费")
+	}
+
 	var tieredResult *billingexpr.TieredResult
 	tieredBillingApplied := false
-	if originUsage != nil {
+	if originUsage != nil && !emptyResponseFree {
 		var tieredUsedVars map[string]bool
 		if snap := relayInfo.TieredBillingSnapshot; snap != nil {
 			tieredUsedVars = billingexpr.UsedVars(snap.ExprString)
@@ -443,7 +474,8 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	if !summary.hasBillableUsage() {
 		extraContent = append(extraContent, "上游没有返回计费信息，无法扣费（可能是上游超时）")
 		logger.LogError(ctx, fmt.Sprintf("total tokens is 0, cannot consume quota, userId %d, channelId %d, tokenId %d, model %s， pre-consumed quota %d", relayInfo.UserId, relayInfo.ChannelId, relayInfo.TokenId, summary.ModelName, relayInfo.FinalPreConsumedQuota))
-	} else {
+	} else if !emptyResponseFree {
+		// 空回免费时不累计用户/渠道已用额度
 		model.UpdateUserUsedQuotaAndRequestCount(relayInfo.UserId, summary.Quota)
 		model.UpdateChannelUsedQuota(relayInfo.ChannelId, summary.Quota)
 	}

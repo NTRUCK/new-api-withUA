@@ -3250,6 +3250,8 @@
     "Partial Submission": "Partial Submission",
     "Pass Headers": "Pass Headers",
     "Pass request body directly to upstream": "Pass request body directly to upstream",
+    "Empty Response No Billing": "Empty Response No Billing",
+    "Waive billing when upstream returns no output tokens. Enable only for channels that do not charge for empty responses": "Waive billing when upstream returns no output tokens. Enable only for channels that do not charge for empty responses",
     "Pass specified request headers to upstream": "Pass specified request headers to upstream",
     "Pass Through Body": "Pass Through Body",
     "Pass Through Headers": "Pass Through Headers",

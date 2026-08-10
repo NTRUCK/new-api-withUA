@@ -3250,6 +3250,8 @@
     "Partial Submission": "Soumission partielle",
     "Pass Headers": "Transmettre les en-têtes",
     "Pass request body directly to upstream": "Transmettre le corps de la requête directement à l'upstream",
+    "Empty Response No Billing": "Pas de facturation pour une réponse vide",
+    "Waive billing when upstream returns no output tokens. Enable only for channels that do not charge for empty responses": "Annuler la facturation lorsque l'upstream ne renvoie aucun token de sortie. À activer uniquement pour les canaux qui ne facturent pas les réponses vides",
     "Pass specified request headers to upstream": "Transmettre les en-têtes de requête spécifiés en amont",
     "Pass Through Body": "Corps de transmission directe",
     "Pass Through Headers": "Transmettre les en-têtes",

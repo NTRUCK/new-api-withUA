@@ -3250,6 +3250,8 @@
     "Partial Submission": "部分送信",
     "Pass Headers": "ヘッダーをパススルー",
     "Pass request body directly to upstream": "リクエストボディを直接アップストリームに渡す",
+    "Empty Response No Billing": "空レスポンスは課金しない",
+    "Waive billing when upstream returns no output tokens. Enable only for channels that do not charge for empty responses": "アップストリームの出力トークンが 0 の場合は課金を免除します。空レスポンスを課金しないチャネルのみ有効にしてください",
     "Pass specified request headers to upstream": "指定のリクエストヘッダーを上流に透過",
     "Pass Through Body": "ボディをパススルー",
     "Pass Through Headers": "ヘッダー透過",

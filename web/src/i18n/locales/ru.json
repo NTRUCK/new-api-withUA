@@ -3250,6 +3250,8 @@
     "Partial Submission": "Частичная отправка",
     "Pass Headers": "Пропустить заголовки",
     "Pass request body directly to upstream": "Передать тело запроса напрямую вышестоящему серверу",
+    "Empty Response No Billing": "Не тарифицировать пустой ответ",
+    "Waive billing when upstream returns no output tokens. Enable only for channels that do not charge for empty responses": "Не списывать квоту, если вышестоящий сервер вернул 0 выходных токенов. Включайте только для каналов, которые не тарифицируют пустые ответы",
     "Pass specified request headers to upstream": "Передать указанные заголовки запроса вышестоящему серверу",
     "Pass Through Body": "Передача тела запроса",
     "Pass Through Headers": "Передать заголовки",

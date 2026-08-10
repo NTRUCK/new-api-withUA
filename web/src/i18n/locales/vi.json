@@ -3250,6 +3250,8 @@
     "Partial Submission": "Gửi một phần",
     "Pass Headers": "Chuyển tiếp tiêu đề",
     "Pass request body directly to upstream": "Truyền phần thân yêu cầu trực tiếp lên upstream",
+    "Empty Response No Billing": "Không tính phí phản hồi rỗng",
+    "Waive billing when upstream returns no output tokens. Enable only for channels that do not charge for empty responses": "Miễn tính phí khi upstream trả về 0 token đầu ra. Chỉ bật cho các kênh không tính phí phản hồi rỗng",
     "Pass specified request headers to upstream": "Chuyển tiếp header yêu cầu chỉ định lên upstream",
     "Pass Through Body": "Xuyên qua cơ thể",
     "Pass Through Headers": "Truyền header qua",

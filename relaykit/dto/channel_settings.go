@@ -23,6 +23,9 @@ type ChannelSettings struct {
 	// HTTP2ConnectionShards spreads HTTP/2 traffic across N independent transports
 	// (1-8). Zero/unset means 1. Ignored when HTTPProtocol is "http1".
 	HTTP2ConnectionShards int `json:"http2_connection_shards,omitempty"`
+	// EmptyResponseNoBilling 开启后，本渠道返回空回（无任何输出 token）时免除本次计费。
+	// 适用于空回不会被上游计费的渠道；上游照常计费的渠道应保持关闭。
+	EmptyResponseNoBilling bool `json:"empty_response_no_billing,omitempty"`
 }
 
 const (

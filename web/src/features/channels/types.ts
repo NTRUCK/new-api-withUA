@@ -88,6 +88,7 @@ export interface ChannelSettings {
   system_prompt_override?: boolean
   http_protocol?: 'auto' | 'http1' | string
   http2_connection_shards?: number
+  empty_response_no_billing?: boolean
 }
 
 export interface ChannelOtherSettings {
