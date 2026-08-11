@@ -85,7 +85,6 @@ export type DailyLimitUsage = {
   used: number
   reset_hour: number
   tiers?: DailyLimitTier[]
-  shared_group?: string
 }
 
 /** Input/output modalities supported by a model. */

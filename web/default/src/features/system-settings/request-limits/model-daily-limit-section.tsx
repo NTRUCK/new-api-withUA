@@ -38,7 +38,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Textarea } from '@/components/ui/textarea'
 import {
   SettingsSwitchContent,
   SettingsSwitchItem,
@@ -63,6 +62,20 @@ type DailyLimitEntry = {
 
 type DailyLimitConfig = Record<string, Record<string, number>>
 type DailyLimitTierConfig = Record<string, Record<string, DailyLimitTier[]>>
+
+type SharedLimitGroup = {
+  name: string
+  models: string[]
+  limits: Record<string, number>
+  tiers?: Record<string, DailyLimitTier[]>
+  reset_hour?: number
+}
+
+type SharedLimitEntry = DailyLimitEntry & {
+  sharedName: string
+  models: string[]
+  resetHour: number
+}
 
 type ModelDailyLimitSectionProps = {
   defaultValues: {
@@ -129,6 +142,255 @@ function configToEntries(
   return entries
 }
 
+function parseSharedGroups(value: string): SharedLimitGroup[] {
+  if (!value || value.trim() === '') return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? (parsed as SharedLimitGroup[]) : []
+  } catch {
+    return []
+  }
+}
+
+function sharedGroupsToEntries(groups: SharedLimitGroup[]): SharedLimitEntry[] {
+  return groups.flatMap((shared) =>
+    Object.entries(shared.limits ?? {}).map(([group, limit]) => ({
+      sharedName: shared.name,
+      models: shared.models ?? [],
+      modelName: shared.models?.join(', ') ?? '',
+      group,
+      limit,
+      tiers: shared.tiers?.[group] ?? [],
+      resetHour: shared.reset_hour ?? 0,
+    }))
+  )
+}
+
+function SharedLimitDialog(props: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSave: (data: SharedLimitEntry) => void
+  editData?: SharedLimitEntry | null
+}) {
+  const { t } = useTranslation()
+  const [models, setModels] = useState('')
+  const [group, setGroup] = useState('')
+  const [limit, setLimit] = useState(500)
+  const [resetHour, setResetHour] = useState(0)
+  const [tiers, setTiers] = useState<DailyLimitTier[]>([])
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setModels(props.editData?.models.join(', ') ?? '')
+    setGroup(props.editData?.group ?? '')
+    setLimit(props.editData?.limit ?? 500)
+    setResetHour(props.editData?.resetHour ?? 0)
+    setTiers(props.editData?.tiers ?? [])
+    setError('')
+  }, [props.editData, props.open])
+
+  const submit = () => {
+    const modelList = models
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+    if (modelList.length === 0 || !group.trim() || limit < 1) {
+      setError(t('Models, group and daily limit are required'))
+      return
+    }
+    const sorted = [...tiers].sort((a, b) => a.from - b.from)
+    const invalid = sorted.some(
+      (tier, index) =>
+        tier.from < 1 ||
+        tier.to < tier.from ||
+        tier.to > limit ||
+        tier.multiplier <= 0 ||
+        (index > 0 && tier.from <= sorted[index - 1].to)
+    )
+    if (invalid) {
+      setError(
+        t(
+          'Billing tiers must be valid, non-overlapping and within the daily limit'
+        )
+      )
+      return
+    }
+    props.onSave({
+      sharedName: props.editData?.sharedName ?? `shared-${Date.now()}`,
+      models: modelList,
+      modelName: modelList.join(', '),
+      group: group.trim(),
+      limit,
+      resetHour,
+      tiers: sorted,
+    })
+    props.onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogContent className='sm:max-w-[620px]'>
+        <DialogHeader>
+          <DialogTitle>
+            {props.editData ? t('Edit shared limit') : t('Add shared limit')}
+          </DialogTitle>
+          <DialogDescription>
+            {t(
+              'Models in this row share the same daily counter and billing tiers.'
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <div className='space-y-4'>
+          <div className='space-y-2'>
+            <label className='text-sm font-medium'>{t('Models')}</label>
+            <Input
+              value={models}
+              onChange={(event) => setModels(event.target.value)}
+              placeholder={t('Comma-separated model names')}
+            />
+          </div>
+          <div className='grid grid-cols-3 gap-3'>
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>{t('Group')}</label>
+              <Input
+                value={group}
+                onChange={(event) => setGroup(event.target.value)}
+              />
+            </div>
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>{t('Daily limit')}</label>
+              <Input
+                type='number'
+                min={1}
+                value={limit}
+                onChange={(event) =>
+                  setLimit(parseInt(event.target.value) || 0)
+                }
+              />
+            </div>
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>{t('Reset hour')}</label>
+              <Input
+                type='number'
+                min={0}
+                max={23}
+                value={resetHour}
+                onChange={(event) =>
+                  setResetHour(parseInt(event.target.value) || 0)
+                }
+              />
+            </div>
+          </div>
+          <TierRows tiers={tiers} limit={limit} onChange={setTiers} />
+          {error && <p className='text-sm text-rose-500'>{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => props.onOpenChange(false)}
+          >
+            {t('Cancel')}
+          </Button>
+          <Button type='button' onClick={submit}>
+            {t('Save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function TierRows(props: {
+  tiers: DailyLimitTier[]
+  limit: number
+  onChange: (tiers: DailyLimitTier[]) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className='space-y-2'>
+      <div className='flex items-center justify-between'>
+        <label className='text-sm font-medium'>{t('Billing tiers')}</label>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          onClick={() =>
+            props.onChange([
+              ...props.tiers,
+              {
+                from: props.tiers.at(-1)?.to ? props.tiers.at(-1)!.to + 1 : 1,
+                to: props.limit,
+                multiplier: 1,
+              },
+            ])
+          }
+        >
+          <Plus className='mr-1 h-3.5 w-3.5' />
+          {t('Add tier')}
+        </Button>
+      </div>
+      {props.tiers.map((tier, index) => (
+        <div key={index} className='grid grid-cols-[1fr_1fr_1fr_auto] gap-2'>
+          <Input
+            type='number'
+            min={1}
+            value={tier.from}
+            onChange={(event) => {
+              const next = [...props.tiers]
+              next[index] = {
+                ...tier,
+                from: parseInt(event.target.value) || 0,
+              }
+              props.onChange(next)
+            }}
+          />
+          <Input
+            type='number'
+            min={1}
+            max={props.limit}
+            value={tier.to}
+            onChange={(event) => {
+              const next = [...props.tiers]
+              next[index] = {
+                ...tier,
+                to: parseInt(event.target.value) || 0,
+              }
+              props.onChange(next)
+            }}
+          />
+          <Input
+            type='number'
+            min={0.01}
+            step={0.1}
+            value={tier.multiplier}
+            onChange={(event) => {
+              const next = [...props.tiers]
+              next[index] = {
+                ...tier,
+                multiplier: parseFloat(event.target.value) || 0,
+              }
+              props.onChange(next)
+            }}
+          />
+          <Button
+            type='button'
+            variant='ghost'
+            size='icon'
+            onClick={() =>
+              props.onChange(
+                props.tiers.filter((_, itemIndex) => itemIndex !== index)
+              )
+            }
+          >
+            <Trash2 className='h-4 w-4' />
+          </Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function formatTiers(tiers: DailyLimitTier[]) {
   if (tiers.length === 0) return '-'
   return tiers
@@ -151,6 +413,10 @@ export function ModelDailyLimitSection({
   const [searchText, setSearchText] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editData, setEditData] = useState<DailyLimitEntry | null>(null)
+  const [sharedDialogOpen, setSharedDialogOpen] = useState(false)
+  const [sharedEditData, setSharedEditData] = useState<SharedLimitEntry | null>(
+    null
+  )
 
   useEffect(() => {
     setEnabled(defaultValues.ModelDailyLimitEnabled)
@@ -167,6 +433,11 @@ export function ModelDailyLimitSection({
   const entries = useMemo(
     () => configToEntries(parseConfig(configJson), parseTierConfig(tiersJson)),
     [configJson, tiersJson]
+  )
+
+  const sharedEntries = useMemo(
+    () => sharedGroupsToEntries(parseSharedGroups(groupsJson)),
+    [groupsJson]
   )
 
   const filteredEntries = useMemo(() => {
@@ -245,6 +516,39 @@ export function ModelDailyLimitSection({
     setTiersJson(JSON.stringify(tierConfig))
   }
 
+  const handleSaveSharedEntry = (data: SharedLimitEntry) => {
+    const groups = parseSharedGroups(groupsJson)
+    let shared = groups.find((item) => item.name === sharedEditData?.sharedName)
+    if (!shared) {
+      shared = { name: data.sharedName, models: [], limits: {}, tiers: {} }
+      groups.push(shared)
+    }
+    if (sharedEditData && sharedEditData.group !== data.group) {
+      delete shared.limits[sharedEditData.group]
+      delete shared.tiers?.[sharedEditData.group]
+    }
+    shared.name = data.sharedName
+    shared.models = data.models
+    shared.reset_hour = data.resetHour
+    shared.limits[data.group] = data.limit
+    if (!shared.tiers) shared.tiers = {}
+    shared.tiers[data.group] = data.tiers
+    setGroupsJson(JSON.stringify(groups))
+  }
+
+  const handleDeleteShared = (entry: SharedLimitEntry) => {
+    const groups = parseSharedGroups(groupsJson)
+    const shared = groups.find((item) => item.name === entry.sharedName)
+    if (!shared) return
+    delete shared.limits[entry.group]
+    delete shared.tiers?.[entry.group]
+    const next = groups.filter(
+      (item) =>
+        item.name !== entry.sharedName || Object.keys(item.limits).length > 0
+    )
+    setGroupsJson(JSON.stringify(next))
+  }
+
   const handleDelete = (entry: DailyLimitEntry) => {
     const config = parseConfig(configJson)
     const tierConfig = parseTierConfig(tiersJson)
@@ -287,19 +591,70 @@ export function ModelDailyLimitSection({
       </SettingsSwitchItem>
 
       <div className='space-y-2'>
-        <label className='text-sm font-medium'>
-          {t('Shared limit groups')}
-        </label>
-        <Textarea
-          value={groupsJson}
-          onChange={(event) => setGroupsJson(event.target.value)}
-          className='min-h-24 font-mono text-xs'
-        />
-        <p className='text-muted-foreground text-xs'>
-          {t(
-            'Shared groups keep using the ModelDailyLimitGroups JSON option. Add a tiers object per group to configure billing tiers.'
-          )}
-        </p>
+        <div className='flex items-center justify-between'>
+          <label className='text-sm font-medium'>
+            {t('Shared limit groups')}
+          </label>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => {
+              setSharedEditData(null)
+              setSharedDialogOpen(true)
+            }}
+          >
+            <Plus className='mr-2 h-4 w-4' />
+            {t('Add shared limit')}
+          </Button>
+        </div>
+        <div className='rounded-md border'>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('Models')}</TableHead>
+                <TableHead>{t('Group')}</TableHead>
+                <TableHead className='text-right'>{t('Daily limit')}</TableHead>
+                <TableHead>{t('Billing tiers')}</TableHead>
+                <TableHead className='text-right'>{t('Actions')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sharedEntries.map((entry) => (
+                <TableRow key={`${entry.sharedName}::${entry.group}`}>
+                  <TableCell className='max-w-80 truncate font-mono text-xs'>
+                    {entry.models.join(', ')}
+                  </TableCell>
+                  <TableCell className='font-mono'>{entry.group}</TableCell>
+                  <TableCell className='text-right font-mono'>
+                    {entry.limit.toLocaleString()}
+                  </TableCell>
+                  <TableCell className='max-w-80 font-mono text-xs'>
+                    {formatTiers(entry.tiers)}
+                  </TableCell>
+                  <TableCell className='text-right'>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => {
+                        setSharedEditData(entry)
+                        setSharedDialogOpen(true)
+                      }}
+                    >
+                      <Pencil className='h-4 w-4' />
+                    </Button>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => handleDeleteShared(entry)}
+                    >
+                      <Trash2 className='h-4 w-4' />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <div className='flex items-center gap-4'>
@@ -390,6 +745,12 @@ export function ModelDailyLimitSection({
         onOpenChange={setDialogOpen}
         onSave={handleSaveEntry}
         editData={editData}
+      />
+      <SharedLimitDialog
+        open={sharedDialogOpen}
+        onOpenChange={setSharedDialogOpen}
+        onSave={handleSaveSharedEntry}
+        editData={sharedEditData}
       />
     </SettingsSection>
   )

@@ -23,6 +23,14 @@ import { updateSystemOption } from '../api'
 import type { UpdateOptionRequest } from '../types'
 
 // Configuration keys that require status refresh
+const PRICING_RELATED_KEYS = [
+  'ModelDailyLimitEnabled',
+  'ModelDailyLimit',
+  'ModelDailyLimitTiers',
+  'ModelDailyLimitResetHours',
+  'ModelDailyLimitGroups',
+]
+
 const STATUS_RELATED_KEYS = [
   'theme.frontend',
   'HeaderNavModules',
@@ -47,6 +55,10 @@ export function useUpdateOption() {
       if (data.success) {
         // Always refresh system-options
         queryClient.invalidateQueries({ queryKey: ['system-options'] })
+
+        if (PRICING_RELATED_KEYS.includes(variables.key)) {
+          queryClient.invalidateQueries({ queryKey: ['pricing'] })
+        }
 
         // If updating frontend-display-related config, also refresh status
         if (STATUS_RELATED_KEYS.includes(variables.key)) {

@@ -178,7 +178,6 @@ type ModelDailyLimitDisplayEntry struct {
 	CounterName string
 	ResetHour   int
 	Tiers       []ModelDailyLimitTier
-	SharedGroup string
 }
 
 func GetModelDailyLimitDisplayCopy() map[string]map[string]ModelDailyLimitDisplayEntry {
@@ -210,7 +209,7 @@ func GetModelDailyLimitDisplayCopy() map[string]map[string]ModelDailyLimitDispla
 				if result[modelName] == nil {
 					result[modelName] = make(map[string]ModelDailyLimitDisplayEntry)
 				}
-				result[modelName][group] = ModelDailyLimitDisplayEntry{Limit: limit, CounterName: counter, ResetHour: sg.ResetHour, Tiers: copyModelDailyLimitTiers(sg.Tiers[group]), SharedGroup: sg.Name}
+				result[modelName][group] = ModelDailyLimitDisplayEntry{Limit: limit, CounterName: counter, ResetHour: sg.ResetHour, Tiers: copyModelDailyLimitTiers(sg.Tiers[group])}
 			}
 		}
 	}
