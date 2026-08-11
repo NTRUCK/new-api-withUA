@@ -288,6 +288,8 @@ func migrateDB() error {
 		&DiceGameRecord{},
 		&DiceWelfarePool{},
 		&DiceWelfareClaim{},
+		&DiceWelfareRound{},
+		&DiceWelfareApplication{},
 	)
 	if err != nil {
 		return err

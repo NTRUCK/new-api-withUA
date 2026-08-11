@@ -138,7 +138,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/dice_game", controller.GetDiceGameStatus)
 				selfRoute.POST("/dice_game", controller.PlayDiceGame)
 				selfRoute.GET("/welfare", controller.GetDiceWelfareStatus)
-				selfRoute.POST("/welfare", middleware.CriticalRateLimit(), controller.ClaimDiceWelfare)
+				selfRoute.POST("/welfare", middleware.CriticalRateLimit(), controller.ApplyDiceWelfare)
 
 				// Custom OAuth bindings
 				selfRoute.GET("/oauth/bindings", controller.GetUserOAuthBindings)
@@ -321,6 +321,8 @@ func SetApiRouter(router *gin.Engine) {
 				tokenUsageRoute.GET("/", controller.GetTokenUsage)
 			}
 		}
+
+		apiRouter.POST("/user/welfare/admin/redemption", middleware.AdminAuth(), middleware.CriticalRateLimit(), controller.CreateWelfareRedemption)
 
 		redemptionRoute := apiRouter.Group("/redemption")
 		redemptionRoute.Use(middleware.AdminAuth())

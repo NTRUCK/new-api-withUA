@@ -44,14 +44,35 @@ func GetDiceWelfareStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
 }
 
-func ClaimDiceWelfare(c *gin.Context) {
-	userId := c.GetInt("id")
-	result, err := model.ClaimDiceWelfare(userId)
+func ApplyDiceWelfare(c *gin.Context) {
+	result, err := model.ApplyDiceWelfare(c.GetInt("id"))
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	model.RecordLog(userId, model.LogTypeSystem, fmt.Sprintf("领取骰子低保：%s", logger.LogQuota(result.Granted)))
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+type welfareRedemptionRequest struct {
+	Name       string `json:"name"`
+	TotalQuota int    `json:"total_quota"`
+	MaxUses    int    `json:"max_uses"`
+	MinQuota   int    `json:"min_quota"`
+	MaxQuota   int    `json:"max_quota"`
+}
+
+func CreateWelfareRedemption(c *gin.Context) {
+	var req welfareRedemptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ApiErrorMsg(c, "请求参数错误")
+		return
+	}
+	result, err := model.CreateWelfareRedemption(c.GetInt("id"), req.Name, req.TotalQuota, req.MaxUses, req.MinQuota, req.MaxQuota)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	model.RecordLog(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("从低保池创建拼手气红包：%s", logger.LogQuota(req.TotalQuota)))
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
 

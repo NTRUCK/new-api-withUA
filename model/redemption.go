@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Redemption struct {
@@ -24,13 +25,13 @@ type Redemption struct {
 	Count        int            `json:"count" gorm:"-:all"` // only for api request
 	UsedUserId   int            `json:"used_user_id"`
 	DeletedAt    gorm.DeletedAt `gorm:"index"`
-	ExpiredTime  int64          `json:"expired_time" gorm:"bigint"` // 过期时间，0 表示不过期
-	MaxUses      int            `json:"max_uses" gorm:"default:1"`  // 最大可兑换次数，<=0 视为 1
-	UsedCount    int            `json:"used_count" gorm:"default:0"` // 已兑换次数
-	Mode         int            `json:"mode" gorm:"default:1"`       // 额度发放模式：1 固定 2 区间随机 3 拼手气红包
-	MinQuota     int            `json:"min_quota" gorm:"default:0"`  // 区间随机模式下的最小额度
-	MaxQuota     int            `json:"max_quota" gorm:"default:0"`  // 区间随机模式下的最大额度
-	TotalQuota   int            `json:"total_quota" gorm:"default:0"` // 拼手气模式下的总额度
+	ExpiredTime  int64          `json:"expired_time" gorm:"bigint"`    // 过期时间，0 表示不过期
+	MaxUses      int            `json:"max_uses" gorm:"default:1"`     // 最大可兑换次数，<=0 视为 1
+	UsedCount    int            `json:"used_count" gorm:"default:0"`   // 已兑换次数
+	Mode         int            `json:"mode" gorm:"default:1"`         // 额度发放模式：1 固定 2 区间随机 3 拼手气红包
+	MinQuota     int            `json:"min_quota" gorm:"default:0"`    // 区间随机模式下的最小额度
+	MaxQuota     int            `json:"max_quota" gorm:"default:0"`    // 区间随机模式下的最大额度
+	TotalQuota   int            `json:"total_quota" gorm:"default:0"`  // 拼手气模式下的总额度
 	RemainQuota  int            `json:"remain_quota" gorm:"default:0"` // 拼手气模式下剩余可发放额度
 }
 
@@ -145,7 +146,11 @@ func Redeem(key string, userId int) (quota int, err error) {
 	var awardedQuota int
 	common.RandomSleep()
 	err = DB.Transaction(func(tx *gorm.DB) error {
-		err := tx.Set("gorm:query_option", "FOR UPDATE").Where(keyCol+" = ?", key).First(redemption).Error
+		query := tx
+		if !common.UsingSQLite {
+			query = query.Clauses(clause.Locking{Strength: "UPDATE"})
+		}
+		err := query.Where(keyCol+" = ?", key).First(redemption).Error
 		if err != nil {
 			return errors.New("无效的兑换码")
 		}
@@ -276,6 +281,25 @@ func computeRedeemQuota(redemption *Redemption, remainingUses int) int {
 	default:
 		return redemption.Quota
 	}
+}
+
+func CreateLuckyPacketRedemptionTx(tx *gorm.DB, userId int, name string, totalQuota, maxUses, minQuota, maxQuota int) (*Redemption, error) {
+	if name == "" || totalQuota <= 0 || maxUses <= 0 || minQuota < 1 || maxQuota < minQuota {
+		return nil, errors.New("红包参数无效")
+	}
+	if totalQuota < minQuota*maxUses || totalQuota > maxQuota*maxUses {
+		return nil, errors.New("红包总额度与单次范围不匹配")
+	}
+	redemption := &Redemption{
+		UserId: userId, Key: common.GetUUID(), Status: common.RedemptionCodeStatusEnabled,
+		Name: name, CreatedTime: common.GetTimestamp(), MaxUses: maxUses,
+		Mode: common.RedemptionModeLuckyPacket, MinQuota: minQuota, MaxQuota: maxQuota,
+		TotalQuota: totalQuota, RemainQuota: totalQuota,
+	}
+	if err := tx.Create(redemption).Error; err != nil {
+		return nil, err
+	}
+	return redemption, nil
 }
 
 func (redemption *Redemption) Insert() error {
