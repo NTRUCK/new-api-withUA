@@ -48,11 +48,12 @@ const { Text } = Typography;
 
 // 将 {model:{group:limit}} 的 JSON 字符串解析为行数组 [{model,group,limit}]
 
-function limitJSONToRows(jsonStr, resetHoursJson) {
+function limitJSONToRows(jsonStr, resetHoursJson, tiersJson) {
   if (!jsonStr) return [];
   try {
     const obj = JSON.parse(jsonStr);
     const resetHours = resetHoursJson ? JSON.parse(resetHoursJson) : {};
+    const tiers = tiersJson ? JSON.parse(tiersJson) : {};
     const rows = [];
     Object.keys(obj || {}).forEach((model) => {
       const groups = obj[model] || {};
@@ -62,6 +63,7 @@ function limitJSONToRows(jsonStr, resetHoursJson) {
           group,
           limit: groups[group],
           resetHour: resetHours[model] ?? 0,
+          tiers: JSON.stringify(tiers?.[model]?.[group] || []),
         });
       });
     });
@@ -80,6 +82,23 @@ function rowsToLimitJSON(rows) {
     if (!Number.isFinite(n) || n < 1) return;
     if (!obj[model]) obj[model] = {};
     obj[model][group] = n;
+  });
+  return JSON.stringify(obj, null, 2);
+}
+
+function rowsToTiersJSON(rows) {
+  const obj = {};
+  (rows || []).forEach(({ model, group, tiers }) => {
+    if (!model || !group) return;
+    try {
+      const parsed =
+        typeof tiers === 'string' ? JSON.parse(tiers || '[]') : tiers;
+      if (!Array.isArray(parsed)) return;
+      if (!obj[model]) obj[model] = {};
+      obj[model][group] = parsed;
+    } catch {
+      // 无效 JSON 由提交前校验处理
+    }
   });
   return JSON.stringify(obj, null, 2);
 }
@@ -107,6 +126,7 @@ function groupsJSONToCards(jsonStr) {
       limits: Object.keys(g?.limits || {}).map((group) => ({
         group,
         limit: g.limits[group],
+        tiers: JSON.stringify(g?.tiers?.[group] || []),
       })),
     }));
   } catch {
@@ -121,11 +141,19 @@ function cardsToGroupsJSON(cards) {
     if (!name) return;
     const validModels = (models || []).filter(Boolean);
     const limitObj = {};
-    (limits || []).forEach(({ group, limit }) => {
+    const tierObj = {};
+    (limits || []).forEach(({ group, limit, tiers }) => {
       if (!group) return;
       const n = parseInt(limit, 10);
       if (!Number.isFinite(n) || n < 1) return;
       limitObj[group] = n;
+      try {
+        const parsed =
+          typeof tiers === 'string' ? JSON.parse(tiers || '[]') : tiers;
+        if (Array.isArray(parsed)) tierObj[group] = parsed;
+      } catch {
+        // 无效 JSON 由后端校验
+      }
     });
     if (validModels.length === 0 && Object.keys(limitObj).length === 0) return;
     const hour = parseInt(resetHour, 10);
@@ -133,6 +161,7 @@ function cardsToGroupsJSON(cards) {
       name,
       models: validModels,
       limits: limitObj,
+      tiers: tierObj,
       reset_hour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 0,
     });
   });
@@ -150,6 +179,7 @@ export default function ModelDailyLimit(props) {
   const [inputs, setInputs] = useState({
     ModelDailyLimitEnabled: false,
     ModelDailyLimit: '',
+    ModelDailyLimitTiers: '',
     ModelDailyLimitResetHours: '',
     ModelDailyLimitGroups: '',
   });
@@ -175,9 +205,7 @@ export default function ModelDailyLimit(props) {
         if (mRes?.data?.success) {
           const opts = (mRes.data.data || []).map((it) => {
             const channels = it.channels || [];
-            const suffix = channels.length
-              ? `（${channels.join(', ')}）`
-              : '';
+            const suffix = channels.length ? `（${channels.join(', ')}）` : '';
             return {
               value: it.model,
               label: `${it.model}${suffix}`,
@@ -199,28 +227,35 @@ export default function ModelDailyLimit(props) {
   }, []);
 
   // 当 JSON 文本变化（外部加载或高级模式编辑）时同步到行编辑器
-  const syncRowsFromJSON = (jsonStr, resetHoursJson = inputs.ModelDailyLimitResetHours) => {
-    setLimitRows(limitJSONToRows(jsonStr, resetHoursJson));
+  const syncRowsFromJSON = (
+    jsonStr,
+    resetHoursJson = inputs.ModelDailyLimitResetHours,
+    tiersJson = inputs.ModelDailyLimitTiers,
+  ) => {
+    setLimitRows(limitJSONToRows(jsonStr, resetHoursJson, tiersJson));
   };
 
   // 行编辑器变更后回写 JSON
   const applyRowsToInputs = (rows) => {
     setLimitRows(rows);
     const json = rowsToLimitJSON(rows);
+    const tiersJson = rowsToTiersJSON(rows);
     const resetHoursJson = rowsToResetHoursJSON(rows);
     setInputs((prev) => ({
       ...prev,
       ModelDailyLimit: json,
+      ModelDailyLimitTiers: tiersJson,
       ModelDailyLimitResetHours: resetHoursJson,
     }));
     refForm.current?.setValue('ModelDailyLimit', json);
+    refForm.current?.setValue('ModelDailyLimitTiers', tiersJson);
     refForm.current?.setValue('ModelDailyLimitResetHours', resetHoursJson);
   };
 
   const addRow = () => {
     applyRowsToInputs([
       ...limitRows,
-      { model: '', group: 'default', limit: 100, resetHour: 0 },
+      { model: '', group: 'default', limit: 100, resetHour: 0, tiers: '[]' },
     ]);
   };
   const removeRow = (idx) => {
@@ -250,7 +285,7 @@ export default function ModelDailyLimit(props) {
       {
         name: '',
         models: [],
-        limits: [{ group: 'default', limit: 500 }],
+        limits: [{ group: 'default', limit: 500, tiers: '[]' }],
         resetHour: 0,
       },
     ]);
@@ -268,7 +303,7 @@ export default function ModelDailyLimit(props) {
   const addCardLimit = (cardIdx) => {
     const next = groupCards.slice();
     const limits = (next[cardIdx].limits || []).slice();
-    limits.push({ group: 'default', limit: 500 });
+    limits.push({ group: 'default', limit: 500, tiers: '[]' });
     next[cardIdx] = { ...next[cardIdx], limits };
     applyCardsToInputs(next);
   };
@@ -334,7 +369,11 @@ export default function ModelDailyLimit(props) {
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
     refForm.current.setValues(currentInputs);
-    syncRowsFromJSON(currentInputs.ModelDailyLimit, currentInputs.ModelDailyLimitResetHours);
+    syncRowsFromJSON(
+      currentInputs.ModelDailyLimit,
+      currentInputs.ModelDailyLimitResetHours,
+      currentInputs.ModelDailyLimitTiers,
+    );
     syncCardsFromJSON(currentInputs.ModelDailyLimitGroups);
   }, [props.options]);
 
@@ -342,9 +381,7 @@ export default function ModelDailyLimit(props) {
   const modelFilter = (input, option) => {
     if (!input) return true;
     const kw = input.toLowerCase();
-    return (option.filterText || option.value || '')
-      .toLowerCase()
-      .includes(kw);
+    return (option.filterText || option.value || '').toLowerCase().includes(kw);
   };
 
   return (
@@ -433,6 +470,18 @@ export default function ModelDailyLimit(props) {
                     ),
                   },
                   {
+                    title: t('梯度计费 JSON'),
+                    dataIndex: 'tiers',
+                    width: '28%',
+                    render: (val, record, idx) => (
+                      <Input
+                        value={val || '[]'}
+                        placeholder='[{"from":1,"to":3000,"multiplier":1}]'
+                        onChange={(v) => updateRow(idx, 'tiers', v)}
+                      />
+                    ),
+                  },
+                  {
                     title: t('刷新时间（北京时间）'),
                     dataIndex: 'resetHour',
                     width: '20%',
@@ -499,11 +548,19 @@ export default function ModelDailyLimit(props) {
                                 '使用 JSON 对象格式，格式为：{"模型名": {"分组名": 每日最大成功调用次数}}',
                               )}
                             </li>
-                            <li>{t('编辑此处后失焦，会自动同步到上方表格。')}</li>
-                            <li>{t('每日次数按所选北京时间整点重置；未配置时默认 00:00。')}</li>
+                            <li>
+                              {t('编辑此处后失焦，会自动同步到上方表格。')}
+                            </li>
+                            <li>
+                              {t(
+                                '每日次数按所选北京时间整点重置；未配置时默认 00:00。',
+                              )}
+                            </li>
                             <li>{t('仅统计成功的调用，失败请求不计入。')}</li>
                             <li>{t('每日上限必须为大于等于 1 的整数。')}</li>
-                            <li>{t('同一分组内所有用户共享该模型的每日额度。')}</li>
+                            <li>
+                              {t('同一分组内所有用户共享该模型的每日额度。')}
+                            </li>
                           </ul>
                         </div>
                       }
@@ -610,12 +667,20 @@ export default function ModelDailyLimit(props) {
                               }
                             />
                             <InputNumber
-                              style={{ width: 200 }}
+                              style={{ width: 160 }}
                               min={1}
                               step={1}
                               value={lim.limit}
                               onChange={(v) =>
                                 updateCardLimit(cardIdx, limIdx, 'limit', v)
+                              }
+                            />
+                            <Input
+                              style={{ width: 360 }}
+                              value={lim.tiers || '[]'}
+                              placeholder='[{"from":1,"to":3000,"multiplier":1}]'
+                              onChange={(v) =>
+                                updateCardLimit(cardIdx, limIdx, 'tiers', v)
                               }
                             />
                             <Button
@@ -677,7 +742,9 @@ export default function ModelDailyLimit(props) {
                                 '用于让来自同一渠道的多个模型共用一份每日额度。数组格式，每个组包含 name（组名，需唯一）、models（模型名列表）、limits（分组名到上限的映射）。',
                               )}
                             </li>
-                            <li>{t('编辑此处后失焦，会自动同步到上方卡片。')}</li>
+                            <li>
+                              {t('编辑此处后失焦，会自动同步到上方卡片。')}
+                            </li>
                             <li>
                               {t(
                                 '共享组优先于上方单模型配置：若某模型同时命中两者，只按共享组计数。',

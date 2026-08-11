@@ -38,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
 import {
   SettingsSwitchContent,
   SettingsSwitchItem,
@@ -47,18 +48,29 @@ import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 
 // 每日限额条目：模型 + 分组 + 每日成功调用上限
+type DailyLimitTier = {
+  from: number
+  to: number
+  multiplier: number
+}
+
 type DailyLimitEntry = {
   modelName: string
   group: string
   limit: number
+  tiers: DailyLimitTier[]
 }
 
 type DailyLimitConfig = Record<string, Record<string, number>>
+type DailyLimitTierConfig = Record<string, Record<string, DailyLimitTier[]>>
 
 type ModelDailyLimitSectionProps = {
   defaultValues: {
     ModelDailyLimitEnabled: boolean
     ModelDailyLimit: string
+    ModelDailyLimitTiers: string
+    ModelDailyLimitResetHours: string
+    ModelDailyLimitGroups: string
   }
 }
 
@@ -66,7 +78,11 @@ function parseConfig(value: string): DailyLimitConfig {
   if (!value || value.trim() === '') return {}
   try {
     const parsed = JSON.parse(value)
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
       return {}
     }
     return parsed as DailyLimitConfig
@@ -75,17 +91,49 @@ function parseConfig(value: string): DailyLimitConfig {
   }
 }
 
-function configToEntries(config: DailyLimitConfig): DailyLimitEntry[] {
+function parseTierConfig(value: string): DailyLimitTierConfig {
+  if (!value || value.trim() === '') return {}
+  try {
+    const parsed = JSON.parse(value)
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
+      return {}
+    }
+    return parsed as DailyLimitTierConfig
+  } catch {
+    return {}
+  }
+}
+
+function configToEntries(
+  config: DailyLimitConfig,
+  tierConfig: DailyLimitTierConfig
+): DailyLimitEntry[] {
   const entries: DailyLimitEntry[] = []
   for (const [modelName, groups] of Object.entries(config)) {
     if (typeof groups !== 'object' || groups === null) continue
     for (const [group, limit] of Object.entries(groups)) {
       if (typeof limit === 'number') {
-        entries.push({ modelName, group, limit })
+        entries.push({
+          modelName,
+          group,
+          limit,
+          tiers: tierConfig[modelName]?.[group] ?? [],
+        })
       }
     }
   }
   return entries
+}
+
+function formatTiers(tiers: DailyLimitTier[]) {
+  if (tiers.length === 0) return '-'
+  return tiers
+    .map((tier) => `${tier.from}-${tier.to}: ${tier.multiplier}x`)
+    .join(', ')
 }
 
 export function ModelDailyLimitSection({
@@ -96,6 +144,10 @@ export function ModelDailyLimitSection({
 
   const [enabled, setEnabled] = useState(defaultValues.ModelDailyLimitEnabled)
   const [configJson, setConfigJson] = useState(defaultValues.ModelDailyLimit)
+  const [tiersJson, setTiersJson] = useState(defaultValues.ModelDailyLimitTiers)
+  const [groupsJson, setGroupsJson] = useState(
+    defaultValues.ModelDailyLimitGroups
+  )
   const [searchText, setSearchText] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editData, setEditData] = useState<DailyLimitEntry | null>(null)
@@ -103,11 +155,18 @@ export function ModelDailyLimitSection({
   useEffect(() => {
     setEnabled(defaultValues.ModelDailyLimitEnabled)
     setConfigJson(defaultValues.ModelDailyLimit)
-  }, [defaultValues.ModelDailyLimitEnabled, defaultValues.ModelDailyLimit])
+    setTiersJson(defaultValues.ModelDailyLimitTiers)
+    setGroupsJson(defaultValues.ModelDailyLimitGroups)
+  }, [
+    defaultValues.ModelDailyLimitEnabled,
+    defaultValues.ModelDailyLimit,
+    defaultValues.ModelDailyLimitTiers,
+    defaultValues.ModelDailyLimitGroups,
+  ])
 
   const entries = useMemo(
-    () => configToEntries(parseConfig(configJson)),
-    [configJson]
+    () => configToEntries(parseConfig(configJson), parseTierConfig(tiersJson)),
+    [configJson, tiersJson]
   )
 
   const filteredEntries = useMemo(() => {
@@ -120,7 +179,12 @@ export function ModelDailyLimitSection({
     )
   }, [entries, searchText])
 
-  const persist = (nextEnabled: boolean, nextConfig: string) => {
+  const persist = (
+    nextEnabled: boolean,
+    nextConfig: string,
+    nextTiers: string,
+    nextGroups: string
+  ) => {
     const updates: Array<{ key: string; value: string }> = []
     if (nextEnabled !== defaultValues.ModelDailyLimitEnabled) {
       updates.push({
@@ -131,11 +195,22 @@ export function ModelDailyLimitSection({
     if (nextConfig !== defaultValues.ModelDailyLimit) {
       updates.push({ key: 'ModelDailyLimit', value: nextConfig })
     }
+    if (nextTiers !== defaultValues.ModelDailyLimitTiers) {
+      updates.push({ key: 'ModelDailyLimitTiers', value: nextTiers })
+    }
+    if (nextGroups !== defaultValues.ModelDailyLimitGroups) {
+      updates.push({ key: 'ModelDailyLimitGroups', value: nextGroups })
+    }
     return updates
   }
 
   const onSave = async () => {
-    const updates = persist(enabled, configJson)
+    try {
+      JSON.parse(groupsJson || '[]')
+    } catch {
+      return
+    }
+    const updates = persist(enabled, configJson, tiersJson, groupsJson)
     for (const u of updates) {
       await updateOption.mutateAsync(u)
     }
@@ -143,6 +218,7 @@ export function ModelDailyLimitSection({
 
   const handleSaveEntry = (data: DailyLimitEntry) => {
     const config = parseConfig(configJson)
+    const tierConfig = parseTierConfig(tiersJson)
     // 若编辑时改了 模型/分组，删除旧键
     if (
       editData &&
@@ -154,21 +230,38 @@ export function ModelDailyLimitSection({
           delete config[editData.modelName]
         }
       }
+      if (tierConfig[editData.modelName]) {
+        delete tierConfig[editData.modelName][editData.group]
+        if (Object.keys(tierConfig[editData.modelName]).length === 0) {
+          delete tierConfig[editData.modelName]
+        }
+      }
     }
     if (!config[data.modelName]) config[data.modelName] = {}
     config[data.modelName][data.group] = data.limit
+    if (!tierConfig[data.modelName]) tierConfig[data.modelName] = {}
+    tierConfig[data.modelName][data.group] = data.tiers
     setConfigJson(JSON.stringify(config))
+    setTiersJson(JSON.stringify(tierConfig))
   }
 
   const handleDelete = (entry: DailyLimitEntry) => {
     const config = parseConfig(configJson)
+    const tierConfig = parseTierConfig(tiersJson)
     if (config[entry.modelName]) {
       delete config[entry.modelName][entry.group]
       if (Object.keys(config[entry.modelName]).length === 0) {
         delete config[entry.modelName]
       }
     }
+    if (tierConfig[entry.modelName]) {
+      delete tierConfig[entry.modelName][entry.group]
+      if (Object.keys(tierConfig[entry.modelName]).length === 0) {
+        delete tierConfig[entry.modelName]
+      }
+    }
     setConfigJson(JSON.stringify(config))
+    setTiersJson(JSON.stringify(tierConfig))
   }
 
   return (
@@ -192,6 +285,22 @@ export function ModelDailyLimitSection({
         </SettingsSwitchContent>
         <Switch checked={enabled} onCheckedChange={setEnabled} />
       </SettingsSwitchItem>
+
+      <div className='space-y-2'>
+        <label className='text-sm font-medium'>
+          {t('Shared limit groups')}
+        </label>
+        <Textarea
+          value={groupsJson}
+          onChange={(event) => setGroupsJson(event.target.value)}
+          className='min-h-24 font-mono text-xs'
+        />
+        <p className='text-muted-foreground text-xs'>
+          {t(
+            'Shared groups keep using the ModelDailyLimitGroups JSON option. Add a tiers object per group to configure billing tiers.'
+          )}
+        </p>
+      </div>
 
       <div className='flex items-center gap-4'>
         <div className='relative flex-1'>
@@ -230,9 +339,8 @@ export function ModelDailyLimitSection({
               <TableRow>
                 <TableHead>{t('Model')}</TableHead>
                 <TableHead>{t('Group')}</TableHead>
-                <TableHead className='text-right'>
-                  {t('Daily limit')}
-                </TableHead>
+                <TableHead className='text-right'>{t('Daily limit')}</TableHead>
+                <TableHead>{t('Billing tiers')}</TableHead>
                 <TableHead className='text-right'>{t('Actions')}</TableHead>
               </TableRow>
             </TableHeader>
@@ -245,6 +353,9 @@ export function ModelDailyLimitSection({
                   <TableCell className='font-mono'>{entry.group}</TableCell>
                   <TableCell className='text-right font-mono'>
                     {entry.limit.toLocaleString()}
+                  </TableCell>
+                  <TableCell className='max-w-80 font-mono text-xs'>
+                    {formatTiers(entry.tiers)}
                   </TableCell>
                   <TableCell className='text-right'>
                     <div className='flex justify-end gap-2'>
@@ -297,6 +408,7 @@ function DailyLimitDialog(props: {
   const [modelName, setModelName] = useState('')
   const [group, setGroup] = useState('')
   const [limit, setLimit] = useState(300)
+  const [tiers, setTiers] = useState<DailyLimitTier[]>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -304,10 +416,12 @@ function DailyLimitDialog(props: {
       setModelName(editData.modelName)
       setGroup(editData.group)
       setLimit(editData.limit)
+      setTiers(editData.tiers)
     } else {
       setModelName('')
       setGroup('')
       setLimit(300)
+      setTiers([])
     }
     setError('')
   }, [editData, open])
@@ -325,7 +439,36 @@ function DailyLimitDialog(props: {
       setError(t('Daily limit must be >= 1'))
       return
     }
-    onSave({ modelName: modelName.trim(), group: group.trim(), limit })
+    const invalidTier = tiers.some(
+      (tier) =>
+        tier.from < 1 ||
+        tier.to < tier.from ||
+        tier.to > limit ||
+        tier.multiplier <= 0
+    )
+    if (invalidTier) {
+      setError(
+        t(
+          'Billing tiers must be within the daily limit and use a positive multiplier'
+        )
+      )
+      return
+    }
+    const sortedTiers = [...tiers].sort((a, b) => a.from - b.from)
+    if (
+      sortedTiers.some(
+        (tier, index) => index > 0 && tier.from <= sortedTiers[index - 1].to
+      )
+    ) {
+      setError(t('Billing tiers cannot overlap'))
+      return
+    }
+    onSave({
+      modelName: modelName.trim(),
+      group: group.trim(),
+      limit,
+      tiers: sortedTiers,
+    })
     onOpenChange(false)
   }
 
@@ -370,6 +513,99 @@ function DailyLimitDialog(props: {
               value={limit}
               onChange={(e) => setLimit(parseInt(e.target.value) || 0)}
             />
+          </div>
+          <div className='space-y-2'>
+            <div className='flex items-center justify-between'>
+              <label className='text-sm font-medium'>
+                {t('Billing tiers')}
+              </label>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={() =>
+                  setTiers([
+                    ...tiers,
+                    {
+                      from: tiers.at(-1)?.to ? tiers.at(-1)!.to + 1 : 1,
+                      to: limit,
+                      multiplier: 1,
+                    },
+                  ])
+                }
+              >
+                <Plus className='mr-1 h-3.5 w-3.5' />
+                {t('Add tier')}
+              </Button>
+            </div>
+            {tiers.map((tier, index) => (
+              <div
+                key={index}
+                className='grid grid-cols-[1fr_1fr_1fr_auto] gap-2'
+              >
+                <Input
+                  type='number'
+                  min={1}
+                  value={tier.from}
+                  aria-label={t('From request')}
+                  onChange={(event) => {
+                    const next = [...tiers]
+                    next[index] = {
+                      ...tier,
+                      from: parseInt(event.target.value) || 0,
+                    }
+                    setTiers(next)
+                  }}
+                />
+                <Input
+                  type='number'
+                  min={1}
+                  max={limit}
+                  value={tier.to}
+                  aria-label={t('To request')}
+                  onChange={(event) => {
+                    const next = [...tiers]
+                    next[index] = {
+                      ...tier,
+                      to: parseInt(event.target.value) || 0,
+                    }
+                    setTiers(next)
+                  }}
+                />
+                <Input
+                  type='number'
+                  min={0.01}
+                  step={0.1}
+                  value={tier.multiplier}
+                  aria-label={t('Multiplier')}
+                  onChange={(event) => {
+                    const next = [...tiers]
+                    next[index] = {
+                      ...tier,
+                      multiplier: parseFloat(event.target.value) || 0,
+                    }
+                    setTiers(next)
+                  }}
+                />
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  onClick={() =>
+                    setTiers(
+                      tiers.filter((_, itemIndex) => itemIndex !== index)
+                    )
+                  }
+                >
+                  <Trash2 className='h-4 w-4' />
+                </Button>
+              </div>
+            ))}
+            <p className='text-muted-foreground text-xs'>
+              {t(
+                'Ranges use request numbers, for example 1-3000 at 1x and 3001-5000 at 2x.'
+              )}
+            </p>
           </div>
           {error && <p className='text-sm text-rose-500'>{error}</p>}
         </div>

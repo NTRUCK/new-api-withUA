@@ -70,7 +70,7 @@ func CheckModelDailyLimit(modelName, group string) (allowed bool, limit int, use
 	if !setting.ModelDailyLimitEnabled {
 		return true, 0, 0
 	}
-	counterName, limit, resetHour, found := setting.ResolveModelDailyLimit(modelName, group)
+	counterName, limit, resetHour, _, found := setting.ResolveModelDailyLimit(modelName, group)
 	if !found {
 		return true, 0, 0
 	}
@@ -78,11 +78,23 @@ func CheckModelDailyLimit(modelName, group string) (allowed bool, limit int, use
 	return used < int64(limit), limit, used
 }
 
+func GetModelDailyLimitMultiplier(modelName, group string) float64 {
+	if !setting.ModelDailyLimitEnabled {
+		return 1
+	}
+	counterName, _, resetHour, tiers, found := setting.ResolveModelDailyLimit(modelName, group)
+	if !found || len(tiers) == 0 {
+		return 1
+	}
+	used := GetModelDailyUsage(counterName, group, resetHour)
+	return setting.ResolveModelDailyLimitMultiplier(tiers, used)
+}
+
 func IncrModelDailyUsage(modelName, group string) {
 	if !setting.ModelDailyLimitEnabled {
 		return
 	}
-	counterName, _, resetHour, found := setting.ResolveModelDailyLimit(modelName, group)
+	counterName, _, resetHour, _, found := setting.ResolveModelDailyLimit(modelName, group)
 	if !found {
 		return
 	}

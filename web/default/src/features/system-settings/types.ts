@@ -316,6 +316,7 @@ export type SecuritySettings = {
   ModelRequestRateLimitGroup: string
   ModelDailyLimitEnabled: boolean
   ModelDailyLimit: string
+  ModelDailyLimitTiers: string
   ModelDailyLimitResetHours: string
   ModelDailyLimitGroups: string
   CheckSensitiveEnabled: boolean

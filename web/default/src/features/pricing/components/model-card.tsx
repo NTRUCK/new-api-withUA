@@ -76,6 +76,9 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
 
   const primaryGroup = groups[0]
   const bottomTags = [...endpoints.slice(0, 2), ...tags.slice(0, 2)]
+  const dailyTierEntries = Object.entries(
+    props.model.daily_limits ?? {}
+  ).filter(([, usage]) => (usage.tiers?.length ?? 0) > 0)
   const hiddenCount =
     Math.max(groups.length - 1, 0) +
     Math.max(endpoints.length - 2, 0) +
@@ -220,6 +223,25 @@ export const ModelCard = memo(function ModelCard(props: ModelCardProps) {
           </button>
         </div>
       </div>
+
+      {dailyTierEntries.length > 0 && (
+        <div className='mt-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-2 py-1.5 text-xs dark:border-amber-900/60 dark:bg-amber-950/20'>
+          <span className='font-medium text-amber-700 dark:text-amber-300'>
+            {t('Tiered daily billing')}
+          </span>
+          <div className='text-muted-foreground mt-0.5 truncate font-mono'>
+            {dailyTierEntries
+              .slice(0, 1)
+              .map(
+                ([group, usage]) =>
+                  `${group}: ${usage.tiers?.map((tier) => `${tier.from}-${tier.to} ${tier.multiplier}x`).join(', ')}`
+              )}
+            {dailyTierEntries.length > 1
+              ? ` +${dailyTierEntries.length - 1}`
+              : ''}
+          </div>
+        </div>
+      )}
 
       {/* Description */}
       <p className='text-muted-foreground mt-2 line-clamp-1 flex-1 text-[13px] leading-relaxed sm:mt-4 sm:line-clamp-2 sm:min-h-[2.5rem]'>

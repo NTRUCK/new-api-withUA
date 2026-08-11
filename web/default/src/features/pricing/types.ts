@@ -73,10 +73,19 @@ export type PricingModel = {
   daily_limits?: Record<string, DailyLimitUsage>
 }
 
-/** 单个分组的每日调用上限与当前已用次数 */
+export type DailyLimitTier = {
+  from: number
+  to: number
+  multiplier: number
+}
+
+/** 单个分组的每日调用上限、当前已用次数与计费梯度 */
 export type DailyLimitUsage = {
   limit: number
   used: number
+  reset_hour: number
+  tiers?: DailyLimitTier[]
+  shared_group?: string
 }
 
 /** Input/output modalities supported by a model. */

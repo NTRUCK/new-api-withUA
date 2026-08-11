@@ -24,7 +24,6 @@ import { API, showError, toBoolean } from '../../helpers';
 import { useTranslation } from 'react-i18next';
 import RequestRateLimit from '../../pages/Setting/RateLimit/SettingsRequestRateLimit';
 import ModelDailyLimit from '../../pages/Setting/RateLimit/SettingsModelDailyLimit';
-import UserDailyTier from '../../pages/Setting/RateLimit/SettingsUserDailyTier';
 
 const RateLimitSetting = () => {
   const { t } = useTranslation();
@@ -36,13 +35,9 @@ const RateLimitSetting = () => {
     ModelRequestRateLimitGroup: '',
     ModelDailyLimitEnabled: false,
     ModelDailyLimit: '',
+    ModelDailyLimitTiers: '',
     ModelDailyLimitResetHours: '',
     ModelDailyLimitGroups: '',
-    UserDailyTierEnabled: false,
-    UserDailyTierAdminExempt: true,
-    UserDailyTierResetHour: 0,
-    UserDailyTierHardLimit: 0,
-    UserDailyTier: '',
   });
 
   let [loading, setLoading] = useState(false);
@@ -56,6 +51,7 @@ const RateLimitSetting = () => {
         if (
           item.key === 'ModelRequestRateLimitGroup' ||
           item.key === 'ModelDailyLimit' ||
+          item.key === 'ModelDailyLimitTiers' ||
           item.key === 'ModelDailyLimitResetHours' ||
           item.key === 'ModelDailyLimitGroups'
         ) {
@@ -103,9 +99,6 @@ const RateLimitSetting = () => {
         </Card>
         <Card style={{ marginTop: '10px' }}>
           <ModelDailyLimit options={inputs} refresh={onRefresh} />
-        </Card>
-        <Card style={{ marginTop: '10px' }}>
-          <UserDailyTier options={inputs} refresh={onRefresh} />
         </Card>
       </Spin>
     </>

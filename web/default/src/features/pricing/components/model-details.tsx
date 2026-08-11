@@ -104,8 +104,13 @@ function DailyLimitSection(props: { model: PricingModel }) {
           <TableHeader>
             <TableRow className='bg-muted/30 hover:bg-muted/30'>
               <TableHead className='h-9'>{t('Group')}</TableHead>
-              <TableHead className='h-9 text-right'>{t('Used today')}</TableHead>
-              <TableHead className='h-9 text-right'>{t('Daily limit')}</TableHead>
+              <TableHead className='h-9 text-right'>
+                {t('Used today')}
+              </TableHead>
+              <TableHead className='h-9 text-right'>
+                {t('Daily limit')}
+              </TableHead>
+              <TableHead className='h-9'>{t('Billing tiers')}</TableHead>
               <TableHead className='h-9 text-right'>{t('Remaining')}</TableHead>
             </TableRow>
           </TableHeader>
@@ -121,6 +126,16 @@ function DailyLimitSection(props: { model: PricingModel }) {
                   </TableCell>
                   <TableCell className='py-2 text-right font-mono'>
                     {usage.limit.toLocaleString()}
+                  </TableCell>
+                  <TableCell className='py-2 font-mono text-xs'>
+                    {usage.tiers?.length
+                      ? usage.tiers
+                          .map(
+                            (tier) =>
+                              `${tier.from}-${tier.to}: ${tier.multiplier}x`
+                          )
+                          .join(', ')
+                      : '-'}
                   </TableCell>
                   <TableCell
                     className={cn(
@@ -140,13 +155,12 @@ function DailyLimitSection(props: { model: PricingModel }) {
       </div>
       <p className='text-muted-foreground text-[11px] leading-relaxed'>
         {t(
-          'Daily limits are shared across all users in the group and reset at midnight (server timezone). Only successful calls are counted.'
+          'Daily limits and billing tiers are shared across all users in the group. Only successful calls are counted.'
         )}
       </p>
     </section>
   )
 }
-
 
 const CAPABILITY_LABEL_KEYS: Record<ModelCapability, string> = {
   function_calling: 'Function calling',
