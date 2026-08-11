@@ -63,7 +63,7 @@ const ActiveUsersBadge = ({ userState, t }) => {
         </div>
       </Tooltip>
       {stats.richestUser && (
-        <Tooltip content={t('当前额度最多的普通用户（已排除管理员和 ID 1）')}>
+        <Tooltip content={t('当前额度最多的用户')}>
           <div className='flex items-center gap-1 px-2 py-1 rounded-full bg-semi-color-fill-0 dark:bg-semi-color-fill-1 text-sm font-medium select-none'>
             <Coins size={15} className='text-amber-500' />
             <span className='max-w-24 truncate'>{stats.richestUser}</span>

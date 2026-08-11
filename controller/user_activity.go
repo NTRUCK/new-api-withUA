@@ -6,15 +6,17 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting"
 
 	"github.com/gin-gonic/gin"
 )
 
 // 活跃度统计缓存：避免频繁扫描日志库，60 秒内复用结果
 var (
-	activeStatsCache     model.ActiveUserStats
-	activeStatsCacheTime time.Time
-	activeStatsCacheMu   sync.Mutex
+	activeStatsCache                  model.ActiveUserStats
+	activeStatsCacheTime              time.Time
+	activeStatsCacheExcludePrivileged bool
+	activeStatsCacheMu                sync.Mutex
 )
 
 const activeStatsCacheTTL = 60 * time.Second
@@ -22,7 +24,8 @@ const activeStatsCacheTTL = 60 * time.Second
 func getActiveUserStatsCached() (model.ActiveUserStats, error) {
 	activeStatsCacheMu.Lock()
 	defer activeStatsCacheMu.Unlock()
-	if time.Since(activeStatsCacheTime) < activeStatsCacheTTL {
+	excludePrivileged := setting.ExcludeAdminAndRootFromRankings()
+	if time.Since(activeStatsCacheTime) < activeStatsCacheTTL && activeStatsCacheExcludePrivileged == excludePrivileged {
 		return activeStatsCache, nil
 	}
 	stats, err := model.GetActiveUserStats()
@@ -31,6 +34,7 @@ func getActiveUserStatsCached() (model.ActiveUserStats, error) {
 	}
 	activeStatsCache = stats
 	activeStatsCacheTime = time.Now()
+	activeStatsCacheExcludePrivileged = excludePrivileged
 	return stats, nil
 }
 

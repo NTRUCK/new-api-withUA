@@ -1549,6 +1549,8 @@
     "Exchange rate is required": "Le taux de change est requis",
     "Exchange rate must be greater than 0": "Le taux de change doit être supérieur à 0",
     "Exclude administrator logs": "Exclure les journaux des administrateurs",
+    "Exclude administrators and user ID 1 from the richest and top caller rankings": "Exclure les administrateurs et l’utilisateur ID 1 des classements de richesse et d’appels",
+    "Exclude administrators from user rankings": "Exclure les administrateurs des classements d’utilisateurs",
     "Execute code in a sandbox during the response": "Exécuter du code dans un bac à sable pendant la réponse",
     "Exhausted": "Épuisé",
     "Existing account will be reused": "Le compte existant sera réutilisé",

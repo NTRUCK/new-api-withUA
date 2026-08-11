@@ -273,6 +273,7 @@ export type OperationsSettings = {
   DefaultCollapseSidebar: boolean
   DemoSiteEnabled: boolean
   SelfUseModeEnabled: boolean
+  'ranking_setting.exclude_admin_and_root': boolean
   ChannelDisableThreshold: string
   QuotaRemindThreshold: string
   AutomaticDisableChannelEnabled: boolean
@@ -315,6 +316,8 @@ export type SecuritySettings = {
   ModelRequestRateLimitGroup: string
   ModelDailyLimitEnabled: boolean
   ModelDailyLimit: string
+  ModelDailyLimitResetHours: string
+  ModelDailyLimitGroups: string
   CheckSensitiveEnabled: boolean
   CheckSensitiveOnPromptEnabled: boolean
   SensitiveWords: string

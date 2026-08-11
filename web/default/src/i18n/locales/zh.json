@@ -1549,6 +1549,8 @@
     "Exchange rate is required": "汇率为必填项",
     "Exchange rate must be greater than 0": "汇率必须大于 0",
     "Exclude administrator logs": "排除管理员日志",
+    "Exclude administrators and user ID 1 from the richest and top caller rankings": "从富豪榜和调用榜中排除管理员及用户 ID 1",
+    "Exclude administrators from user rankings": "从用户榜单中排除管理员",
     "Execute code in a sandbox during the response": "在响应过程中沙箱执行代码",
     "Exhausted": "已耗尽",
     "Existing account will be reused": "将使用现有账户",

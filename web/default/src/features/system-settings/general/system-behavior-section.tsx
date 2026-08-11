@@ -47,6 +47,7 @@ const behaviorSchema = z.object({
   DefaultCollapseSidebar: z.boolean(),
   DemoSiteEnabled: z.boolean(),
   SelfUseModeEnabled: z.boolean(),
+  'ranking_setting.exclude_admin_and_root': z.boolean(),
 })
 
 type BehaviorFormValues = z.infer<typeof behaviorSchema>
@@ -159,6 +160,29 @@ export function SystemBehaviorSection({
                   <FormLabel>{t('Self-Use Mode')}</FormLabel>
                   <FormDescription>
                     {t('Optimize system for self-hosted single-user usage')}
+                  </FormDescription>
+                </SettingsSwitchContent>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </SettingsSwitchItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='ranking_setting.exclude_admin_and_root'
+            render={({ field }) => (
+              <SettingsSwitchItem>
+                <SettingsSwitchContent>
+                  <FormLabel>{t('Exclude administrators from user rankings')}</FormLabel>
+                  <FormDescription>
+                    {t(
+                      'Exclude administrators and user ID 1 from the richest and top caller rankings'
+                    )}
                   </FormDescription>
                 </SettingsSwitchContent>
                 <FormControl>

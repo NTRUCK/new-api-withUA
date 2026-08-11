@@ -49,6 +49,7 @@ const SECURITY_SECTIONS = [
         defaultValues={{
           ModelDailyLimitEnabled: settings.ModelDailyLimitEnabled,
           ModelDailyLimit: settings.ModelDailyLimit,
+          ModelDailyLimitResetHours: settings.ModelDailyLimitResetHours,
         }}
       />
     ),

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting"
 )
 
 // ActiveUserStats 站点用户活跃度统计（基于消费日志）
@@ -58,26 +59,38 @@ func getYesterdayTopCaller() (username string, calls int64, err error) {
 		Username string
 		Calls    int64
 	}
-	err = LOG_DB.Model(&Log{}).
+	query := LOG_DB.Model(&Log{}).
 		Select("username, COUNT(*) AS calls").
-		Where("type = ? AND user_id > 0 AND created_at >= ? AND created_at < ?", LogTypeConsume, start, end).
-		Group("user_id, username").
+		Where("type = ? AND user_id > 0 AND created_at >= ? AND created_at < ?", LogTypeConsume, start, end)
+	if setting.ExcludeAdminAndRootFromRankings() {
+		var excludedUserIDs []int
+		if err = DB.Model(&User{}).
+			Where("id = ? OR role >= ?", 1, common.RoleAdminUser).
+			Pluck("id", &excludedUserIDs).Error; err != nil {
+			return "", 0, err
+		}
+		if len(excludedUserIDs) > 0 {
+			query = query.Where("user_id NOT IN ?", excludedUserIDs)
+		}
+	}
+	err = query.Group("user_id, username").
 		Order("calls DESC").
 		Limit(1).
 		Scan(&result).Error
 	return result.Username, result.Calls, err
 }
 
-// getRichestUser 获取当前额度最高的普通用户，排除 ID 1 和管理员。
+// getRichestUser 获取当前额度最高的用户。
 func getRichestUser() (username string, quota int, err error) {
 	var result struct {
 		Username string
 		Quota    int
 	}
-	err = DB.Model(&User{}).
-		Select("username, quota").
-		Where("id <> ? AND role < ?", 1, common.RoleAdminUser).
-		Order("quota DESC").
+	query := DB.Model(&User{}).Select("username, quota")
+	if setting.ExcludeAdminAndRootFromRankings() {
+		query = query.Where("id <> ? AND role < ?", 1, common.RoleAdminUser)
+	}
+	err = query.Order("quota DESC").
 		Limit(1).
 		Scan(&result).Error
 	return result.Username, result.Quota, err

@@ -1549,6 +1549,8 @@
     "Exchange rate is required": "Cần có tỷ giá",
     "Exchange rate must be greater than 0": "Tỷ giá phải lớn hơn 0",
     "Exclude administrator logs": "Loại trừ nhật ký quản trị viên",
+    "Exclude administrators and user ID 1 from the richest and top caller rankings": "Loại trừ quản trị viên và người dùng ID 1 khỏi bảng xếp hạng số dư và lượt gọi",
+    "Exclude administrators from user rankings": "Loại trừ quản trị viên khỏi bảng xếp hạng người dùng",
     "Execute code in a sandbox during the response": "Thực thi mã trong sandbox trong quá trình phản hồi",
     "Exhausted": "Đã cạn kiệt",
     "Existing account will be reused": "Tài khoản hiện có sẽ được sử dụng lại",

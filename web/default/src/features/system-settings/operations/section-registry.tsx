@@ -37,6 +37,8 @@ const OPERATIONS_SECTIONS = [
           DefaultCollapseSidebar: settings.DefaultCollapseSidebar,
           DemoSiteEnabled: settings.DemoSiteEnabled,
           SelfUseModeEnabled: settings.SelfUseModeEnabled,
+          'ranking_setting.exclude_admin_and_root':
+            settings['ranking_setting.exclude_admin_and_root'],
         }}
       />
     ),

@@ -230,7 +230,7 @@ export default function SettingsUserDailyTier(props) {
               type='tertiary'
               style={{ marginBottom: 16, display: 'block' }}
             >
-              {t('按用户当天累计成功请求次数分梯度调整计费倍率，达到硬限额后拒绝请求。仅统计成功调用。')}
+              {t('按用户在各分组当天累计的成功请求次数独立计算梯度倍率，达到硬限额后拒绝该分组请求。仅统计成功调用。')}
             </Typography.Text>
             <Row gutter={16}>
               <Col xs={24} sm={12} md={8}>

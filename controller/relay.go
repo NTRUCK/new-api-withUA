@@ -148,11 +148,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		return
 	}
 
-	// 用户级每日请求次数硬限额（按用户统计，仅计成功调用，按配置小时重置，管理员可豁免）
+	// 用户级每日请求次数硬限额（按用户+分组统计，仅计成功调用，按配置小时重置，管理员可豁免）
 	userIsAdmin := model.IsAdmin(relayInfo.UserId)
-	if allowed, used, hardLimit := service.CheckUserDailyTierLimit(relayInfo.UserId, userIsAdmin); !allowed {
+	if allowed, used, hardLimit := service.CheckUserDailyTierLimit(relayInfo.UserId, dailyLimitGroup, userIsAdmin); !allowed {
 		newAPIError = types.NewErrorWithStatusCode(
-			fmt.Errorf("今日请求次数已达上限（%d/%d），请明日再试", used, hardLimit),
+			fmt.Errorf("分组 %s 今日请求次数已达上限（%d/%d），请明日再试", dailyLimitGroup, used, hardLimit),
 			types.ErrorCodeModelDailyLimitExceeded,
 			http.StatusTooManyRequests,
 			types.ErrOptionWithSkipRetry(),
@@ -260,7 +260,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		if newAPIError == nil {
 			relayInfo.LastError = nil
 			service.IncrModelDailyUsage(relayInfo.OriginModelName, dailyLimitGroup)
-			service.IncrUserDailyTierUsage(relayInfo.UserId, userIsAdmin)
+			service.IncrUserDailyTierUsage(relayInfo.UserId, dailyLimitGroup, userIsAdmin)
 			return
 		}
 

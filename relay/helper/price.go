@@ -62,9 +62,16 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.
 		groupRatioInfo.GroupRatio = ratio_setting.GetGroupRatio(relayInfo.UsingGroup)
 	}
 
-	// 用户级每日请求次数梯度计费：在分组倍率上乘以当前梯度倍率
+	// 用户级每日请求次数梯度计费：按用户+分组独立统计，并在分组倍率上乘以当前梯度倍率
 	// 管理员（按配置豁免）与未启用时倍率为 1，不影响原价
-	if mult := service.GetUserDailyTierMultiplier(relayInfo.UserId, model.IsAdmin(relayInfo.UserId)); mult != 1.0 {
+	dailyTierGroup := relayInfo.UsingGroup
+	if dailyTierGroup == "" {
+		dailyTierGroup = relayInfo.TokenGroup
+	}
+	if dailyTierGroup == "" {
+		dailyTierGroup = relayInfo.UserGroup
+	}
+	if mult := service.GetUserDailyTierMultiplier(relayInfo.UserId, dailyTierGroup, model.IsAdmin(relayInfo.UserId)); mult != 1.0 {
 		groupRatioInfo.GroupRatio *= mult
 	}
 
