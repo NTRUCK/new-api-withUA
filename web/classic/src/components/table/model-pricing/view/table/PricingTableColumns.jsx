@@ -121,6 +121,7 @@ function renderDailyLimit(record, selectedGroup, t) {
           const limit = usage?.limit ?? 0;
           const used = usage?.used ?? 0;
           const resetHour = usage?.reset_hour ?? 0;
+          const tiers = Array.isArray(usage?.tiers) ? usage.tiers : [];
           const reached = used >= limit;
           return (
             <div
@@ -133,7 +134,11 @@ function renderDailyLimit(record, selectedGroup, t) {
                   {group}
                 </Tag>
               )}
-              <Tag size='small' color={reached ? 'red' : 'green'} shape='circle'>
+              <Tag
+                size='small'
+                color={reached ? 'red' : 'green'}
+                shape='circle'
+              >
                 {used.toLocaleString()}/{limit.toLocaleString()}
               </Tag>
               {resetHour !== 0 && (
@@ -141,6 +146,16 @@ function renderDailyLimit(record, selectedGroup, t) {
                   {t('北京时间 {{hour}}:00 刷新', {
                     hour: String(resetHour).padStart(2, '0'),
                   })}
+                </Tag>
+              )}
+              {tiers.length > 0 && (
+                <Tag size='small' color='amber' shape='circle'>
+                  {t('梯度计费')}：
+                  {tiers
+                    .map(
+                      (tier) => `${tier.from}-${tier.to} ${tier.multiplier}x`,
+                    )
+                    .join('，')}
                 </Tag>
               )}
             </div>

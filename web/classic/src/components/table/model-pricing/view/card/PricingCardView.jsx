@@ -75,9 +75,13 @@ const renderDailyLimit = (model, selectedGroup, t) => {
           const limit = usage?.limit ?? 0;
           const used = usage?.used ?? 0;
           const resetHour = usage?.reset_hour ?? 0;
+          const tiers = Array.isArray(usage?.tiers) ? usage.tiers : [];
           const reached = used >= limit;
           return (
-            <div key={group} className='flex items-center gap-1 text-xs'>
+            <div
+              key={group}
+              className='flex flex-wrap items-center gap-1 text-xs'
+            >
               <span style={{ color: 'var(--semi-color-text-2)' }}>
                 {t('每日限额')}
               </span>
@@ -98,6 +102,16 @@ const renderDailyLimit = (model, selectedGroup, t) => {
                   {t('北京时间 {{hour}}:00 刷新', {
                     hour: String(resetHour).padStart(2, '0'),
                   })}
+                </Tag>
+              )}
+              {tiers.length > 0 && (
+                <Tag size='small' color='amber' shape='circle'>
+                  {t('梯度计费')}：
+                  {tiers
+                    .map(
+                      (tier) => `${tier.from}-${tier.to} ${tier.multiplier}x`,
+                    )
+                    .join('，')}
                 </Tag>
               )}
             </div>
@@ -122,7 +136,12 @@ const renderSuccessRate = (model, t) => {
         count: (perf.request_count ?? 0).toLocaleString(),
       })}
     >
-      <Tag size='small' color={color} shape='circle' prefixIcon={<Activity size={12} />}>
+      <Tag
+        size='small'
+        color={color}
+        shape='circle'
+        prefixIcon={<Activity size={12} />}
+      >
         {rate.toFixed(1)}%
       </Tag>
     </Tooltip>
@@ -351,11 +370,13 @@ const PricingCardView = ({
                         {model.model_name}
                       </h3>
                       <div className='flex flex-col gap-1 text-xs mt-1'>
-                        {priceData.isDynamicPricing ? (
-                          formatDynamicPriceSummary(priceData.billingExpr, t, priceData.usedGroupRatio)
-                        ) : (
-                          formatPriceInfo(priceData, t, siteDisplayType)
-                        )}
+                        {priceData.isDynamicPricing
+                          ? formatDynamicPriceSummary(
+                              priceData.billingExpr,
+                              t,
+                              priceData.usedGroupRatio,
+                            )
+                          : formatPriceInfo(priceData, t, siteDisplayType)}
                         {renderDailyLimit(model, selectedGroup, t)}
                       </div>
                     </div>

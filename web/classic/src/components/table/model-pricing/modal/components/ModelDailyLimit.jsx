@@ -40,6 +40,7 @@ const ModelDailyLimit = ({ modelData, t }) => {
         limit,
         remaining: Math.max(limit - used, 0),
         resetHour: usage?.reset_hour ?? 0,
+        tiers: Array.isArray(usage?.tiers) ? usage.tiers : [],
         reached: used >= limit,
       };
     })
@@ -62,6 +63,16 @@ const ModelDailyLimit = ({ modelData, t }) => {
       dataIndex: 'limit',
       align: 'right',
       render: (v) => <span className='font-mono'>{v.toLocaleString()}</span>,
+    },
+    {
+      title: t('梯度计费'),
+      dataIndex: 'tiers',
+      render: (tiers) =>
+        tiers.length > 0
+          ? tiers
+              .map((tier) => `${tier.from}-${tier.to} ${tier.multiplier}x`)
+              .join('，')
+          : '-',
     },
     {
       title: t('刷新时间'),
