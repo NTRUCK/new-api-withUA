@@ -6,12 +6,15 @@ import (
 	"net/http"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 func FlushWriter(c *gin.Context) (err error) {
@@ -78,6 +81,29 @@ func ResponseChunkData(c *gin.Context, resp dto.ResponsesStreamResponse, data st
 	_ = FlushWriter(c)
 }
 
+func SanitizePublicResponseJSON(c *gin.Context, data []byte) []byte {
+	if c == nil || !common.GetContextKeyBool(c, constant.ContextKeyHideUpstreamInfo) || !gjson.ValidBytes(data) {
+		return data
+	}
+	modelName := common.GetContextKeyString(c, constant.ContextKeyPublicModelName)
+	if modelName == "" {
+		return data
+	}
+	result, err := sjson.SetBytes(data, "model", modelName)
+	if err != nil {
+		return data
+	}
+	for _, path := range []string{"message.model", "response.model", "data.model"} {
+		if gjson.GetBytes(result, path).Exists() {
+			result, _ = sjson.SetBytes(result, path, modelName)
+		}
+	}
+	for _, path := range []string{"system_fingerprint", "message.system_fingerprint", "response.system_fingerprint", "data.system_fingerprint"} {
+		result, _ = sjson.DeleteBytes(result, path)
+	}
+	return result
+}
+
 func StringData(c *gin.Context, str string) error {
 	if c == nil || c.Writer == nil {
 		return errors.New("context or writer is nil")
@@ -87,6 +113,7 @@ func StringData(c *gin.Context, str string) error {
 		return fmt.Errorf("request context done: %w", c.Request.Context().Err())
 	}
 
+	str = string(SanitizePublicResponseJSON(c, []byte(str)))
 	c.Render(-1, common.CustomEvent{Data: "data: " + str})
 	return FlushWriter(c)
 }

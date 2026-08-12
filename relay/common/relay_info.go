@@ -221,6 +221,8 @@ func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting)
 	if ok {
 		channelMeta.ChannelSetting = channelSetting
+		common.SetContextKey(c, constant.ContextKeyHideUpstreamInfo, channelSetting.HideUpstreamInfo)
+		common.SetContextKey(c, constant.ContextKeyPublicModelName, info.OriginModelName)
 	}
 
 	channelOtherSettings, ok := common.GetContextKeyType[dto.ChannelOtherSettings](c, constant.ContextKeyChannelOtherSetting)

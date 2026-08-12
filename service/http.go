@@ -8,9 +8,12 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 func CloseResponseBodyGracefully(httpResponse *http.Response) {
@@ -29,6 +32,12 @@ func CloseResponseBodyGracefully(httpResponse *http.Response) {
 // ID). When the upstream header is X-Oneapi-Request-Id, the value is captured
 // into the Gin context for later logging.
 func ShouldCopyUpstreamHeader(c *gin.Context, k string, v []string) bool {
+	if c != nil && common.GetContextKeyBool(c, constant.ContextKeyHideUpstreamInfo) {
+		lowerKey := strings.ToLower(k)
+		if strings.Contains(lowerKey, "model") || strings.HasPrefix(lowerKey, "x-upstream-") || strings.HasPrefix(lowerKey, "openai-") || strings.HasPrefix(lowerKey, "anthropic-") {
+			return false
+		}
+	}
 	if strings.EqualFold(k, "Content-Length") {
 		return false
 	}
@@ -41,11 +50,35 @@ func ShouldCopyUpstreamHeader(c *gin.Context, k string, v []string) bool {
 	return true
 }
 
+func sanitizeUpstreamResponseBody(c *gin.Context, data []byte) []byte {
+	if c == nil || !common.GetContextKeyBool(c, constant.ContextKeyHideUpstreamInfo) || !gjson.ValidBytes(data) {
+		return data
+	}
+	modelName := common.GetContextKeyString(c, constant.ContextKeyPublicModelName)
+	if modelName == "" {
+		return data
+	}
+	result, err := sjson.SetBytes(data, "model", modelName)
+	if err != nil {
+		return data
+	}
+	for _, path := range []string{"message.model", "response.model", "data.model"} {
+		if gjson.GetBytes(result, path).Exists() {
+			result, _ = sjson.SetBytes(result, path, modelName)
+		}
+	}
+	for _, path := range []string{"system_fingerprint", "message.system_fingerprint", "response.system_fingerprint", "data.system_fingerprint"} {
+		result, _ = sjson.DeleteBytes(result, path)
+	}
+	return result
+}
+
 func IOCopyBytesGracefully(c *gin.Context, src *http.Response, data []byte) {
 	if c.Writer == nil {
 		return
 	}
 
+	data = sanitizeUpstreamResponseBody(c, data)
 	body := io.NopCloser(bytes.NewBuffer(data))
 
 	// We shouldn't set the header before we parse the response body, because the parse part may fail.

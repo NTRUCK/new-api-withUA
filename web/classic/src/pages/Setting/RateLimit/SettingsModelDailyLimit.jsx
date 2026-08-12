@@ -63,7 +63,7 @@ function limitJSONToRows(jsonStr, resetHoursJson, tiersJson) {
           group,
           limit: groups[group],
           resetHour: resetHours[model] ?? 0,
-          tiers: JSON.stringify(tiers?.[model]?.[group] || []),
+          tiers: tiers?.[model]?.[group] || [],
         });
       });
     });
@@ -89,16 +89,9 @@ function rowsToLimitJSON(rows) {
 function rowsToTiersJSON(rows) {
   const obj = {};
   (rows || []).forEach(({ model, group, tiers }) => {
-    if (!model || !group) return;
-    try {
-      const parsed =
-        typeof tiers === 'string' ? JSON.parse(tiers || '[]') : tiers;
-      if (!Array.isArray(parsed)) return;
-      if (!obj[model]) obj[model] = {};
-      obj[model][group] = parsed;
-    } catch {
-      // 无效 JSON 由提交前校验处理
-    }
+    if (!model || !group || !Array.isArray(tiers)) return;
+    if (!obj[model]) obj[model] = {};
+    obj[model][group] = tiers;
   });
   return JSON.stringify(obj, null, 2);
 }
@@ -126,7 +119,7 @@ function groupsJSONToCards(jsonStr) {
       limits: Object.keys(g?.limits || {}).map((group) => ({
         group,
         limit: g.limits[group],
-        tiers: JSON.stringify(g?.tiers?.[group] || []),
+        tiers: g?.tiers?.[group] || [],
       })),
     }));
   } catch {
@@ -147,13 +140,7 @@ function cardsToGroupsJSON(cards) {
       const n = parseInt(limit, 10);
       if (!Number.isFinite(n) || n < 1) return;
       limitObj[group] = n;
-      try {
-        const parsed =
-          typeof tiers === 'string' ? JSON.parse(tiers || '[]') : tiers;
-        if (Array.isArray(parsed)) tierObj[group] = parsed;
-      } catch {
-        // 无效 JSON 由后端校验
-      }
+      if (Array.isArray(tiers)) tierObj[group] = tiers;
     });
     if (validModels.length === 0 && Object.keys(limitObj).length === 0) return;
     const hour = parseInt(resetHour, 10);
@@ -255,7 +242,7 @@ export default function ModelDailyLimit(props) {
   const addRow = () => {
     applyRowsToInputs([
       ...limitRows,
-      { model: '', group: 'default', limit: 100, resetHour: 0, tiers: '[]' },
+      { model: '', group: 'default', limit: 100, resetHour: 0, tiers: [] },
     ]);
   };
   const removeRow = (idx) => {
@@ -266,6 +253,28 @@ export default function ModelDailyLimit(props) {
   const updateRow = (idx, key, value) => {
     const next = limitRows.slice();
     next[idx] = { ...next[idx], [key]: value };
+    applyRowsToInputs(next);
+  };
+  const addRowTier = (idx) => {
+    const next = limitRows.slice();
+    const tiers = [...(next[idx].tiers || [])];
+    const from = tiers.length ? Number(tiers[tiers.length - 1].to) + 1 : 1;
+    tiers.push({ from, to: Number(next[idx].limit) || from, multiplier: 1 });
+    next[idx] = { ...next[idx], tiers };
+    applyRowsToInputs(next);
+  };
+  const updateRowTier = (rowIdx, tierIdx, key, value) => {
+    const next = limitRows.slice();
+    const tiers = [...(next[rowIdx].tiers || [])];
+    tiers[tierIdx] = { ...tiers[tierIdx], [key]: value };
+    next[rowIdx] = { ...next[rowIdx], tiers };
+    applyRowsToInputs(next);
+  };
+  const removeRowTier = (rowIdx, tierIdx) => {
+    const next = limitRows.slice();
+    const tiers = [...(next[rowIdx].tiers || [])];
+    tiers.splice(tierIdx, 1);
+    next[rowIdx] = { ...next[rowIdx], tiers };
     applyRowsToInputs(next);
   };
 
@@ -285,7 +294,7 @@ export default function ModelDailyLimit(props) {
       {
         name: '',
         models: [],
-        limits: [{ group: 'default', limit: 500, tiers: '[]' }],
+        limits: [{ group: 'default', limit: 500, tiers: [] }],
         resetHour: 0,
       },
     ]);
@@ -303,7 +312,7 @@ export default function ModelDailyLimit(props) {
   const addCardLimit = (cardIdx) => {
     const next = groupCards.slice();
     const limits = (next[cardIdx].limits || []).slice();
-    limits.push({ group: 'default', limit: 500, tiers: '[]' });
+    limits.push({ group: 'default', limit: 500, tiers: [] });
     next[cardIdx] = { ...next[cardIdx], limits };
     applyCardsToInputs(next);
   };
@@ -318,6 +327,38 @@ export default function ModelDailyLimit(props) {
     const next = groupCards.slice();
     const limits = (next[cardIdx].limits || []).slice();
     limits.splice(limitIdx, 1);
+    next[cardIdx] = { ...next[cardIdx], limits };
+    applyCardsToInputs(next);
+  };
+  const addCardTier = (cardIdx, limitIdx) => {
+    const next = groupCards.slice();
+    const limits = [...(next[cardIdx].limits || [])];
+    const tiers = [...(limits[limitIdx].tiers || [])];
+    const from = tiers.length ? Number(tiers[tiers.length - 1].to) + 1 : 1;
+    tiers.push({
+      from,
+      to: Number(limits[limitIdx].limit) || from,
+      multiplier: 1,
+    });
+    limits[limitIdx] = { ...limits[limitIdx], tiers };
+    next[cardIdx] = { ...next[cardIdx], limits };
+    applyCardsToInputs(next);
+  };
+  const updateCardTier = (cardIdx, limitIdx, tierIdx, key, value) => {
+    const next = groupCards.slice();
+    const limits = [...(next[cardIdx].limits || [])];
+    const tiers = [...(limits[limitIdx].tiers || [])];
+    tiers[tierIdx] = { ...tiers[tierIdx], [key]: value };
+    limits[limitIdx] = { ...limits[limitIdx], tiers };
+    next[cardIdx] = { ...next[cardIdx], limits };
+    applyCardsToInputs(next);
+  };
+  const removeCardTier = (cardIdx, limitIdx, tierIdx) => {
+    const next = groupCards.slice();
+    const limits = [...(next[cardIdx].limits || [])];
+    const tiers = [...(limits[limitIdx].tiers || [])];
+    tiers.splice(tierIdx, 1);
+    limits[limitIdx] = { ...limits[limitIdx], tiers };
     next[cardIdx] = { ...next[cardIdx], limits };
     applyCardsToInputs(next);
   };
@@ -470,15 +511,60 @@ export default function ModelDailyLimit(props) {
                     ),
                   },
                   {
-                    title: t('梯度计费 JSON'),
+                    title: t('梯度计费'),
                     dataIndex: 'tiers',
-                    width: '28%',
-                    render: (val, record, idx) => (
-                      <Input
-                        value={val || '[]'}
-                        placeholder='[{"from":1,"to":3000,"multiplier":1}]'
-                        onChange={(v) => updateRow(idx, 'tiers', v)}
-                      />
+                    width: 420,
+                    render: (tiers, record, rowIdx) => (
+                      <div>
+                        {(tiers || []).map((tier, tierIdx) => (
+                          <div
+                            key={tierIdx}
+                            className='flex items-center gap-1 mb-1'
+                          >
+                            <InputNumber
+                              min={1}
+                              value={tier.from}
+                              prefix={t('起')}
+                              style={{ width: 105 }}
+                              onChange={(v) =>
+                                updateRowTier(rowIdx, tierIdx, 'from', v)
+                              }
+                            />
+                            <InputNumber
+                              min={1}
+                              value={tier.to}
+                              prefix={t('止')}
+                              style={{ width: 105 }}
+                              onChange={(v) =>
+                                updateRowTier(rowIdx, tierIdx, 'to', v)
+                              }
+                            />
+                            <InputNumber
+                              min={0.01}
+                              step={0.1}
+                              value={tier.multiplier}
+                              suffix='x'
+                              style={{ width: 95 }}
+                              onChange={(v) =>
+                                updateRowTier(rowIdx, tierIdx, 'multiplier', v)
+                              }
+                            />
+                            <Button
+                              theme='borderless'
+                              type='danger'
+                              icon={<IconDelete />}
+                              onClick={() => removeRowTier(rowIdx, tierIdx)}
+                            />
+                          </div>
+                        ))}
+                        <Button
+                          size='small'
+                          icon={<IconPlus />}
+                          onClick={() => addRowTier(rowIdx)}
+                        >
+                          {t('添加梯度')}
+                        </Button>
+                      </div>
                     ),
                   },
                   {
@@ -649,46 +735,116 @@ export default function ModelDailyLimit(props) {
                           <div
                             key={limIdx}
                             style={{
-                              display: 'flex',
-                              gap: 8,
-                              alignItems: 'center',
-                              marginTop: 6,
+                              marginTop: 8,
+                              padding: 10,
+                              border: '1px solid var(--semi-color-border)',
+                              borderRadius: 8,
                             }}
                           >
-                            <Select
-                              filter
-                              style={{ width: 220 }}
-                              placeholder={t('分组')}
-                              optionList={groupOptions}
-                              value={lim.group || undefined}
-                              allowCreate
-                              onChange={(v) =>
-                                updateCardLimit(cardIdx, limIdx, 'group', v)
-                              }
-                            />
-                            <InputNumber
-                              style={{ width: 160 }}
-                              min={1}
-                              step={1}
-                              value={lim.limit}
-                              onChange={(v) =>
-                                updateCardLimit(cardIdx, limIdx, 'limit', v)
-                              }
-                            />
-                            <Input
-                              style={{ width: 360 }}
-                              value={lim.tiers || '[]'}
-                              placeholder='[{"from":1,"to":3000,"multiplier":1}]'
-                              onChange={(v) =>
-                                updateCardLimit(cardIdx, limIdx, 'tiers', v)
-                              }
-                            />
-                            <Button
-                              theme='borderless'
-                              type='danger'
-                              icon={<IconDelete />}
-                              onClick={() => removeCardLimit(cardIdx, limIdx)}
-                            />
+                            <div className='flex items-center gap-2'>
+                              <Select
+                                filter
+                                style={{ width: 220 }}
+                                placeholder={t('分组')}
+                                optionList={groupOptions}
+                                value={lim.group || undefined}
+                                allowCreate
+                                onChange={(v) =>
+                                  updateCardLimit(cardIdx, limIdx, 'group', v)
+                                }
+                              />
+                              <InputNumber
+                                style={{ width: 160 }}
+                                min={1}
+                                step={1}
+                                value={lim.limit}
+                                prefix={t('每日上限')}
+                                onChange={(v) =>
+                                  updateCardLimit(cardIdx, limIdx, 'limit', v)
+                                }
+                              />
+                              <Button
+                                theme='borderless'
+                                type='danger'
+                                icon={<IconDelete />}
+                                onClick={() => removeCardLimit(cardIdx, limIdx)}
+                              />
+                            </div>
+                            <div style={{ marginTop: 8 }}>
+                              <Text type='tertiary' size='small'>
+                                {t('梯度计费')}
+                              </Text>
+                              {(lim.tiers || []).map((tier, tierIdx) => (
+                                <div
+                                  key={tierIdx}
+                                  className='flex items-center gap-2 mt-1'
+                                >
+                                  <InputNumber
+                                    min={1}
+                                    value={tier.from}
+                                    prefix={t('起始次数')}
+                                    style={{ width: 150 }}
+                                    onChange={(v) =>
+                                      updateCardTier(
+                                        cardIdx,
+                                        limIdx,
+                                        tierIdx,
+                                        'from',
+                                        v,
+                                      )
+                                    }
+                                  />
+                                  <InputNumber
+                                    min={1}
+                                    value={tier.to}
+                                    prefix={t('结束次数')}
+                                    style={{ width: 150 }}
+                                    onChange={(v) =>
+                                      updateCardTier(
+                                        cardIdx,
+                                        limIdx,
+                                        tierIdx,
+                                        'to',
+                                        v,
+                                      )
+                                    }
+                                  />
+                                  <InputNumber
+                                    min={0.01}
+                                    step={0.1}
+                                    value={tier.multiplier}
+                                    prefix={t('倍率')}
+                                    suffix='x'
+                                    style={{ width: 130 }}
+                                    onChange={(v) =>
+                                      updateCardTier(
+                                        cardIdx,
+                                        limIdx,
+                                        tierIdx,
+                                        'multiplier',
+                                        v,
+                                      )
+                                    }
+                                  />
+                                  <Button
+                                    theme='borderless'
+                                    type='danger'
+                                    icon={<IconDelete />}
+                                    onClick={() =>
+                                      removeCardTier(cardIdx, limIdx, tierIdx)
+                                    }
+                                  />
+                                </div>
+                              ))}
+                              <Button
+                                size='small'
+                                style={{ marginTop: 6 }}
+                                icon={<IconPlus />}
+                                onClick={() => addCardTier(cardIdx, limIdx)}
+                              >
+                                {t('添加梯度')}
+                              </Button>
+                            </div>
                           </div>
                         ))}
                         <Button
