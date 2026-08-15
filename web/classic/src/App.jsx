@@ -54,6 +54,7 @@ import Setup from './pages/Setup';
 import SetupCheck from './components/layout/SetupCheck';
 import Violations from './pages/Violations';
 import ModelHealth from './pages/ModelHealth';
+import QuotaQuery from './pages/QuotaQuery';
 
 const Home = lazy(() => import('./pages/Home'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));

@@ -28,6 +28,7 @@ import SettingsMonitoring from '../../pages/Setting/Operation/SettingsMonitoring
 import SettingsCreditLimit from '../../pages/Setting/Operation/SettingsCreditLimit';
 import SettingsCheckin from '../../pages/Setting/Operation/SettingsCheckin';
 import SettingsDiceGame from '../../pages/Setting/Operation/SettingsDiceGame';
+import SettingsQuotaQuery from '../../pages/Setting/Operation/SettingsQuotaQuery';
 import { API, showError, toBoolean } from '../../helpers';
 
 const OperationSetting = () => {
