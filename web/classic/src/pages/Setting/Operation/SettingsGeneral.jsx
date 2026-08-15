@@ -35,6 +35,7 @@ import {
   showError,
   showSuccess,
   showWarning,
+  toBoolean,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 
@@ -203,7 +204,10 @@ export default function GeneralSettings(props) {
     const currentInputs = {};
     for (let key in props.options) {
       if (Object.keys(inputs).includes(key)) {
-        currentInputs[key] = props.options[key];
+        currentInputs[key] =
+          typeof inputs[key] === 'boolean'
+            ? toBoolean(props.options[key])
+            : props.options[key];
       }
     }
     // 若旧字段存在且新字段缺失，则做一次兜底映射

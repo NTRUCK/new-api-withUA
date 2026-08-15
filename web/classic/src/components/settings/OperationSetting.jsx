@@ -50,6 +50,7 @@ const OperationSetting = () => {
     DefaultCollapseSidebar: false,
     DemoSiteEnabled: false,
     SelfUseModeEnabled: false,
+    'ranking_setting.exclude_admin_and_root': false,
 
     /* 顶栏模块管理 */
     HeaderNavModules: '',
