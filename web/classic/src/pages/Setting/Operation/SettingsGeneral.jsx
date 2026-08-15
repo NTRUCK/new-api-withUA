@@ -57,6 +57,7 @@ export default function GeneralSettings(props) {
     DefaultCollapseSidebar: false,
     DemoSiteEnabled: false,
     SelfUseModeEnabled: false,
+    'ranking_setting.exclude_admin_and_root': false,
     'token_setting.max_user_tokens': 1000,
   });
   const refForm = useRef();
@@ -388,6 +389,19 @@ export default function GeneralSettings(props) {
                   checkedText='｜'
                   uncheckedText='〇'
                   onChange={handleFieldChange('SelfUseModeEnabled')}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'ranking_setting.exclude_admin_and_root'}
+                  label={t('富豪榜和调用榜排除管理员')}
+                  extraText={t('开启后排除管理员、超级管理员和 User ID 1')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={handleFieldChange(
+                    'ranking_setting.exclude_admin_and_root',
+                  )}
                 />
               </Col>
             </Row>
