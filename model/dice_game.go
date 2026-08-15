@@ -34,10 +34,11 @@ func (DiceGameRecord) TableName() string { return "dice_game_records" }
 
 // DiceWelfarePool 全站共享低保池，固定使用 ID 1。
 type DiceWelfarePool struct {
-	Id             int   `gorm:"primaryKey"`
-	Quota          int64 `gorm:"not null;default:0"`
-	CurrentRoundId int64 `gorm:"not null;default:0"`
-	UpdatedAt      int64 `gorm:"bigint"`
+	Id             int    `gorm:"primaryKey"`
+	Quota          int64  `gorm:"not null;default:0"`
+	CurrentRoundId int64  `gorm:"not null;default:0"`
+	AutoGrantDate  string `gorm:"type:varchar(10);index"`
+	UpdatedAt      int64  `gorm:"bigint"`
 }
 
 func (DiceWelfarePool) TableName() string { return "dice_welfare_pools" }
@@ -164,6 +165,9 @@ func tryCompleteWelfareRoundTx(tx *gorm.DB, pool *DiceWelfarePool, round *DiceWe
 	if round.ApplicantCount < round.RequiredApplicants || pool.Quota < round.TargetQuota || round.Status == welfareRoundCompleted {
 		return false, nil
 	}
+	if pool.AutoGrantDate == diceWelfareDate() {
+		return false, nil
+	}
 	debit := tx.Model(&DiceWelfarePool{}).Where("id = ? AND quota >= ?", pool.Id, round.TargetQuota).Update("quota", gorm.Expr("quota - ?", round.TargetQuota))
 	if debit.Error != nil || debit.RowsAffected == 0 {
 		return false, debit.Error
@@ -175,9 +179,11 @@ func tryCompleteWelfareRoundTx(tx *gorm.DB, pool *DiceWelfarePool, round *DiceWe
 	if err := tx.Model(round).Updates(map[string]interface{}{"status": welfareRoundCompleted, "redemption_id": redemption.Id, "completed_at": time.Now().Unix()}).Error; err != nil {
 		return false, err
 	}
+	p := pool
 	pool.Quota -= round.TargetQuota
 	pool.CurrentRoundId = 0
-	if err := tx.Model(pool).Update("current_round_id", 0).Error; err != nil {
+	pool.AutoGrantDate = diceWelfareDate()
+	if err := tx.Model(&p).Updates(map[string]interface{}{"current_round_id": 0, "auto_grant_date": pool.AutoGrantDate}).Error; err != nil {
 		return false, err
 	}
 	_, err = ensureWelfareRoundTx(tx, pool)
@@ -218,8 +224,21 @@ func GetDiceWelfareStatus(userId int) (map[string]interface{}, error) {
 	if err := DB.Model(&DiceWelfareApplication{}).Where("round_id = ? AND user_id = ?", round.Id, userId).Count(&applied).Error; err != nil {
 		return nil, err
 	}
+	balance, err := GetUserQuota(userId, true)
+	if err != nil {
+		return nil, err
+	}
+	poolQuota, claimed, eligible, err := getDiceWelfareStatus(userId, balance)
+	if err != nil {
+		return nil, err
+	}
+	setting := operation_setting.GetDiceGameSetting()
 	return map[string]interface{}{
-		"welfare_pool": pool.Quota, "round_id": round.Id, "round_status": round.Status,
+		"balance": balance, "welfare_pool": poolQuota,
+		"welfare_balance_threshold": setting.WelfareBalanceThreshold,
+		"welfare_daily_grant":       setting.WelfareDailyGrant,
+		"welfare_claimed_today":     claimed, "welfare_eligible": eligible,
+		"round_id": round.Id, "round_status": round.Status,
 		"applicant_count": round.ApplicantCount, "required_applicants": round.RequiredApplicants,
 		"applied": applied > 0, "waiting_for_funds": round.Status == welfareRoundWaiting,
 		"target_quota": round.TargetQuota, "max_uses": round.MaxUses,
@@ -346,6 +365,78 @@ func settleDiceGame(record *DiceGameRecord, userId, netChange int) (int, error) 
 		return tx.Model(&User{}).Where("id = ?", userId).Select("quota").Scan(&newBalance).Error
 	})
 	return newBalance, err
+}
+
+func ClaimDiceWelfare(userId int) (*DiceWelfareResult, error) {
+	setting := operation_setting.GetDiceGameSetting()
+	if setting.WelfareBalanceThreshold <= 0 || setting.WelfareDailyGrant <= 0 {
+		return nil, errors.New("低保功能未配置")
+	}
+	var result DiceWelfareResult
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		query := tx
+		if !common.UsingSQLite {
+			query = query.Clauses(clause.Locking{Strength: "UPDATE"})
+		}
+		var user User
+		if err := query.Select("id", "quota").First(&user, userId).Error; err != nil {
+			return errors.New("用户不存在")
+		}
+		if user.Quota >= setting.WelfareBalanceThreshold {
+			return errors.New("当前余额未低于低保领取线")
+		}
+		date := diceWelfareDate()
+		var count int64
+		if err := tx.Model(&DiceWelfareClaim{}).Where("user_id = ? AND claim_date = ?", userId, date).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return errors.New("今日已经领取过低保")
+		}
+		if err := tx.FirstOrCreate(&DiceWelfarePool{}, DiceWelfarePool{Id: 1}).Error; err != nil {
+			return err
+		}
+		var pool DiceWelfarePool
+		poolQuery := tx
+		if !common.UsingSQLite {
+			poolQuery = poolQuery.Clauses(clause.Locking{Strength: "UPDATE"})
+		}
+		if err := poolQuery.First(&pool, 1).Error; err != nil {
+			return err
+		}
+		if pool.Quota <= 0 {
+			return errors.New("低保池暂无额度")
+		}
+		grant := int64(setting.WelfareDailyGrant)
+		if pool.Quota < grant {
+			grant = pool.Quota
+		}
+		claim := DiceWelfareClaim{UserId: userId, ClaimDate: date, Quota: int(grant), CreatedAt: time.Now().Unix()}
+		if err := tx.Create(&claim).Error; err != nil {
+			return errors.New("今日已经领取过低保")
+		}
+		userUpdate := tx.Model(&User{}).Where("id = ? AND quota < ?", userId, setting.WelfareBalanceThreshold).Update("quota", gorm.Expr("quota + ?", grant))
+		if userUpdate.Error != nil || userUpdate.RowsAffected == 0 {
+			return errors.New("当前余额未低于低保领取线")
+		}
+		poolUpdate := tx.Model(&DiceWelfarePool{}).Where("id = ? AND quota >= ?", 1, grant).Updates(map[string]interface{}{"quota": gorm.Expr("quota - ?", grant), "updated_at": time.Now().Unix()})
+		if poolUpdate.Error != nil || poolUpdate.RowsAffected == 0 {
+			return errors.New("低保池额度不足")
+		}
+		if err := tx.Model(&User{}).Where("id = ?", userId).Select("quota").Scan(&result.Balance).Error; err != nil {
+			return err
+		}
+		result.Granted = int(grant)
+		result.PoolRemaining = pool.Quota - grant
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := updateUserQuotaCache(userId, result.Balance); err != nil {
+		common.SysLog("failed to update user quota cache after welfare claim: " + err.Error())
+	}
+	return &result, nil
 }
 
 func ApplyDiceWelfare(userId int) (map[string]interface{}, error) {

@@ -44,6 +44,17 @@ func GetDiceWelfareStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
 }
 
+func ClaimDiceWelfare(c *gin.Context) {
+	userId := c.GetInt("id")
+	result, err := model.ClaimDiceWelfare(userId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	model.RecordLog(userId, model.LogTypeSystem, fmt.Sprintf("领取骰子低保：%s", logger.LogQuota(result.Granted)))
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
 func ApplyDiceWelfare(c *gin.Context) {
 	result, err := model.ApplyDiceWelfare(c.GetInt("id"))
 	if err != nil {

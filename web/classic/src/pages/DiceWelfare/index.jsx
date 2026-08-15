@@ -18,6 +18,7 @@ import { getCurrencyConfig } from '../../helpers/render';
 const DiceWelfare = () => {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(false);
   const [applying, setApplying] = useState(false);
   const [creating, setCreating] = useState(false);
   const [adminForm, setAdminForm] = useState({
@@ -45,6 +46,16 @@ const DiceWelfare = () => {
   useEffect(() => {
     loadStatus();
   }, []);
+
+  const claim = async () => {
+    setClaiming(true);
+    try {
+      const res = await API.post('/api/user/welfare/claim');
+      if (!res.data?.success) return showError(res.data?.message);
+      showSuccess(`成功领取低保 ${renderQuota(res.data.data.granted)}`);
+      await loadStatus();
+    } catch (e) { showError(e.message); } finally { setClaiming(false); }
+  };
 
   const apply = async () => {
     setApplying(true);
@@ -98,7 +109,7 @@ const DiceWelfare = () => {
           <Typography.Text type='tertiary'>
             每期每人可申请一次。满 50 人且池内额度达到 5000 后，系统自动生成 100 份、单份 30～80 的拼手气兑换码，由管理员在社区发放。
           </Typography.Text>
-          <div className='grid grid-cols-1 sm:grid-cols-4 gap-3 w-full max-w-4xl'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full max-w-4xl'>
             <Card shadows='hover'><Typography.Text type='tertiary'>当前低保池</Typography.Text><div className='text-xl font-semibold mt-1'>{renderQuota(status.welfare_pool)}</div></Card>
             <Card shadows='hover'><Typography.Text type='tertiary'>当前期数</Typography.Text><div className='text-xl font-semibold mt-1'>第 {status.round_id} 期</div></Card>
             <Card shadows='hover'><Typography.Text type='tertiary'>申请人数</Typography.Text><div className='text-xl font-semibold mt-1'>{status.applicant_count}/{status.required_applicants}</div></Card>
@@ -106,6 +117,8 @@ const DiceWelfare = () => {
           </div>
           <div className='w-full max-w-xl'><Progress percent={percent} showInfo /></div>
           {status.waiting_for_funds && <Typography.Text type='warning'>申请人数已满，正在等待低保池额度达到 {renderQuota(status.target_quota)}</Typography.Text>}
+          <Button loading={claiming} disabled={!status.welfare_eligible || claiming} onClick={claim}>领取今日低保</Button>
+          <Typography.Text type='tertiary'>当前余额：{renderQuota(status.balance || 0)}；领取上限：{renderQuota(status.welfare_daily_grant || 0)}</Typography.Text>
           <Button size='large' theme='solid' type='warning' loading={applying} disabled={status.applied || applying || status.waiting_for_funds} onClick={apply}>
             {status.applied ? '本期已申请' : status.waiting_for_funds ? '本期等待额度' : '申请本期红包'}
           </Button>
