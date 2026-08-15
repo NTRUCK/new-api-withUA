@@ -45,6 +45,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     personal: true,
     dice_game: true,
     dice_welfare: true,
+    quota_query: true,
   },
   admin: {
     enabled: true,

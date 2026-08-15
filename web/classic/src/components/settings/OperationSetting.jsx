@@ -93,6 +93,13 @@ const OperationSetting = () => {
     'dice_game_setting.welfare_balance_threshold': 5000000,
     'dice_game_setting.welfare_daily_grant': 15000000,
 
+    /* 付费额度查询 */
+    'quota_query_setting.enabled': false,
+    'quota_query_setting.show_entry': false,
+    'quota_query_setting.fee': 500000,
+    'quota_query_setting.daily_limit': 3,
+    'quota_query_setting.allow_admin_and_root': false,
+
     /* 令牌设置 */
     'token_setting.max_user_tokens': 1000,
   });

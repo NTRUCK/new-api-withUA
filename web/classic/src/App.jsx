@@ -349,6 +349,16 @@ function App() {
           }
         />
         <Route
+          path='/console/quota-query'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <QuotaQuery />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
           path='/pricing'
           element={
             pricingRequireAuth ? (

@@ -290,6 +290,8 @@ func migrateDB() error {
 		&DiceWelfareClaim{},
 		&DiceWelfareRound{},
 		&DiceWelfareApplication{},
+		&QuotaQueryDailySlot{},
+		&QuotaQueryRecord{},
 	)
 	if err != nil {
 		return err

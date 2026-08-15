@@ -52,6 +52,7 @@ const routerMap = {
   feedback: '/console/feedback',
   dice_game: '/console/dice-game',
   dice_welfare: '/console/dice-welfare',
+  quota_query: '/console/quota-query',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -133,6 +134,15 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         to: '/topup',
       },
       {
+        text: t('额度查询'),
+        itemKey: 'quota_query',
+        to: '/quota-query',
+        className:
+          localStorage.getItem('quota_query_show_entry') === 'true'
+            ? ''
+            : 'tableHiddle',
+      },
+      {
         text: t('幸运骰子'),
         itemKey: 'dice_game',
         to: '/dice-game',
@@ -155,12 +165,16 @@ const SiderBar = ({ onNavigate = () => {} }) => {
 
     // 根据配置过滤项目
     const filteredItems = items.filter((item) => {
-      const configVisible = isModuleVisible('personal', item.itemKey);
-      return configVisible;
+      return isModuleVisible('personal', item.itemKey);
     });
 
     return filteredItems;
-  }, [t, isModuleVisible, localStorage.getItem('dice_game_show_entry')]);
+  }, [
+    t,
+    isModuleVisible,
+    localStorage.getItem('dice_game_show_entry'),
+    localStorage.getItem('quota_query_show_entry'),
+  ]);
 
   const adminItems = useMemo(() => {
     const items = [

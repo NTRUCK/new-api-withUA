@@ -140,6 +140,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.GET("/welfare", controller.GetDiceWelfareStatus)
 				selfRoute.POST("/welfare", middleware.CriticalRateLimit(), controller.ApplyDiceWelfare)
 				selfRoute.POST("/welfare/claim", middleware.CriticalRateLimit(), controller.ClaimDiceWelfare)
+				selfRoute.GET("/quota-query/status", controller.GetQuotaQueryStatus)
+				selfRoute.POST("/quota-query", middleware.CriticalRateLimit(), controller.QueryUserQuota)
 
 				// Custom OAuth bindings
 				selfRoute.GET("/oauth/bindings", controller.GetUserOAuthBindings)

@@ -122,6 +122,7 @@ func GetStatus(c *gin.Context) {
 		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
 		"dice_game_enabled":           operation_setting.GetDiceGameSetting().Enabled,
 		"dice_game_show_entry":        operation_setting.GetDiceGameSetting().ShowEntry,
+		"quota_query_show_entry":      operation_setting.GetQuotaQuerySetting().ShowEntry,
 	}
 
 	// 根据启用状态注入可选内容

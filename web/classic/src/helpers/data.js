@@ -31,6 +31,7 @@ export function setStatusData(data) {
   localStorage.setItem('enable_data_export', data.enable_data_export);
   localStorage.setItem('dice_game_enabled', data.dice_game_enabled);
   localStorage.setItem('dice_game_show_entry', data.dice_game_show_entry);
+  localStorage.setItem('quota_query_show_entry', data.quota_query_show_entry);
   localStorage.setItem('chats', JSON.stringify(data.chats));
   localStorage.setItem(
     'data_export_default_time',
