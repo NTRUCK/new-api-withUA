@@ -60,6 +60,7 @@ const SystemSetting = () => {
     'discord.guild_id': '',
     'discord.require_role': '',
     'discord.role_id': '',
+    'discord.register_limit_whitelist': '',
     'oidc.enabled': '',
     'oidc.client_id': '',
     'oidc.client_secret': '',
@@ -557,6 +558,15 @@ const SystemSetting = () => {
       options.push({
         key: 'discord.role_id',
         value: inputs['discord.role_id'],
+      });
+    }
+    if (
+      originInputs['discord.register_limit_whitelist'] !==
+      inputs['discord.register_limit_whitelist']
+    ) {
+      options.push({
+        key: 'discord.register_limit_whitelist',
+        value: inputs['discord.register_limit_whitelist'],
       });
     }
 
@@ -1637,6 +1647,14 @@ const SystemSetting = () => {
                       />
                     </Col>
                   </Row>
+                  <Form.TextArea
+                    field="['discord.register_limit_whitelist']"
+                    label={t('满员注册 Discord ID 白名单')}
+                    extraText={t('一行一个 Discord 用户数字 ID，仅在达到注册用户数上限时放行；其他注册和服务器准入限制仍然生效')}
+                    placeholder={'123456789012345678\n987654321098765432'}
+                    autosize={{ minRows: 4, maxRows: 10 }}
+                    style={{ fontFamily: 'JetBrains Mono, Consolas' }}
+                  />
                   <Button onClick={submitDiscordOAuth}>
                     {t('保存 Discord OAuth 设置')}
                   </Button>

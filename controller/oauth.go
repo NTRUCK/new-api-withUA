@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -265,7 +266,8 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	if !common.RegisterEnabled {
 		return nil, &OAuthRegistrationDisabledError{}
 	}
-	if isRegisterUserCountReached() {
+	limitWhitelisted := provider.GetName() == "Discord" && system_setting.IsDiscordRegisterLimitWhitelisted(oauthUser.ProviderUserID)
+	if isRegisterUserCountReached() && !limitWhitelisted {
 		return nil, &OAuthRegistrationDisabledError{}
 	}
 
