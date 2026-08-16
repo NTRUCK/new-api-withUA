@@ -172,6 +172,10 @@ const OperationSetting = () => {
         <Card style={{ marginTop: '10px' }}>
           <SettingsCreditLimit options={inputs} refresh={onRefresh} />
         </Card>
+        {/* 付费额度查询 */}
+        <Card style={{ marginTop: '10px' }}>
+          <SettingsQuotaQuery options={inputs} refresh={onRefresh} />
+        </Card>
         {/* 签到设置 */}
         <Card style={{ marginTop: '10px' }}>
           <SettingsCheckin options={inputs} refresh={onRefresh} />
