@@ -2,6 +2,8 @@ package operation_setting
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -86,6 +88,38 @@ var UserAgentGroupBlacklist = map[string][]string{}
 
 // UserAgentGroupBanThreshold 分组黑/白名单累计违规多少次后封禁用户（默认 5）。
 var UserAgentGroupBanThreshold = 5
+
+// UserAgentGroupExemptUserIds 仅豁免分组级 UA 黑/白名单，仍受全局违规 UA 关键词限制。
+var UserAgentGroupExemptUserIds = map[int]struct{}{}
+
+func UserAgentGroupExemptUserIdsToString() string {
+	ids := make([]int, 0, len(UserAgentGroupExemptUserIds))
+	for id := range UserAgentGroupExemptUserIds {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+	parts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		parts = append(parts, strconv.Itoa(id))
+	}
+	return strings.Join(parts, ",")
+}
+
+func UserAgentGroupExemptUserIdsFromString(s string) {
+	UserAgentGroupExemptUserIds = map[int]struct{}{}
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r' || r == ' ' || r == '\t'
+	}) {
+		if id, err := strconv.Atoi(strings.TrimSpace(part)); err == nil && id > 0 {
+			UserAgentGroupExemptUserIds[id] = struct{}{}
+		}
+	}
+}
+
+func IsUserAgentGroupExemptUser(userId int) bool {
+	_, ok := UserAgentGroupExemptUserIds[userId]
+	return ok
+}
 
 // parseGroupUAConfig 解析「每行 group:ua1,ua2」格式，返回 group -> 小写关键词列表。
 func parseGroupUAConfig(s string) map[string][]string {

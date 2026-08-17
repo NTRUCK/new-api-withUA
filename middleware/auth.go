@@ -416,10 +416,12 @@ func TokenAuth() func(c *gin.Context) {
 
 		// 分组级 User-Agent 黑/白名单校验：黑名单优先，再白名单。
 		// 命中即累计违规计数，达到阈值自动封禁（不上榜）并通知根用户；本次请求始终拒绝。
-		if reason := operation_setting.MatchUserAgentGroupPolicy(userGroup, c.Request.UserAgent()); reason != "" {
-			service.HandleUserAgentGroupViolation(token.UserId, userGroup, c.Request.UserAgent(), reason)
-			abortWithOpenAiMessage(c, http.StatusForbidden, reason, types.ErrorCodeAccessDenied)
-			return
+		if !operation_setting.IsUserAgentGroupExemptUser(token.UserId) {
+			if reason := operation_setting.MatchUserAgentGroupPolicy(userGroup, c.Request.UserAgent()); reason != "" {
+				service.HandleUserAgentGroupViolation(token.UserId, userGroup, c.Request.UserAgent(), reason)
+				abortWithOpenAiMessage(c, http.StatusForbidden, reason, types.ErrorCodeAccessDenied)
+				return
+			}
 		}
 
 		err = SetupContextForToken(c, token, parts...)

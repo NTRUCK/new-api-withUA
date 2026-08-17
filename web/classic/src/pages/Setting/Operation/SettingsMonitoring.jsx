@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Button, Col, Form, Row, Spin } from '@douyinfe/semi-ui';
+import { Button, Col, Form, Row, Select, Spin } from '@douyinfe/semi-ui';
 import {
   compareObjects,
   API,
@@ -44,6 +44,7 @@ const DEFAULT_INPUTS = {
   UserAgentGroupBlacklist: '',
   UserAgentGroupWhitelist: '',
   UserAgentGroupBanThreshold: '5',
+  UserAgentGroupExemptUserIds: '',
   'monitor_setting.auto_test_channel_enabled': false,
   'monitor_setting.auto_test_channel_minutes': 10,
 };
@@ -54,12 +55,42 @@ export default function SettingsMonitoring(props) {
   const [inputs, setInputs] = useState({ ...DEFAULT_INPUTS });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
+  const [userOptions, setUserOptions] = useState([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const userSearchTimer = useRef();
   const parsedAutoDisableStatusCodes = parseHttpStatusCodeRules(
     inputs.AutomaticDisableStatusCodes || '',
   );
   const parsedAutoRetryStatusCodes = parseHttpStatusCodeRules(
     inputs.AutomaticRetryStatusCodes || '',
   );
+
+  const searchUsers = (keyword) => {
+    clearTimeout(userSearchTimer.current);
+    if (!keyword.trim()) return;
+    userSearchTimer.current = setTimeout(async () => {
+      setSearchingUsers(true);
+      try {
+        const params = new URLSearchParams({ keyword: keyword.trim(), p: '1', page_size: '20' });
+        const res = await API.get(`/api/user/search?${params.toString()}`);
+        if (!res.data?.success) return showError(res.data?.message);
+        setUserOptions((current) => {
+          const selected = new Set(
+            String(inputs.UserAgentGroupExemptUserIds || '')
+              .split(',')
+              .filter(Boolean),
+          );
+          const found = (res.data.data?.items || []).map((user) => ({
+            value: String(user.id),
+            label: `${user.display_name || user.username}（${user.username}，ID ${user.id}${user.discord_id ? `，DC ${user.discord_id}` : ''}）`,
+          }));
+          return [...current.filter((option) => selected.has(option.value)), ...found.filter((option) => !selected.has(option.value))];
+        });
+      } finally {
+        setSearchingUsers(false);
+      }
+    }, 300);
+  };
 
   function onSubmit() {
     const updateArray = compareObjects(inputs, inputsRow);
@@ -132,6 +163,10 @@ export default function SettingsMonitoring(props) {
     }
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
+    const selectedIds = String(currentInputs.UserAgentGroupExemptUserIds || '')
+      .split(',')
+      .filter(Boolean);
+    setUserOptions(selectedIds.map((id) => ({ value: id, label: `用户 ID ${id}` })));
     refForm.current.setValues(currentInputs);
   }, [props.options]);
 
@@ -370,6 +405,31 @@ export default function SettingsMonitoring(props) {
                     setInputs({ ...inputs, UserAgentGroupWhitelist: value })
                   }
                 />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={24}>
+                <Select
+                  multiple
+                  filter
+                  remote
+                  loading={searchingUsers}
+                  optionList={userOptions}
+                  value={String(inputs.UserAgentGroupExemptUserIds || '').split(',').filter(Boolean)}
+                  onSearch={searchUsers}
+                  onChange={(values) =>
+                    setInputs({
+                      ...inputs,
+                      UserAgentGroupExemptUserIds: values.join(','),
+                    })
+                  }
+                  placeholder={t('搜索用户 ID、用户名、显示名称、邮箱或 Discord ID')}
+                  style={{ width: '100%', marginBottom: 16 }}
+                  maxTagCount={6}
+                />
+                <div className='text-sm text-semi-color-text-2 mb-4'>
+                  {t('分组 UA 策略豁免用户：仅绕过分组 UA 黑白名单，仍受全局违规 UA 关键词（如 tavo）和令牌自身 UA 限制约束')}
+                </div>
               </Col>
             </Row>
             <Row>
