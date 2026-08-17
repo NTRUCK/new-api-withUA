@@ -74,7 +74,7 @@ func QueryUserQuota(requesterId int, queryType, value string) (*QuotaQueryResult
 		return nil, errors.New("额度查询配置无效")
 	}
 	value = strings.TrimSpace(value)
-	if value == "" || (queryType != "id" && queryType != "username") {
+	if value == "" || (queryType != "id" && queryType != "username" && queryType != "discord_id") {
 		return nil, errors.New("查询参数无效")
 	}
 
@@ -92,6 +92,8 @@ func QueryUserQuota(requesterId int, queryType, value string) (*QuotaQueryResult
 				return errors.New("未找到可查询的用户")
 			}
 			query = query.Where("id = ?", id)
+		} else if queryType == "discord_id" {
+			query = query.Where("discord_id = ?", value)
 		} else {
 			query = query.Where("username = ?", value)
 		}
