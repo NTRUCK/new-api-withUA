@@ -37,7 +37,7 @@ import {
   IllustrationNoResult,
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
-import CardTable from '../../../common/ui/CardTable';
+import LightweightResizableCardTable from '../../../common/ui/LightweightResizableCardTable';
 import { timestamp2string } from '../../../../helpers';
 import { getLogsColumns } from '../UsageLogsColumnDefs';
 
@@ -112,9 +112,8 @@ const UserLogsPanel = ({ user, logsData }) => {
     <div className='p-2 min-w-0'>
       <div className='w-full overflow-x-auto pb-1'>
         <div style={{ minWidth: compactMode ? 760 : 1200 }}>
-          <CardTable
+          <LightweightResizableCardTable
             columns={columns}
-            resizable
             dataSource={logData?.items || []}
             rowKey='key'
             loading={loading}

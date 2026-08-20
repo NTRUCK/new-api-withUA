@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React, { useMemo } from 'react';
 import { Empty, Descriptions } from '@douyinfe/semi-ui';
-import CardTable from '../../common/ui/CardTable';
+import LightweightResizableCardTable from '../../common/ui/LightweightResizableCardTable';
 import {
   IllustrationNoResult,
   IllustrationNoResultDark,
@@ -89,9 +89,8 @@ const LogsTable = (logsData) => {
   };
 
   return (
-    <CardTable
+    <LightweightResizableCardTable
       columns={tableColumns}
-      resizable
       {...(hasExpandableRows() && {
         expandedRowRender: expandRowRender,
         expandRowByClick: true,
