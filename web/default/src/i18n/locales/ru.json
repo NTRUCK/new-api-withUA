@@ -65,6 +65,7 @@
     "| Based on": "| На основе",
     "0 means data is kept permanently": "0 означает, что данные хранятся постоянно",
     "0 means unlimited": "0 означает без ограничений",
+    "Concurrency Limit": "Лимит параллельных запросов",
     "1 Day": "1 день",
     "1 day ago": "1 день назад",
     "1 hour": "1 час",

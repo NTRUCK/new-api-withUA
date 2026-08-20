@@ -65,6 +65,7 @@
     "| Based on": "| に基づく",
     "0 means data is kept permanently": "0 はデータを永続的に保持することを意味します",
     "0 means unlimited": "0は無制限を意味します",
+    "Concurrency Limit": "同時実行数の上限",
     "1 Day": "1日",
     "1 day ago": "1日前",
     "1 hour": "1 時間",

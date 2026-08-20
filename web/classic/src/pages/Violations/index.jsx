@@ -100,7 +100,9 @@ const Violations = () => {
   const handleRemoveAll = () => {
     Modal.confirm({
       title: t('确认一键下榜'),
-      content: t('确定将公开违规榜上的所有用户全部下榜吗？此操作会清空当前榜单。'),
+      content: t(
+        '确定将公开违规榜上的所有用户全部下榜吗？此操作会清空当前榜单。',
+      ),
       okText: t('确认一键下榜'),
       cancelText: t('取消'),
       okType: 'danger',
@@ -183,6 +185,19 @@ const Violations = () => {
                     <Typography.Paragraph className='mt-3 mb-3 whitespace-pre-wrap break-words'>
                       {item.reason}
                     </Typography.Paragraph>
+                    {item.user_agent && (
+                      <div className='mb-3 min-w-0'>
+                        <Typography.Text
+                          type='tertiary'
+                          size='small'
+                          ellipsis={{ showTooltip: true }}
+                          copyable={{ content: item.user_agent }}
+                          style={{ display: 'block' }}
+                        >
+                          User-Agent：{item.user_agent}
+                        </Typography.Text>
+                      </div>
+                    )}
                     <div className='flex flex-wrap gap-x-5 gap-y-1'>
                       <Typography.Text size='small' type='tertiary'>
                         {t('首次记录')}：

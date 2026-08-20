@@ -296,6 +296,12 @@ func migrateDB() error {
 	if err != nil {
 		return err
 	}
+	// 兼容旧奖池数据：此前仅以日期表示当天已自动生成 1 期。
+	if err := DB.Model(&DiceWelfarePool{}).
+		Where("auto_grant_date <> ? AND auto_grant_count = ?", "", 0).
+		Update("auto_grant_count", 1).Error; err != nil {
+		return err
+	}
 	if common.UsingSQLite {
 		if err := ensureSubscriptionPlanTableSQLite(); err != nil {
 			return err

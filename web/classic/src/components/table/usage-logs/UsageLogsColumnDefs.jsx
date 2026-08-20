@@ -144,10 +144,7 @@ function renderType(type, t) {
 
 function buildStreamStatusTooltip(ss, t) {
   if (!ss) return null;
-  const lines = [
-    t('流状态') + '：' + t('异常'),
-    (ss.end_reason || 'unknown'),
-  ];
+  const lines = [t('流状态') + '：' + t('异常'), ss.end_reason || 'unknown'];
   if (ss.error_count > 0) {
     lines.push(`${t('软错误')}: ${ss.error_count}`);
   }
@@ -185,11 +182,7 @@ function renderIsStream(bool, t, streamStatus) {
                 userSelect: 'none',
               }}
             >
-              <CircleAlert
-                size={14}
-                strokeWidth={2.5}
-                color='currentColor'
-              />
+              <CircleAlert size={14} strokeWidth={2.5} color='currentColor' />
             </span>
           </Tooltip>
         )}
@@ -398,7 +391,7 @@ function renderCompactDetailSummary(summarySegments) {
   return (
     <div
       style={{
-        maxWidth: 180,
+        width: '100%',
         lineHeight: 1.35,
       }}
     >
@@ -407,14 +400,12 @@ function renderCompactDetailSummary(summarySegments) {
           key={`${segment.text}-${index}`}
           type={segment.tone === 'secondary' ? 'tertiary' : undefined}
           size={segment.tone === 'secondary' ? 'small' : undefined}
+          ellipsis={{ showTooltip: true }}
           style={{
             display: 'block',
-            maxWidth: '100%',
+            width: '100%',
             fontSize: 12,
             marginTop: index === 0 ? 0 : 2,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
           }}
         >
           {segment.text}
@@ -461,7 +452,11 @@ function getUsageLogDetailSummary(record, text, billingDisplayMode, t) {
     };
   }
 
-  const summaryOpts = { ...other, displayMode: billingDisplayMode, outputMode: 'segments' };
+  const summaryOpts = {
+    ...other,
+    displayMode: billingDisplayMode,
+    outputMode: 'segments',
+  };
 
   if (other?.billing_mode === 'tiered_expr') {
     return { segments: renderTieredModelPriceSimple(summaryOpts) };
@@ -488,11 +483,13 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.TIME,
       title: t('时间'),
       dataIndex: 'timestamp2string',
+      width: 170,
     },
     {
       key: COLUMN_KEYS.CHANNEL,
       title: t('渠道'),
       dataIndex: 'channel',
+      width: 90,
       render: (text, record, index) => {
         let isMultiKey = false;
         let multiKeyIndex = -1;
@@ -587,6 +584,7 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.USERNAME,
       title: t('用户'),
       dataIndex: 'username',
+      width: 130,
       render: (text, record, index) => {
         return isAdminUser ? (
           <div>
@@ -612,6 +610,7 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.TOKEN,
       title: t('令牌'),
       dataIndex: 'token_name',
+      width: 130,
       render: (text, record, index) => {
         return record.type === 0 ||
           record.type === 2 ||
@@ -638,6 +637,7 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.GROUP,
       title: t('分组'),
       dataIndex: 'group',
+      width: 100,
       render: (text, record, index) => {
         if (
           record.type === 0 ||
@@ -675,6 +675,7 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.TYPE,
       title: t('类型'),
       dataIndex: 'type',
+      width: 80,
       render: (text, record, index) => {
         return <>{renderType(text, t)}</>;
       },
@@ -683,6 +684,7 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.MODEL,
       title: t('模型'),
       dataIndex: 'model_name',
+      width: 180,
       render: (text, record, index) => {
         return record.type === 0 ||
           record.type === 2 ||
@@ -698,6 +700,7 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.USE_TIME,
       title: t('用时/首字'),
       dataIndex: 'use_time',
+      width: 180,
       render: (text, record, index) => {
         if (!(record.type === 2 || record.type === 5)) {
           return <></>;
@@ -740,6 +743,7 @@ export const getLogsColumns = ({
         </div>
       ),
       dataIndex: 'prompt_tokens',
+      width: 150,
       render: (text, record, index) => {
         const other = getLogOther(record.other);
         const cacheSummary = getPromptCacheSummary(other);
@@ -789,6 +793,7 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.COMPLETION,
       title: t('输出'),
       dataIndex: 'completion_tokens',
+      width: 90,
       render: (text, record, index) => {
         return parseInt(text) > 0 &&
           (record.type === 0 ||
@@ -805,6 +810,7 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.COST,
       title: t('花费'),
       dataIndex: 'quota',
+      width: 110,
       render: (text, record, index) => {
         if (
           !(
@@ -844,6 +850,7 @@ export const getLogsColumns = ({
         </div>
       ),
       dataIndex: 'ip',
+      width: 150,
       render: (text, record, index) => {
         const showIp =
           (record.type === 2 ||
@@ -876,12 +883,12 @@ export const getLogsColumns = ({
       width: 220,
       render: (text, record) => {
         const other = getLogOther(record.other);
-        const userAgent = other?.user_agent;
+        const userAgent = other?.user_agent || other?.admin_info?.user_agent;
         return userAgent ? (
           <Tooltip content={userAgent}>
             <Typography.Paragraph
               ellipsis={{ rows: 2 }}
-              style={{ maxWidth: 220, marginBottom: 0, cursor: 'pointer' }}
+              style={{ marginBottom: 0, cursor: 'pointer' }}
               onClick={(event) => copyText(event, userAgent)}
             >
               {userAgent}
@@ -896,6 +903,7 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.RETRY,
       title: t('重试'),
       dataIndex: 'retry',
+      width: 180,
       render: (text, record, index) => {
         if (!(record.type === 2 || record.type === 5)) {
           return <></>;
@@ -927,6 +935,7 @@ export const getLogsColumns = ({
       dataIndex: 'content',
       fixed: 'right',
       width: 200,
+      onHeaderCell: () => ({ resize: false }),
       render: (text, record, index) => {
         const detailSummary = getUsageLogDetailSummary(
           record,
@@ -945,7 +954,7 @@ export const getLogsColumns = ({
                   opts: { style: { width: 240 } },
                 },
               }}
-              style={{ maxWidth: 200, marginBottom: 0 }}
+              style={{ marginBottom: 0 }}
             >
               {text}
             </Typography.Paragraph>

@@ -101,6 +101,7 @@ const OperationSetting = () => {
     'dice_game_setting.daily_reset_hour': 0,
     'dice_game_setting.welfare_balance_threshold': 5000000,
     'dice_game_setting.welfare_daily_grant': 15000000,
+    'dice_game_setting.welfare_daily_round_limit': 1,
 
     /* 付费额度查询 */
     'quota_query_setting.enabled': false,

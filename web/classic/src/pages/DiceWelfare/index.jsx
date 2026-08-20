@@ -116,11 +116,13 @@ const DiceWelfare = () => {
             <Card shadows='hover'><Typography.Text type='tertiary'>所需额度</Typography.Text><div className='text-xl font-semibold mt-1'>{renderQuota(status.target_quota)}</div></Card>
           </div>
           <div className='w-full max-w-xl'><Progress percent={percent} showInfo /></div>
+          {status.daily_limit_reached && <Typography.Text type='warning'>今日自动生成红包已达上限，请于北京时间明日再申请</Typography.Text>}
           {status.waiting_for_funds && <Typography.Text type='warning'>申请人数已满，正在等待低保池额度达到 {renderQuota(status.target_quota)}</Typography.Text>}
           <Button loading={claiming} disabled={!status.welfare_eligible || claiming} onClick={claim}>领取今日低保</Button>
           <Typography.Text type='tertiary'>当前余额：{renderQuota(status.balance || 0)}；领取上限：{renderQuota(status.welfare_daily_grant || 0)}</Typography.Text>
-          <Button size='large' theme='solid' type='warning' loading={applying} disabled={status.applied || applying || status.waiting_for_funds} onClick={apply}>
-            {status.applied ? '本期已申请' : status.waiting_for_funds ? '本期等待额度' : '申请本期红包'}
+          <Typography.Text type='tertiary'>今日已自动生成：{status.welfare_daily_round_count || 0}/{status.welfare_daily_round_limit || 1} 期</Typography.Text>
+          <Button size='large' theme='solid' type='warning' loading={applying} disabled={status.applied || applying || status.waiting_for_funds || status.daily_limit_reached} onClick={apply}>
+            {status.applied ? '本期已申请' : status.daily_limit_reached ? '今日生成已达上限' : status.waiting_for_funds ? '本期等待额度' : '申请本期红包'}
           </Button>
         </div>
       </Card>

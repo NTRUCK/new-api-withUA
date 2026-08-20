@@ -83,6 +83,7 @@ export interface ChannelSettings {
   force_format?: boolean
   thinking_to_content?: boolean
   hide_upstream_info?: boolean
+  max_concurrency?: number
   proxy?: string
   pass_through_body_enabled?: boolean
   system_prompt?: string

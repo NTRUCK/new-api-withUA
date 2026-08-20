@@ -195,6 +195,7 @@ const EditChannelModal = (props) => {
     force_format: false,
     thinking_to_content: false,
     hide_upstream_info: false,
+    max_concurrency: 0,
     proxy: '',
     pass_through_body_enabled: false,
     system_prompt: '',
@@ -518,6 +519,7 @@ const EditChannelModal = (props) => {
     force_format: false,
     thinking_to_content: false,
     hide_upstream_info: false,
+    max_concurrency: 0,
     proxy: '',
     pass_through_body_enabled: false,
     system_prompt: '',
@@ -872,6 +874,7 @@ const EditChannelModal = (props) => {
           data.thinking_to_content =
             parsedSettings.thinking_to_content || false;
           data.hide_upstream_info = parsedSettings.hide_upstream_info === true;
+          data.max_concurrency = Number(parsedSettings.max_concurrency) || 0;
           data.proxy = parsedSettings.proxy || '';
           data.pass_through_body_enabled =
             parsedSettings.pass_through_body_enabled || false;
@@ -883,6 +886,7 @@ const EditChannelModal = (props) => {
           data.force_format = false;
           data.thinking_to_content = false;
           data.hide_upstream_info = false;
+          data.max_concurrency = 0;
           data.proxy = '';
           data.pass_through_body_enabled = false;
           data.system_prompt = '';
@@ -892,6 +896,7 @@ const EditChannelModal = (props) => {
         data.force_format = false;
         data.thinking_to_content = false;
         data.hide_upstream_info = false;
+        data.max_concurrency = 0;
         data.proxy = '';
         data.pass_through_body_enabled = false;
         data.system_prompt = '';
@@ -1002,6 +1007,7 @@ const EditChannelModal = (props) => {
         force_format: data.force_format,
         thinking_to_content: data.thinking_to_content,
         hide_upstream_info: data.hide_upstream_info,
+        max_concurrency: data.max_concurrency,
         proxy: data.proxy,
         pass_through_body_enabled: data.pass_through_body_enabled,
         system_prompt: data.system_prompt,
@@ -1425,6 +1431,7 @@ const EditChannelModal = (props) => {
       force_format: false,
       thinking_to_content: false,
       hide_upstream_info: false,
+      max_concurrency: 0,
       proxy: '',
       pass_through_body_enabled: false,
       system_prompt: '',
@@ -1796,6 +1803,7 @@ const EditChannelModal = (props) => {
       force_format: localInputs.force_format || false,
       thinking_to_content: localInputs.thinking_to_content || false,
       hide_upstream_info: localInputs.hide_upstream_info === true,
+      max_concurrency: Number(localInputs.max_concurrency) || 0,
       proxy: localInputs.proxy || '',
       pass_through_body_enabled: localInputs.pass_through_body_enabled || false,
       system_prompt: localInputs.system_prompt || '',
@@ -1878,6 +1886,7 @@ const EditChannelModal = (props) => {
     delete localInputs.force_format;
     delete localInputs.thinking_to_content;
     delete localInputs.hide_upstream_info;
+    delete localInputs.max_concurrency;
     delete localInputs.proxy;
     delete localInputs.pass_through_body_enabled;
     delete localInputs.system_prompt;
@@ -2552,7 +2561,7 @@ const EditChannelModal = (props) => {
                   />
 
                   <Row gutter={12}>
-                    <Col span={12}>
+                    <Col span={8}>
                       <Form.InputNumber
                         field='priority'
                         label={t('渠道优先级')}
@@ -2564,7 +2573,7 @@ const EditChannelModal = (props) => {
                         style={{ width: '100%' }}
                       />
                     </Col>
-                    <Col span={12}>
+                    <Col span={8}>
                       <Form.InputNumber
                         field='weight'
                         label={t('渠道权重')}
@@ -2573,6 +2582,19 @@ const EditChannelModal = (props) => {
                         onNumberChange={(value) =>
                           handleInputChange('weight', value)
                         }
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                    <Col span={8}>
+                      <Form.InputNumber
+                        field='max_concurrency'
+                        label={t('并发上限')}
+                        placeholder={t('并发上限')}
+                        min={0}
+                        onNumberChange={(value) =>
+                          handleChannelSettingsChange('max_concurrency', value)
+                        }
+                        extraText={t('0 表示不限制')}
                         style={{ width: '100%' }}
                       />
                     </Col>

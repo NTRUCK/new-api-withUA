@@ -205,7 +205,50 @@ func getModelListGroups(c *gin.Context) (modelListGroups, error) {
 	}, nil
 }
 
+func respondUserAgentRestrictedModel(c *gin.Context, modelType int, reason string) {
+	message := "【客户端不受支持】" + reason
+	switch modelType {
+	case constant.ChannelTypeAnthropic:
+		c.JSON(http.StatusOK, gin.H{
+			"data": []dto.AnthropicModel{{
+				ID:          message,
+				CreatedAt:   time.Unix(1626777600, 0).UTC().Format(time.RFC3339),
+				DisplayName: message,
+				Type:        "model",
+			}},
+			"first_id": message,
+			"has_more": false,
+			"last_id":  message,
+		})
+	case constant.ChannelTypeGemini:
+		c.JSON(http.StatusOK, gin.H{
+			"models": []dto.GeminiModel{{
+				Name:        message,
+				DisplayName: message,
+				Description: reason,
+			}},
+			"nextPageToken": nil,
+		})
+	default:
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data": []dto.OpenAIModels{{
+				Id:      message,
+				Object:  "model",
+				Created: 1626777600,
+				OwnedBy: "user-agent-restriction",
+			}},
+			"object": "list",
+		})
+	}
+}
+
 func ListModels(c *gin.Context, modelType int) {
+	if reason := common.GetContextKeyString(c, constant.ContextKeyUserAgentRestriction); reason != "" {
+		respondUserAgentRestrictedModel(c, modelType, reason)
+		return
+	}
+
 	acceptUnsetRatioModel := operation_setting.SelfUseModeEnabled
 	if !acceptUnsetRatioModel {
 		userId := c.GetInt("id")

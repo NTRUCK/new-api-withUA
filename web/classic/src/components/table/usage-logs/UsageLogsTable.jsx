@@ -91,6 +91,7 @@ const LogsTable = (logsData) => {
   return (
     <CardTable
       columns={tableColumns}
+      resizable
       {...(hasExpandableRows() && {
         expandedRowRender: expandRowRender,
         expandRowByClick: true,

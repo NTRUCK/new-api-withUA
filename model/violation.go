@@ -124,6 +124,11 @@ func BanUserByUserAgent(userId int, clientUA, reasonText string) (banned bool, e
 		if cacheErr := InvalidateUserTokensCache(userId); cacheErr != nil {
 			common.SysLog(fmt.Sprintf("failed to invalidate token cache for user %d: %s", userId, cacheErr.Error()))
 		}
+		RecordLogWithAdminInfo(userId, LogTypeManage,
+			fmt.Sprintf("用户因命中全局 User-Agent 封禁规则被自动封禁：%s", reasonText), map[string]interface{}{
+				"user_agent": clientUA,
+				"reason":     reasonText,
+			})
 	}
 	return banned, nil
 }
@@ -149,7 +154,6 @@ func DisableUserByGroupPolicy(userId int) (banned bool, err error) {
 	}
 	return banned, nil
 }
-
 
 func RemoveViolation(userId, operatorId int) error {
 	var user User

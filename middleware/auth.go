@@ -23,6 +23,21 @@ import (
 	"gorm.io/gorm"
 )
 
+func isModelListRequest(c *gin.Context) bool {
+	if c.Request.Method != http.MethodGet {
+		return false
+	}
+	path := strings.TrimSuffix(c.Request.URL.Path, "/")
+	return path == "/v1/models" || path == "/v1beta/models" || path == "/v1beta/openai/models"
+}
+
+func recordUserAgentRestriction(c *gin.Context, reason string) {
+	if previous := common.GetContextKeyString(c, constant.ContextKeyUserAgentRestriction); previous != "" {
+		reason = previous + "；" + reason
+	}
+	common.SetContextKey(c, constant.ContextKeyUserAgentRestriction, reason)
+}
+
 func validUserInfo(username string, role int) bool {
 	// check username is empty
 	if strings.TrimSpace(username) == "" {
@@ -366,8 +381,13 @@ func TokenAuth() func(c *gin.Context) {
 		}
 
 		if !token.IsUserAgentAllowed(c.Request.UserAgent()) {
-			abortWithOpenAiMessage(c, http.StatusForbidden, "当前客户端 User-Agent 不在令牌允许访问的列表中", types.ErrorCodeAccessDenied)
-			return
+			reason := "当前客户端 User-Agent 不在令牌允许访问的列表中"
+			if isModelListRequest(c) {
+				recordUserAgentRestriction(c, reason)
+			} else {
+				abortWithOpenAiMessage(c, http.StatusForbidden, reason, types.ErrorCodeAccessDenied)
+				return
+			}
 		}
 
 		// 命中封禁关键词的 User-Agent：自动禁用用户并公开上榜
@@ -418,9 +438,13 @@ func TokenAuth() func(c *gin.Context) {
 		// 命中即累计违规计数，达到阈值自动封禁（不上榜）并通知根用户；本次请求始终拒绝。
 		if !operation_setting.IsUserAgentGroupExemptUser(token.UserId) {
 			if reason := operation_setting.MatchUserAgentGroupPolicy(userGroup, c.Request.UserAgent()); reason != "" {
-				service.HandleUserAgentGroupViolation(token.UserId, userGroup, c.Request.UserAgent(), reason)
-				abortWithOpenAiMessage(c, http.StatusForbidden, reason, types.ErrorCodeAccessDenied)
-				return
+				if isModelListRequest(c) {
+					recordUserAgentRestriction(c, reason)
+				} else {
+					service.HandleUserAgentGroupViolation(token.UserId, userGroup, c.Request.UserAgent(), reason)
+					abortWithOpenAiMessage(c, http.StatusForbidden, reason, types.ErrorCodeAccessDenied)
+					return
+				}
 			}
 		}
 

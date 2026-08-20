@@ -110,6 +110,7 @@ type publicViolationItem struct {
 	DiscordUsername  string `json:"discord_username"`
 	AvatarURL        string `json:"avatar_url"`
 	Reason           string `json:"reason"`
+	UserAgent        string `json:"user_agent"`
 	HitCount         int    `json:"hit_count"`
 	ClientUsageCount int    `json:"client_usage_count"`
 	FirstRecordedAt  int64  `json:"first_recorded_at"`
@@ -196,7 +197,7 @@ func GetPublicViolations(c *gin.Context) {
 		items = append(items, publicViolationItem{
 			UserId: row.UserId, DisplayName: displayName, DiscordUsername: row.DiscordUsernameSnapshot,
 			AvatarURL: discordAvatarURL(row.DiscordIdSnapshot, row.DiscordAvatarSnapshot), Reason: row.ReasonText,
-			HitCount: row.HitCount, ClientUsageCount: usageByUser[row.UserId],
+			UserAgent: row.ClientUA, HitCount: row.HitCount, ClientUsageCount: usageByUser[row.UserId],
 			FirstRecordedAt: row.FirstRecordedAt, LastRecordedAt: row.LastRecordedAt,
 		})
 	}

@@ -57,6 +57,7 @@ export default function SettingsDiceGame(props) {
     'dice_game_setting.daily_reset_hour': 0,
     'dice_game_setting.welfare_balance_threshold': 5000000,
     'dice_game_setting.welfare_daily_grant': 15000000,
+    'dice_game_setting.welfare_daily_round_limit': 1,
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -167,6 +168,18 @@ export default function SettingsDiceGame(props) {
                   min={0}
                   onChange={handleFieldChange(
                     'dice_game_setting.daily_max_plays',
+                  )}
+                  disabled={disabled}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8}>
+                <Form.InputNumber
+                  field={'dice_game_setting.welfare_daily_round_limit'}
+                  label={t('每日自动生成红包期数上限')}
+                  min={1}
+                  precision={0}
+                  onChange={handleFieldChange(
+                    'dice_game_setting.welfare_daily_round_limit',
                   )}
                   disabled={disabled}
                 />

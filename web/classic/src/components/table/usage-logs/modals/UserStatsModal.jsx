@@ -114,6 +114,7 @@ const UserLogsPanel = ({ user, logsData }) => {
         <div style={{ minWidth: compactMode ? 760 : 1200 }}>
           <CardTable
             columns={columns}
+            resizable
             dataSource={logData?.items || []}
             rowKey='key'
             loading={loading}
@@ -489,7 +490,9 @@ const UserStatsModal = (logsData) => {
             type='danger'
             theme='solid'
             loading={batchDisableLoading}
-            onClick={isInactive ? confirmBatchDisableInactive : confirmBatchDisable}
+            onClick={
+              isInactive ? confirmBatchDisableInactive : confirmBatchDisable
+            }
           >
             {t('按当前筛选批量封禁')}
           </Button>

@@ -15,6 +15,7 @@ type DiceGameSetting struct {
 	DailyResetHour          int     `json:"daily_reset_hour"`          // 每日重置小时（服务器本地时区，0-23）
 	WelfareBalanceThreshold int     `json:"welfare_balance_threshold"` // 低保领取余额线
 	WelfareDailyGrant       int     `json:"welfare_daily_grant"`       // 每日低保领取上限
+	WelfareDailyRoundLimit  int     `json:"welfare_daily_round_limit"` // 每日自动生成红包期数上限
 }
 
 // 默认配置
@@ -28,6 +29,7 @@ var diceGameSetting = DiceGameSetting{
 	DailyResetHour:          0,               // 默认服务器本地时间 00:00 重置
 	WelfareBalanceThreshold: 10 * 500 * 1000, // 默认余额低于 10 可领取
 	WelfareDailyGrant:       30 * 500 * 1000, // 默认每日最多领取 30
+	WelfareDailyRoundLimit:  1,               // 默认每日自动生成 1 期红包
 }
 
 func init() {

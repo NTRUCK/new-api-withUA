@@ -234,16 +234,33 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)
 
-		switch relayFormat {
-		case types.RelayFormatOpenAIRealtime:
-			newAPIError = relay.WssHelper(c, relayInfo)
-		case types.RelayFormatClaude:
-			newAPIError = relay.ClaudeHelper(c, relayInfo)
-		case types.RelayFormatGemini:
-			newAPIError = geminiRelayHandler(c, relayInfo)
-		default:
-			newAPIError = relayHandler(c, relayInfo)
+		lease, acquired, acquireErr := service.TryAcquireConcurrency(channel, relayInfo.OriginModelName)
+		if acquireErr != nil {
+			newAPIError = types.NewErrorWithStatusCode(acquireErr, types.ErrorCodeConcurrencyLimitExceeded, http.StatusInternalServerError, types.ErrOptionWithSkipRetry())
+			break
 		}
+		if !acquired {
+			newAPIError = types.NewErrorWithStatusCode(errors.New("当前渠道或模型并发已满，请稍后再试"), types.ErrorCodeConcurrencyLimitExceeded, http.StatusTooManyRequests)
+			relayInfo.LastError = newAPIError
+			if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
+				break
+			}
+			continue
+		}
+
+		newAPIError = func() *types.NewAPIError {
+			defer lease.Release()
+			switch relayFormat {
+			case types.RelayFormatOpenAIRealtime:
+				return relay.WssHelper(c, relayInfo)
+			case types.RelayFormatClaude:
+				return relay.ClaudeHelper(c, relayInfo)
+			case types.RelayFormatGemini:
+				return geminiRelayHandler(c, relayInfo)
+			default:
+				return relayHandler(c, relayInfo)
+			}
+		}()
 
 		if newAPIError == nil {
 			relayInfo.LastError = nil
@@ -322,12 +339,16 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 		if !autoBan {
 			autoBanInt = 0
 		}
-		return &model.Channel{
+		channel := &model.Channel{
 			Id:      c.GetInt("channel_id"),
 			Type:    c.GetInt("channel_type"),
 			Name:    c.GetString("channel_name"),
 			AutoBan: &autoBanInt,
-		}, nil
+		}
+		if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok {
+			channel.SetSetting(channelSetting)
+		}
+		return channel, nil
 	}
 	channel, selectGroup, err := service.CacheGetRandomSatisfiedChannel(retryParam)
 
@@ -572,7 +593,23 @@ func RelayTask(c *gin.Context) {
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)
 
-		result, taskErr = relay.RelayTaskSubmit(c, relayInfo)
+		lease, acquired, acquireErr := service.TryAcquireConcurrency(channel, relayInfo.OriginModelName)
+		if acquireErr != nil {
+			taskErr = service.TaskErrorWrapperLocal(acquireErr, string(types.ErrorCodeConcurrencyLimitExceeded), http.StatusInternalServerError)
+			break
+		}
+		if !acquired {
+			taskErr = service.TaskErrorWrapperLocal(errors.New("当前渠道或模型并发已满，请稍后再试"), string(types.ErrorCodeConcurrencyLimitExceeded), http.StatusTooManyRequests)
+			if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {
+				break
+			}
+			continue
+		}
+
+		result, taskErr = func() (*relay.TaskSubmitResult, *dto.TaskError) {
+			defer lease.Release()
+			return relay.RelayTaskSubmit(c, relayInfo)
+		}()
 		if taskErr == nil {
 			break
 		}

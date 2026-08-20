@@ -38,6 +38,7 @@ type DiceWelfarePool struct {
 	Quota          int64  `gorm:"not null;default:0"`
 	CurrentRoundId int64  `gorm:"not null;default:0"`
 	AutoGrantDate  string `gorm:"type:varchar(10);index"`
+	AutoGrantCount int    `gorm:"not null;default:0"`
 	UpdatedAt      int64  `gorm:"bigint"`
 }
 
@@ -161,11 +162,29 @@ func ensureWelfareRoundTx(tx *gorm.DB, pool *DiceWelfarePool) (*DiceWelfareRound
 	return round, nil
 }
 
-func tryCompleteWelfareRoundTx(tx *gorm.DB, pool *DiceWelfarePool, round *DiceWelfareRound, creatorId int) (bool, error) {
-	if round.ApplicantCount < round.RequiredApplicants || pool.Quota < round.TargetQuota || round.Status == welfareRoundCompleted {
-		return false, nil
+func resetWelfareDailyCountTx(tx *gorm.DB, pool *DiceWelfarePool) error {
+	date := diceWelfareDate()
+	if pool.AutoGrantDate == date {
+		return nil
 	}
-	if pool.AutoGrantDate == diceWelfareDate() {
+	pool.AutoGrantDate = date
+	pool.AutoGrantCount = 0
+	return tx.Model(pool).Updates(map[string]interface{}{"auto_grant_date": date, "auto_grant_count": 0}).Error
+}
+
+func welfareDailyLimitReached(pool *DiceWelfarePool) bool {
+	limit := operation_setting.GetDiceGameSetting().WelfareDailyRoundLimit
+	if limit < 1 {
+		limit = 1
+	}
+	return pool.AutoGrantCount >= limit
+}
+
+func tryCompleteWelfareRoundTx(tx *gorm.DB, pool *DiceWelfarePool, round *DiceWelfareRound, creatorId int) (bool, error) {
+	if err := resetWelfareDailyCountTx(tx, pool); err != nil {
+		return false, err
+	}
+	if welfareDailyLimitReached(pool) || round.ApplicantCount < round.RequiredApplicants || pool.Quota < round.TargetQuota || round.Status == welfareRoundCompleted {
 		return false, nil
 	}
 	debit := tx.Model(&DiceWelfarePool{}).Where("id = ? AND quota >= ?", pool.Id, round.TargetQuota).Update("quota", gorm.Expr("quota - ?", round.TargetQuota))
@@ -179,11 +198,10 @@ func tryCompleteWelfareRoundTx(tx *gorm.DB, pool *DiceWelfarePool, round *DiceWe
 	if err := tx.Model(round).Updates(map[string]interface{}{"status": welfareRoundCompleted, "redemption_id": redemption.Id, "completed_at": time.Now().Unix()}).Error; err != nil {
 		return false, err
 	}
-	p := pool
 	pool.Quota -= round.TargetQuota
 	pool.CurrentRoundId = 0
-	pool.AutoGrantDate = diceWelfareDate()
-	if err := tx.Model(&p).Updates(map[string]interface{}{"current_round_id": 0, "auto_grant_date": pool.AutoGrantDate}).Error; err != nil {
+	pool.AutoGrantCount++
+	if err := tx.Model(pool).Updates(map[string]interface{}{"current_round_id": 0, "auto_grant_date": pool.AutoGrantDate, "auto_grant_count": pool.AutoGrantCount}).Error; err != nil {
 		return false, err
 	}
 	_, err = ensureWelfareRoundTx(tx, pool)
@@ -213,6 +231,9 @@ func GetDiceWelfareStatus(userId int) (map[string]interface{}, error) {
 		if err := tx.FirstOrCreate(&pool, DiceWelfarePool{Id: 1}).Error; err != nil {
 			return err
 		}
+		if err := resetWelfareDailyCountTx(tx, &pool); err != nil {
+			return err
+		}
 		var err error
 		round, err = ensureWelfareRoundTx(tx, &pool)
 		return err
@@ -233,15 +254,24 @@ func GetDiceWelfareStatus(userId int) (map[string]interface{}, error) {
 		return nil, err
 	}
 	setting := operation_setting.GetDiceGameSetting()
+	dailyRoundLimit := setting.WelfareDailyRoundLimit
+	if dailyRoundLimit < 1 {
+		dailyRoundLimit = 1
+	}
+	dailyLimitReached := welfareDailyLimitReached(&pool)
+	waitingForFunds := !dailyLimitReached && round.Status == welfareRoundWaiting && pool.Quota < round.TargetQuota
 	return map[string]interface{}{
 		"balance": balance, "welfare_pool": poolQuota,
 		"welfare_balance_threshold": setting.WelfareBalanceThreshold,
 		"welfare_daily_grant":       setting.WelfareDailyGrant,
 		"welfare_claimed_today":     claimed, "welfare_eligible": eligible,
-		"round_id": round.Id, "round_status": round.Status,
+		"welfare_daily_round_limit": dailyRoundLimit,
+		"welfare_daily_round_count": pool.AutoGrantCount,
+		"round_id":                  round.Id, "round_status": round.Status,
 		"applicant_count": round.ApplicantCount, "required_applicants": round.RequiredApplicants,
-		"applied": applied > 0, "waiting_for_funds": round.Status == welfareRoundWaiting,
-		"target_quota": round.TargetQuota, "max_uses": round.MaxUses,
+		"applied": applied > 0, "daily_limit_reached": dailyLimitReached,
+		"waiting_for_funds": waitingForFunds,
+		"target_quota":      round.TargetQuota, "max_uses": round.MaxUses,
 		"min_quota": round.MinQuota, "max_quota": round.MaxQuota,
 	}, nil
 }
@@ -455,6 +485,12 @@ func ApplyDiceWelfare(userId int) (map[string]interface{}, error) {
 		}
 		if err := query.First(&pool, 1).Error; err != nil {
 			return err
+		}
+		if err := resetWelfareDailyCountTx(tx, &pool); err != nil {
+			return err
+		}
+		if welfareDailyLimitReached(&pool) {
+			return errors.New("今日自动生成红包期数已达上限")
 		}
 		round, err := ensureWelfareRoundTx(tx, &pool)
 		if err != nil {

@@ -268,6 +268,12 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case "global.model_concurrency_mapping":
+		err = setting.CheckModelConcurrencyLimit(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
 	case "ModelRequestRateLimitGroup":
 		err = setting.CheckModelRequestRateLimitGroup(option.Value.(string))
 		if err != nil {
@@ -319,6 +325,15 @@ func UpdateOption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
 				"message": err.Error(),
+			})
+			return
+		}
+	case "dice_game_setting.welfare_daily_round_limit":
+		value, parseErr := strconv.Atoi(strings.TrimSpace(option.Value.(string)))
+		if parseErr != nil || value <= 0 {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "每日自动生成红包期数上限必须为正整数",
 			})
 			return
 		}

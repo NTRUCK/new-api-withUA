@@ -44,6 +44,15 @@ const thinkingExample = JSON.stringify(
   2,
 );
 
+const modelConcurrencyMappingExample = JSON.stringify(
+  {
+    'gpt-5': 10,
+    'claude-sonnet-4-5': 5,
+  },
+  null,
+  2,
+);
+
 const chatCompletionsToResponsesPolicyExample = JSON.stringify(
   {
     enabled: true,
@@ -69,6 +78,7 @@ const chatCompletionsToResponsesPolicyAllChannelsExample = JSON.stringify(
 const defaultGlobalSettingInputs = {
   'global.pass_through_request_enabled': false,
   'global.thinking_model_blacklist': '[]',
+  'global.model_concurrency_mapping': '{}',
   'global.chat_completions_to_responses_policy': '{}',
   'general_setting.ping_interval_enabled': false,
   'general_setting.ping_interval_seconds': 60,
@@ -99,7 +109,10 @@ export default function SettingGlobalModel(props) {
       const text = typeof value === 'string' ? value.trim() : '';
       return text === '' ? '[]' : value;
     }
-    if (key === 'global.chat_completions_to_responses_policy') {
+    if (
+      key === 'global.model_concurrency_mapping' ||
+      key === 'global.chat_completions_to_responses_policy'
+    ) {
       const text = typeof value === 'string' ? value.trim() : '';
       return text === '' ? '{}' : value;
     }
@@ -156,7 +169,10 @@ export default function SettingGlobalModel(props) {
             value = defaultGlobalSettingInputs[key];
           }
         }
-        if (key === 'global.chat_completions_to_responses_policy') {
+        if (
+          key === 'global.model_concurrency_mapping' ||
+          key === 'global.chat_completions_to_responses_policy'
+        ) {
           try {
             value =
               value && String(value).trim() !== ''
@@ -228,6 +244,36 @@ export default function SettingGlobalModel(props) {
                     setInputs({
                       ...inputs,
                       'global.thinking_model_blacklist': value,
+                    })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Col span={24}>
+                <Form.TextArea
+                  label={t('模型并发映射')}
+                  field={'global.model_concurrency_mapping'}
+                  placeholder={
+                    t('例如：') + '\n' + modelConcurrencyMappingExample
+                  }
+                  rows={6}
+                  rules={[
+                    {
+                      validator: (rule, value) => {
+                        if (!value || value.trim() === '') return true;
+                        return verifyJSON(value);
+                      },
+                      message: t('不是合法的 JSON 字符串'),
+                    },
+                  ]}
+                  extraText={t(
+                    'JSON 对象的键为模型名称，值为该模型的并发上限；0 表示不限制',
+                  )}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      'global.model_concurrency_mapping': value,
                     })
                   }
                 />

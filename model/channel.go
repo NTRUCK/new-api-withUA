@@ -945,6 +945,9 @@ func (channel *Channel) ValidateSettings() error {
 			return err
 		}
 	}
+	if channelParams.MaxConcurrency < 0 {
+		return errors.New("max_concurrency cannot be negative")
+	}
 	return nil
 }
 

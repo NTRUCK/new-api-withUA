@@ -87,7 +87,8 @@ const (
 	ErrorCodePreConsumeTokenQuotaFailed ErrorCode = "pre_consume_token_quota_failed"
 
 	// rate limit error
-	ErrorCodeModelDailyLimitExceeded ErrorCode = "model_daily_limit_exceeded"
+	ErrorCodeModelDailyLimitExceeded  ErrorCode = "model_daily_limit_exceeded"
+	ErrorCodeConcurrencyLimitExceeded ErrorCode = "concurrency_limit_exceeded"
 )
 
 type NewAPIError struct {
@@ -287,7 +288,6 @@ func (e *NewAPIError) obfuscatedUpstreamMessage() (string, bool) {
 	}
 	return msg, true
 }
-
 
 func NewError(err error, errorCode ErrorCode, ops ...NewAPIErrorOptions) *NewAPIError {
 	var newErr *NewAPIError
