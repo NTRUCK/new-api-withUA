@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import CardTable from './CardTable';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 
@@ -66,13 +67,15 @@ const LightweightResizableCardTable = ({ columns = [], ...tableProps }) => {
 
                 const startX = event.clientX;
                 const startWidth = headerCell.getBoundingClientRect().width;
-                const startRight =
-                  headerCell.getBoundingClientRect().right -
-                  container.getBoundingClientRect().left;
+                const containerRect = container.getBoundingClientRect();
+                const startRight = headerCell.getBoundingClientRect().right;
                 let nextWidth = startWidth;
 
                 indicator.style.display = 'block';
                 indicator.style.left = `${startRight}px`;
+                indicator.style.top = `${containerRect.top}px`;
+                indicator.style.height = `${containerRect.height}px`;
+                document.body.style.cursor = 'col-resize';
 
                 const handleMouseMove = (moveEvent) => {
                   nextWidth = Math.max(
@@ -86,6 +89,7 @@ const LightweightResizableCardTable = ({ columns = [], ...tableProps }) => {
                   document.removeEventListener('mousemove', handleMouseMove);
                   document.removeEventListener('mouseup', handleMouseUp);
                   indicator.style.display = 'none';
+                  document.body.style.cursor = '';
                   dragCleanupRef.current = null;
                 };
 
@@ -122,21 +126,23 @@ const LightweightResizableCardTable = ({ columns = [], ...tableProps }) => {
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
       <CardTable columns={resizableColumns} {...tableProps} />
-      {!isMobile && (
-        <div
-          ref={indicatorRef}
-          style={{
-            display: 'none',
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            width: 2,
-            background: 'var(--semi-color-primary)',
-            pointerEvents: 'none',
-            zIndex: 10,
-          }}
-        />
-      )}
+      {!isMobile &&
+        createPortal(
+          <div
+            ref={indicatorRef}
+            style={{
+              display: 'none',
+              position: 'fixed',
+              width: 3,
+              background: '#1677ff',
+              boxShadow:
+                '0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 8px rgba(22, 119, 255, 0.75)',
+              pointerEvents: 'none',
+              zIndex: 9999,
+            }}
+          />,
+          document.body,
+        )}
     </div>
   );
 };
