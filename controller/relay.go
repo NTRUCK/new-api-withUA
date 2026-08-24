@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -249,6 +248,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			continue
 		}
 
+		// 开启 524 重试统计时，累计该渠道向上游发起的总请求次数（作为 524 占比的分母）。
+		if common.RetryOn524Enabled {
+			common.IncrUpstreamRequest(channel.Id)
+		}
+
 		newAPIError = func() *types.NewAPIError {
 			defer lease.Release()
 			switch relayFormat {
@@ -274,19 +278,26 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
 
+		// 524（Cloudflare 源站超时）触发统计：无论后续是否重试，只要开启开关就累计该渠道的触发次数。
+		is524 := newAPIError.StatusCode == 524 && common.RetryOn524Enabled
+		if is524 {
+			common.IncrRetry524Trigger(channel.Id)
+		}
+
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
+			if is524 {
+				// 已无重试余额：只触发未重发，持久化统计后退出。
+				persistRetry524Stats()
+			}
 			break
 		}
 
-		// 当且仅当本次失败是 524 且开启了 524 重试开关时，累计额外消耗次数并打结构化日志，
-		// 便于统计因 524 重试而多消耗的上游调用次数。
-		if newAPIError.StatusCode == 524 && common.RetryOn524Enabled {
-			total := common.IncrRetryOn524Count()
-			logger.LogInfo(c, fmt.Sprintf("RetryOn524: channel #%d 524 触发重试（第 %d 次重试），累计额外消耗次数=%d", channel.Id, retryParam.GetRetry()+1, total))
-			// 异步持久化计数到 option 表，保证重启不丢、前端可读。
-			gopool.Go(func() {
-				_ = model.UpdateOption("RetryOn524Count", strconv.FormatInt(total, 10))
-			})
+		// 走到这里说明确实会再向上游重发一次。仅当本次是 524 时累计"实际重试次数"，
+		// 并打结构化日志、异步持久化统计，便于按渠道评估额外消耗的按次计费调用数。
+		if is524 {
+			common.IncrRetry524Retry(channel.Id)
+			logger.LogInfo(c, fmt.Sprintf("RetryOn524: channel #%d 524 触发重试（第 %d 次重试）", channel.Id, retryParam.GetRetry()+1))
+			persistRetry524Stats()
 		}
 	}
 
@@ -300,6 +311,15 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			perfmetrics.RecordRelaySample(relayInfo, false, 0)
 		})
 	}
+}
+
+// persistRetry524Stats 异步将按渠道聚合的 524 统计快照持久化到 option 表（key=RetryOn524Stats），
+// 保证重启不丢、前端可读。
+func persistRetry524Stats() {
+	snapshot := common.MarshalRetry524Stats()
+	gopool.Go(func() {
+		_ = model.UpdateOption("RetryOn524Stats", snapshot)
+	})
 }
 
 var upgrader = websocket.Upgrader{

@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   Banner,
   Button,
@@ -25,6 +25,7 @@ import {
   Form,
   Row,
   Spin,
+  Table,
   Tag,
   Typography,
 } from '@douyinfe/semi-ui';
@@ -49,8 +50,81 @@ export default function SettingsRetry524(props) {
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
 
-  // 只读统计值：因 524 重试而额外消耗的上游调用次数（后端计数器持久化）
-  const retryCount = props.options?.RetryOn524Count ?? '0';
+  // 只读统计值：按渠道聚合的 524 统计（后端持久化的 JSON）
+  const statsRows = useMemo(() => {
+    const raw = props.options?.RetryOn524Stats;
+    if (!raw) return [];
+    let parsed = {};
+    try {
+      parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch (e) {
+      return [];
+    }
+    return Object.keys(parsed)
+      .map((id) => {
+        const s = parsed[id] || {};
+        return {
+          channelId: Number(id),
+          triggerCount: s.trigger_count ?? 0,
+          retryCount: s.retry_count ?? 0,
+          upstreamCount: s.upstream_count ?? 0,
+        };
+      })
+      .sort((a, b) => b.retryCount - a.retryCount);
+  }, [props.options]);
+
+  const totals = useMemo(
+    () =>
+      statsRows.reduce(
+        (acc, r) => {
+          acc.triggerCount += r.triggerCount;
+          acc.retryCount += r.retryCount;
+          acc.upstreamCount += r.upstreamCount;
+          return acc;
+        },
+        { triggerCount: 0, retryCount: 0, upstreamCount: 0 },
+      ),
+    [statsRows],
+  );
+
+  const columns = [
+    { title: t('渠道 ID'), dataIndex: 'channelId', width: 100 },
+    {
+      title: t('524 触发次数'),
+      dataIndex: 'triggerCount',
+      render: (v) => (
+        <Tag color='red' size='large'>
+          {v}
+        </Tag>
+      ),
+    },
+    {
+      title: t('实际重试次数'),
+      dataIndex: 'retryCount',
+      render: (v) => (
+        <Tag color='orange' size='large'>
+          {v}
+        </Tag>
+      ),
+    },
+    {
+      title: t('上游总请求次数'),
+      dataIndex: 'upstreamCount',
+      render: (v) => (
+        <Tag color='blue' size='large'>
+          {v}
+        </Tag>
+      ),
+    },
+    {
+      title: t('524 占比'),
+      dataIndex: 'ratio',
+      render: (_, r) =>
+        r.upstreamCount > 0
+          ? `${((r.triggerCount / r.upstreamCount) * 100).toFixed(1)}%`
+          : '-',
+    },
+  ];
 
   function handleFieldChange(fieldName) {
     return (value) => {
@@ -131,29 +205,45 @@ export default function SettingsRetry524(props) {
                 onChange={handleFieldChange('RetryOn524Enabled')}
               />
             </Col>
-            <Col xs={24} sm={12} md={8} lg={8} xl={8}>
-              <Form.Slot label={t('额外消耗次数统计')}>
-                <div style={{ marginTop: 4 }}>
-                  <Tag color='orange' size='large'>
-                    {t('因 524 重试累计额外调用')}：{retryCount} {t('次')}
+          </Row>
+          <Row>
+            <Button size='default' onClick={onSubmit}>
+              {t('保存')}
+            </Button>
+          </Row>
+          <Row style={{ marginTop: 20 }}>
+            <Col span={24}>
+              <Form.Slot label={t('各渠道 524 消耗统计')}>
+                <div style={{ marginBottom: 8 }}>
+                  <Tag color='red' size='large' style={{ marginRight: 8 }}>
+                    {t('触发合计')}：{totals.triggerCount}
+                  </Tag>
+                  <Tag color='orange' size='large' style={{ marginRight: 8 }}>
+                    {t('重试合计')}：{totals.retryCount}
+                  </Tag>
+                  <Tag color='blue' size='large'>
+                    {t('上游请求合计')}：{totals.upstreamCount}
                   </Tag>
                 </div>
+                <Table
+                  columns={columns}
+                  dataSource={statsRows}
+                  rowKey='channelId'
+                  size='small'
+                  pagination={false}
+                  empty={t('暂无 524 统计数据（开关开启且发生 524 后显示）')}
+                />
                 <Text
                   type='tertiary'
                   size='small'
                   style={{ marginTop: 6, display: 'block' }}
                 >
                   {t(
-                    '该计数为进程累计值并持久化保存，用于评估额度供给。可在数据库 options 表中将 RetryOn524Count 置 0 以重置统计。',
+                    '触发次数=524 报错次数；实际重试次数=因 524 真正向上游重发的次数（额外消耗的按次计费调用）；上游总请求次数用作 524 占比分母。统计持久化保存，可在数据库 options 表中将 RetryOn524Stats 置为 {} 以重置。',
                   )}
                 </Text>
               </Form.Slot>
             </Col>
-          </Row>
-          <Row>
-            <Button size='default' onClick={onSubmit}>
-              {t('保存')}
-            </Button>
           </Row>
         </Form.Section>
       </Form>
