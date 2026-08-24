@@ -200,7 +200,7 @@ export default function SettingsRetry524(props) {
                 checkedText='｜'
                 uncheckedText='〇'
                 extraText={t(
-                  '依赖“监控设置-失败重试次数”，建议设为 2-3 次；多 Key 渠道每次重试会自动更换 Key',
+                  '依赖“通用设置-失败重试次数”，建议设为 2-3 次；多 Key 渠道每次重试会自动更换 Key',
                 )}
                 onChange={handleFieldChange('RetryOn524Enabled')}
               />

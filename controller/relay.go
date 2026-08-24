@@ -286,17 +286,21 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
 			if is524 {
-				// 已无重试余额：只触发未重发，持久化统计后退出。
+				// 不再重试：只触发未重发，持久化统计后退出。
 				persistRetry524Stats()
 			}
 			break
 		}
 
-		// 走到这里说明确实会再向上游重发一次。仅当本次是 524 时累计"实际重试次数"，
-		// 并打结构化日志、异步持久化统计，便于按渠道评估额外消耗的按次计费调用数。
+		// shouldRetry 为 true 并不代表循环一定会再跑一轮：524 属于 channel error，
+		// 会在 shouldRetry 中提前返回 true 而绕过重试次数限制，但循环条件
+		// retry <= RetryTimes 仍会在 IncreaseRetry 后终止循环。
+		// 因此只有 retry < RetryTimes 时，才确实会再向上游重发一次，才计入"实际重试次数"。
 		if is524 {
-			common.IncrRetry524Retry(channel.Id)
-			logger.LogInfo(c, fmt.Sprintf("RetryOn524: channel #%d 524 触发重试（第 %d 次重试）", channel.Id, retryParam.GetRetry()+1))
+			if retryParam.GetRetry() < common.RetryTimes {
+				common.IncrRetry524Retry(channel.Id)
+				logger.LogInfo(c, fmt.Sprintf("RetryOn524: channel #%d 524 触发重试（第 %d 次重试）", channel.Id, retryParam.GetRetry()+1))
+			}
 			persistRetry524Stats()
 		}
 	}
