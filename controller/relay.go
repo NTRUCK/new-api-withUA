@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -275,6 +276,17 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
 			break
+		}
+
+		// 当且仅当本次失败是 524 且开启了 524 重试开关时，累计额外消耗次数并打结构化日志，
+		// 便于统计因 524 重试而多消耗的上游调用次数。
+		if newAPIError.StatusCode == 524 && common.RetryOn524Enabled {
+			total := common.IncrRetryOn524Count()
+			logger.LogInfo(c, fmt.Sprintf("RetryOn524: channel #%d 524 触发重试（第 %d 次重试），累计额外消耗次数=%d", channel.Id, retryParam.GetRetry()+1, total))
+			// 异步持久化计数到 option 表，保证重启不丢、前端可读。
+			gopool.Go(func() {
+				_ = model.UpdateOption("RetryOn524Count", strconv.FormatInt(total, 10))
+			})
 		}
 	}
 

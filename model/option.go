@@ -191,6 +191,8 @@ func InitOptionMap() {
 	common.OptionMap["UserAgentGroupExemptUserIds"] = operation_setting.UserAgentGroupExemptUserIdsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	common.OptionMap["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
+	common.OptionMap["RetryOn524Enabled"] = strconv.FormatBool(common.RetryOn524Enabled)
+	common.OptionMap["RetryOn524Count"] = strconv.FormatInt(common.GetRetryOn524Count(), 10)
 	common.OptionMap["ExposeRatioEnabled"] = strconv.FormatBool(ratio_setting.IsExposeRatioEnabled())
 
 	// 自动添加所有注册的模型配置
@@ -566,6 +568,12 @@ func updateOptionMap(key string, value string) (err error) {
 		err = setting.UpdateUserDailyTierByJSONString(value)
 	case "RetryTimes":
 		common.RetryTimes, _ = strconv.Atoi(value)
+	case "RetryOn524Enabled":
+		common.RetryOn524Enabled, _ = strconv.ParseBool(value)
+	case "RetryOn524Count":
+		if v, convErr := strconv.ParseInt(value, 10, 64); convErr == nil {
+			common.SetRetryOn524CountIfLarger(v)
+		}
 	case "DataExportInterval":
 		common.DataExportInterval, _ = strconv.Atoi(value)
 	case "DataExportDefaultTime":

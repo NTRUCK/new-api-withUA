@@ -25,6 +25,7 @@ import SettingsSidebarModulesAdmin from '../../pages/Setting/Operation/SettingsS
 import SettingsSensitiveWords from '../../pages/Setting/Operation/SettingsSensitiveWords';
 import SettingsLog from '../../pages/Setting/Operation/SettingsLog';
 import SettingsMonitoring from '../../pages/Setting/Operation/SettingsMonitoring';
+import SettingsRetry524 from '../../pages/Setting/Operation/SettingsRetry524';
 import SettingsCreditLimit from '../../pages/Setting/Operation/SettingsCreditLimit';
 import SettingsCheckin from '../../pages/Setting/Operation/SettingsCheckin';
 import SettingsDiceGame from '../../pages/Setting/Operation/SettingsDiceGame';
@@ -76,6 +77,8 @@ const OperationSetting = () => {
     AutomaticDisableStatusCodes: '401',
     AutomaticRetryStatusCodes:
       '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
+    RetryOn524Enabled: false,
+    RetryOn524Count: '0',
     'monitor_setting.auto_test_channel_enabled': false,
     'monitor_setting.auto_test_channel_minutes': 10,
     UserAgentBanEnabled: false,
@@ -176,6 +179,10 @@ const OperationSetting = () => {
         {/* 监控设置 */}
         <Card style={{ marginTop: '10px' }}>
           <SettingsMonitoring options={inputs} refresh={onRefresh} />
+        </Card>
+        {/* 524 超时重试设置 */}
+        <Card style={{ marginTop: '10px' }}>
+          <SettingsRetry524 options={inputs} refresh={onRefresh} />
         </Card>
         {/* 额度设置 */}
         <Card style={{ marginTop: '10px' }}>

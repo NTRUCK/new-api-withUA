@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/types"
 )
 
@@ -78,6 +79,11 @@ func IsAlwaysSkipRetryCode(errorCode types.ErrorCode) bool {
 }
 
 func ShouldRetryByStatusCode(code int) bool {
+	// 524（Cloudflare 源站超时）默认在 alwaysSkipRetryStatusCodes 中永不重试。
+	// 当管理员显式开启 RetryOn524Enabled 时，放行 524 进入重试链。
+	if code == 524 && common.RetryOn524Enabled {
+		return true
+	}
 	if IsAlwaysSkipRetryStatusCode(code) {
 		return false
 	}
