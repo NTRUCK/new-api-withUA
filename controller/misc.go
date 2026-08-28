@@ -123,6 +123,8 @@ func GetStatus(c *gin.Context) {
 		"dice_game_enabled":           operation_setting.GetDiceGameSetting().Enabled,
 		"dice_game_show_entry":        operation_setting.GetDiceGameSetting().ShowEntry,
 		"quota_query_show_entry":      operation_setting.GetQuotaQuerySetting().ShowEntry,
+		"discord_community_enabled":   operation_setting.GetGeneralSetting().DiscordEnabled,
+		"discord_community_link":      operation_setting.GetGeneralSetting().DiscordLink,
 	}
 
 	// 根据启用状态注入可选内容

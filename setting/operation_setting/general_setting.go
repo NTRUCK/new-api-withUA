@@ -20,6 +20,9 @@ type GeneralSetting struct {
 	CustomCurrencySymbol string `json:"custom_currency_symbol"`
 	// 自定义货币与美元汇率（1 USD = X Custom）
 	CustomCurrencyExchangeRate float64 `json:"custom_currency_exchange_rate"`
+	// Discord 社区入口：开启后在页脚展示跳转链接
+	DiscordEnabled bool   `json:"discord_enabled"`
+	DiscordLink    string `json:"discord_link"`
 }
 
 // 默认配置
@@ -30,6 +33,8 @@ var generalSetting = GeneralSetting{
 	QuotaDisplayType:           QuotaDisplayTypeUSD,
 	CustomCurrencySymbol:       "¤",
 	CustomCurrencyExchangeRate: 1.0,
+	DiscordEnabled:             false,
+	DiscordLink:                "",
 }
 
 func init() {

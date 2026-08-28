@@ -60,6 +60,8 @@ export default function GeneralSettings(props) {
     SelfUseModeEnabled: false,
     'ranking_setting.exclude_admin_and_root': false,
     'token_setting.max_user_tokens': 1000,
+    'general_setting.discord_enabled': false,
+    'general_setting.discord_link': '',
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -419,6 +421,31 @@ export default function GeneralSettings(props) {
                   extraText={t('每个用户最多可创建的令牌数量，默认 1000，设置过大可能会影响性能')}
                   placeholder={'1000'}
                   onChange={handleFieldChange('token_setting.max_user_tokens')}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'general_setting.discord_enabled'}
+                  label={t('页脚显示 Discord 社区入口')}
+                  extraText={t(
+                    '开启后页脚展示"加入 Discord 社区"跳转链接，需同时填写链接',
+                  )}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={handleFieldChange(
+                    'general_setting.discord_enabled',
+                  )}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Input
+                  field={'general_setting.discord_link'}
+                  label={t('Discord 社区链接')}
+                  initValue={''}
+                  placeholder={t('例如 https://discord.gg/xxxxxxxx')}
+                  onChange={handleFieldChange('general_setting.discord_link')}
+                  showClear
                 />
               </Col>
             </Row>

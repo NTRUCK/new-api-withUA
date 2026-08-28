@@ -30,6 +30,12 @@ const FooterBar = () => {
   const logo = getLogo();
   const [statusState] = useContext(StatusContext);
   const isDemoSiteMode = statusState?.status?.demo_site_enabled || false;
+  // Discord 社区入口（运营设置-通用设置），开启且配置了链接才展示
+  const discordLink =
+    statusState?.status?.discord_community_enabled &&
+    statusState?.status?.discord_community_link
+      ? statusState.status.discord_community_link
+      : '';
 
   const loadFooter = () => {
     let footer_html = localStorage.getItem('footer_html');
@@ -193,6 +199,16 @@ const FooterBar = () => {
             <Typography.Text className='text-sm !text-semi-color-text-1'>
               © {currentYear} {systemName}. {t('版权所有')}
             </Typography.Text>
+            {discordLink && (
+              <a
+                href={discordLink}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-sm !text-semi-color-primary ml-2'
+              >
+                {t('加入 Discord 社区')}
+              </a>
+            )}
           </div>
 
           <div className='text-sm'>
@@ -211,7 +227,7 @@ const FooterBar = () => {
         </div>
       </footer>
     ),
-    [logo, systemName, t, currentYear, isDemoSiteMode],
+    [logo, systemName, t, currentYear, isDemoSiteMode, discordLink],
   );
 
   useEffect(() => {
@@ -223,10 +239,22 @@ const FooterBar = () => {
       {footer ? (
         <footer className='relative h-auto py-4 px-6 md:px-24 w-full flex items-center justify-center overflow-hidden'>
           <div className='flex flex-col md:flex-row items-center justify-between w-full max-w-[1110px] gap-4'>
-            <div
-              className='custom-footer na-cb6feafeb3990c78 text-sm !text-semi-color-text-1'
-              dangerouslySetInnerHTML={{ __html: footer }}
-            ></div>
+            <div className='flex flex-wrap items-center gap-2'>
+              <div
+                className='custom-footer na-cb6feafeb3990c78 text-sm !text-semi-color-text-1'
+                dangerouslySetInnerHTML={{ __html: footer }}
+              ></div>
+              {discordLink && (
+                <a
+                  href={discordLink}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='text-sm !text-semi-color-primary ml-2'
+                >
+                  {t('加入 Discord 社区')}
+                </a>
+              )}
+            </div>
             <div className='text-sm flex-shrink-0'>
               <span className='!text-semi-color-text-1'>
                 {t('设计与开发由')}{' '}
