@@ -252,6 +252,7 @@ oauth.user_info_empty: "{{.Provider}} 获取用户信息为空，请检查设置
 oauth.trust_level_low: "Linux DO 信任等级未达到管理员设置的最低信任等级"
 oauth.discord_not_guild_member: "你尚未加入指定的 Discord 服务器，无法登录/注册，请先加入后重试"
 oauth.discord_missing_role: "你在指定 Discord 服务器中缺少所需身份组，无法登录/注册"
+oauth.discord_guild_rules_not_satisfied: "你不满足服务器准入要求（未加入指定服务器或缺少所需身份组），无法登录/注册"
 
 # Model layer error messages
 redeem.failed: "兑换失败，请稍后重试"

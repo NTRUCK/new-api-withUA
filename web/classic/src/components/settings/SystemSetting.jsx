@@ -60,6 +60,8 @@ const SystemSetting = () => {
     'discord.guild_id': '',
     'discord.require_role': '',
     'discord.role_id': '',
+    'discord.guild_rules': '',
+    'discord.guild_rules_match': 'any',
     'discord.register_limit_whitelist': '',
     'oidc.enabled': '',
     'oidc.client_id': '',
@@ -232,6 +234,24 @@ const SystemSetting = () => {
           case 'passkey.user_verification':
             // 确保有默认值
             item.value = item.value || 'preferred';
+            break;
+          case 'discord.guild_rules':
+            // JSON 数组 → 每行一条「服务器ID,身份组ID」（身份组可省略）
+            try {
+              const rules = item.value ? JSON.parse(item.value) : [];
+              item.value = Array.isArray(rules)
+                ? rules
+                    .map((r) =>
+                      [r.guild_id, r.role_id].filter(Boolean).join(','),
+                    )
+                    .join('\n')
+                : '';
+            } catch (e) {
+              item.value = '';
+            }
+            break;
+          case 'discord.guild_rules_match':
+            item.value = item.value === 'all' ? 'all' : 'any';
             break;
           case 'Price':
           case 'MinTopUp':
@@ -558,6 +578,44 @@ const SystemSetting = () => {
       options.push({
         key: 'discord.role_id',
         value: inputs['discord.role_id'],
+      });
+    }
+    // 多服务器规则：TextArea 文本 → JSON 数组
+    if (originInputs['discord.guild_rules'] !== inputs['discord.guild_rules']) {
+      const lines = (inputs['discord.guild_rules'] || '')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const rules = [];
+      for (const line of lines) {
+        const parts = line.split(/[,，\s]+/).map((s) => s.trim());
+        const [guildId, roleId] = parts;
+        if (!guildId || !/^\d+$/.test(guildId)) {
+          showError(
+            t('多服务器规则格式有误：每行应为「服务器ID」或「服务器ID,身份组ID」，且 ID 为纯数字'),
+          );
+          return;
+        }
+        if (roleId && !/^\d+$/.test(roleId)) {
+          showError(
+            t('多服务器规则格式有误：每行应为「服务器ID」或「服务器ID,身份组ID」，且 ID 为纯数字'),
+          );
+          return;
+        }
+        rules.push({ guild_id: guildId, role_id: roleId || '' });
+      }
+      options.push({
+        key: 'discord.guild_rules',
+        value: JSON.stringify(rules),
+      });
+    }
+    if (
+      originInputs['discord.guild_rules_match'] !==
+      inputs['discord.guild_rules_match']
+    ) {
+      options.push({
+        key: 'discord.guild_rules_match',
+        value: inputs['discord.guild_rules_match'] || 'any',
       });
     }
     if (
@@ -1591,7 +1649,7 @@ const SystemSetting = () => {
                   <Banner
                     type='warning'
                     description={t(
-                      '服务器准入：启用后，只有加入指定 Discord 服务器（可选：并持有指定身份组）的用户才能登录/注册，且每次登录都会校验。需确保上方 OAuth 授权范围包含 guilds.members.read（本站登录按钮已自动申请）。',
+                      '服务器准入：启用后，只有满足指定 Discord 服务器（可选：并持有指定身份组）要求的用户才能登录/注册，且每次登录都会校验。配置多服务器规则后优先生效；未配置时使用上方单服务器规则。需确保 OAuth 授权范围包含 guilds.members.read（本站登录按钮已自动申请）。',
                     )}
                     style={{ marginBottom: 16, marginTop: 8 }}
                   />
@@ -1644,6 +1702,42 @@ const SystemSetting = () => {
                           !inputs['discord.guild_gating'] ||
                           !inputs['discord.require_role']
                         }
+                      />
+                    </Col>
+                  </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.RadioGroup
+                        field="['discord.guild_rules_match']"
+                        label={t('多服务器规则匹配方式')}
+                        extraText={t(
+                          '满足任一：通过任意一条规则即可登录；全部满足：每条规则都必须通过。仅在填写了多服务器规则时生效。',
+                        )}
+                        disabled={!inputs['discord.guild_gating']}
+                        onChange={(value) => {
+                          setInputs({
+                            ...inputs,
+                            'discord.guild_rules_match': value,
+                          });
+                        }}
+                      >
+                        <Radio value='any'>{t('满足任一')}</Radio>
+                        <Radio value='all'>{t('全部满足')}</Radio>
+                      </Form.RadioGroup>
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.TextArea
+                        field="['discord.guild_rules']"
+                        label={t('多服务器准入规则')}
+                        extraText={t(
+                          '每行一条：「服务器ID」或「服务器ID,身份组ID」（身份组可省略，省略则仅要求加入该服务器）。填写后优先生效，忽略上方单服务器配置。',
+                        )}
+                        placeholder={'1134557553011998840,1335363403870502912\n987654321098765432'}
+                        autosize={{ minRows: 4, maxRows: 10 }}
+                        disabled={!inputs['discord.guild_gating']}
+                        style={{ fontFamily: 'JetBrains Mono, Consolas' }}
                       />
                     </Col>
                   </Row>

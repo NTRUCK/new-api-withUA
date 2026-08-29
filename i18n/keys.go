@@ -298,6 +298,8 @@ const (
 
 	MsgOAuthDiscordNotGuildMember = "oauth.discord_not_guild_member"
 	MsgOAuthDiscordMissingRole    = "oauth.discord_missing_role"
+	// MsgOAuthDiscordGuildRulesNotSatisfied 多服务器准入（任一模式）下所有规则均未满足
+	MsgOAuthDiscordGuildRulesNotSatisfied = "oauth.discord_guild_rules_not_satisfied"
 )
 
 // Model layer error messages (for translation in controller)

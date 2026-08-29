@@ -251,6 +251,7 @@ oauth.user_info_empty: "{{.Provider}} returned empty user info, please check set
 oauth.trust_level_low: "Linux DO trust level does not meet the minimum required by administrator"
 oauth.discord_not_guild_member: "You have not joined the required Discord server; please join it and try again"
 oauth.discord_missing_role: "You lack the required role in the specified Discord server, cannot login/register"
+oauth.discord_guild_rules_not_satisfied: "You do not meet the server admission requirements (not a member of the required server(s) or missing required role), cannot login/register"
 
 # Model layer error messages
 redeem.failed: "Redemption failed, please try again later"
