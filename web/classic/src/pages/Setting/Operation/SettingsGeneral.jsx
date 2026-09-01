@@ -27,7 +27,6 @@ import {
   Spin,
   Modal,
   Input,
-  Select,
   Typography,
 } from '@douyinfe/semi-ui';
 import {
@@ -40,40 +39,6 @@ import {
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
-
-// 常用货币符号选项（管理员下拉选择）
-const CURRENCY_SYMBOL_OPTIONS = [
-  { value: '$', label: '$ 美元 USD' },
-  { value: '¥', label: '¥ 人民币 CNY' },
-  { value: '€', label: '€ 欧元 EUR' },
-  { value: '£', label: '£ 英镑 GBP' },
-  { value: '₩', label: '₩ 韩元 KRW' },
-  { value: '₹', label: '₹ 卢比 INR' },
-  { value: '₽', label: '₽ 卢布 RUB' },
-  { value: '₫', label: '₫ 越南盾 VND' },
-  { value: '฿', label: '฿ 泰铢 THB' },
-  { value: '₱', label: '₱ 比索 PHP' },
-  { value: '₺', label: '₺ 里拉 TRY' },
-  { value: 'zł', label: 'zł 兹罗提 PLN' },
-  { value: '₴', label: '₴ 格里夫纳 UAH' },
-  { value: 'Rp', label: 'Rp 印尼盾 IDR' },
-  { value: 'R$', label: 'R$ 雷亚尔 BRL' },
-  { value: 'A$', label: 'A$ 澳元 AUD' },
-  { value: 'C$', label: 'C$ 加元 CAD' },
-  { value: 'HK$', label: 'HK$ 港币 HKD' },
-  { value: 'NT$', label: 'NT$ 新台币 TWD' },
-  { value: 'S$', label: 'S$ 新加坡元 SGD' },
-  { value: '¤', label: '¤ 通用货币符号' },
-];
-
-// 若当前值不在预设列表中（如历史自定义符号），保留在选项首位
-function getSymbolOptions(current, t) {
-  const list = [...CURRENCY_SYMBOL_OPTIONS];
-  if (current && !list.some((o) => o.value === current)) {
-    list.unshift({ value: current, label: `${current} (${t('当前使用')})` });
-  }
-  return list;
-}
 
 const { Text } = Typography;
 
@@ -446,21 +411,17 @@ export default function GeneralSettings(props) {
                     : undefined
                 }
               >
-                <Form.Select
+                <Form.Input
                   field='general_setting.custom_currency_symbol'
                   label={t('自定义货币符号')}
                   extraText={t(
                     '自定义货币符号将显示在所有额度数值前，例如 €1.50',
                   )}
-                  placeholder={t('请选择货币符号')}
-                  filter
-                  optionList={getSymbolOptions(
-                    inputs['general_setting.custom_currency_symbol'],
-                    t,
-                  )}
+                  placeholder={t('例如 🐔🎱, €, £, Rp, ₩, ₹...')}
                   onChange={handleFieldChange(
                     'general_setting.custom_currency_symbol',
                   )}
+                  showClear
                 />
               </Col>
               <Col span={24}>
@@ -500,12 +461,10 @@ export default function GeneralSettings(props) {
                         value={row.name}
                         onChange={(v) => updateCurrencyRow(idx, 'name', v)}
                       />
-                      <Select
-                        placeholder={t('请选择符号')}
-                        style={{ width: 180 }}
-                        value={row.symbol || undefined}
-                        filter
-                        optionList={getSymbolOptions(row.symbol, t)}
+                      <Input
+                        placeholder={t('符号，如 🐔🎱')}
+                        style={{ width: 120 }}
+                        value={row.symbol}
                         onChange={(v) => updateCurrencyRow(idx, 'symbol', v)}
                       />
                       <Input
