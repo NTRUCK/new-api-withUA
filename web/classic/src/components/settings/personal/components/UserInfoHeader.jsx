@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   Avatar,
   Card,
@@ -25,16 +25,113 @@ import {
   Divider,
   Typography,
   Badge,
+  Select,
 } from '@douyinfe/semi-ui';
 import {
   isRoot,
   isAdmin,
   renderQuota,
   stringToColor,
+  API,
+  showSuccess,
+  showError,
 } from '../../../../helpers';
 import { Coins, BarChart2, Users } from 'lucide-react';
+import { UserContext } from '../../../../context/User';
+import { useTranslation } from 'react-i18next';
+
+// 读取管理员预设的展示货币列表（来自 /api/status 缓存）
+const getCustomCurrencies = () => {
+  try {
+    const statusStr = localStorage.getItem('status');
+    if (!statusStr) return [];
+    const s = JSON.parse(statusStr);
+    const list = s?.custom_currencies;
+    if (!Array.isArray(list)) return [];
+    return list.filter((c) => c && c.key && c.symbol);
+  } catch (e) {
+    return [];
+  }
+};
 
 const UserInfoHeader = ({ t, userState }) => {
+  const { i18n } = useTranslation();
+  const [, userDispatch] = useContext(UserContext);
+  const [currentCurrency, setCurrentCurrency] = useState('');
+  const [savingCurrency, setSavingCurrency] = useState(false);
+  const [customCurrencies, setCustomCurrencies] = useState(
+    getCustomCurrencies,
+  );
+
+  useEffect(() => {
+    setCustomCurrencies(getCustomCurrencies());
+  }, [i18n.language]);
+
+  // 从用户设置中加载已保存的展示货币偏好
+  useEffect(() => {
+    if (userState?.user?.setting) {
+      try {
+        const settings = JSON.parse(userState.user.setting);
+        setCurrentCurrency(settings.display_currency || '');
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  }, [userState?.user?.setting]);
+
+  const handleCurrencyChange = async (key) => {
+    if (key === currentCurrency || savingCurrency) return;
+    setSavingCurrency(true);
+    const previousCurrency = currentCurrency;
+    setCurrentCurrency(key);
+    try {
+      // 仅能选择管理员预设的货币（空串 = 跟随站点默认）
+      const res = await API.put('/api/user/self', {
+        display_currency: key,
+      });
+      if (res.data.success) {
+        // 同步 user setting 到上下文与本地缓存
+        let settings = {};
+        if (userState?.user?.setting) {
+          try {
+            settings = JSON.parse(userState.user.setting) || {};
+          } catch (e) {
+            settings = {};
+          }
+        }
+        settings.display_currency = key;
+        const nextUser = {
+          ...userState.user,
+          setting: JSON.stringify(settings),
+        };
+        userDispatch({ type: 'login', payload: nextUser });
+        localStorage.setItem('user', JSON.stringify(nextUser));
+        // 渲染函数直读此键，立即生效
+        if (key) {
+          localStorage.setItem('display_currency', key);
+        } else {
+          localStorage.removeItem('display_currency');
+        }
+        showSuccess(t('展示货币已保存'));
+      } else {
+        showError(res.data.message || t('保存失败'));
+        setCurrentCurrency(previousCurrency);
+      }
+    } catch (error) {
+      showError(t('保存失败，请重试'));
+      setCurrentCurrency(previousCurrency);
+    } finally {
+      setSavingCurrency(false);
+    }
+  };
+
+  const currencyOptions = [
+    { value: '', label: t('跟随站点默认') },
+    ...customCurrencies.map((c) => ({
+      value: c.key,
+      label: `${c.name || c.key} (${c.symbol})`,
+    })),
+  ];
   const getUsername = () => {
     if (userState.user) {
       return userState.user.username;
@@ -118,12 +215,38 @@ const UserInfoHeader = ({ t, userState }) => {
     >
       {/* 当前余额和桌面版统计信息 */}
       <div className='flex items-start justify-between gap-6'>
-        {/* 当前余额显示 */}
-        <Badge count={t('当前余额')} position='rightTop' type='danger'>
-          <div className='text-2xl sm:text-3xl md:text-4xl font-bold tracking-wide'>
-            {renderQuota(userState?.user?.quota)}
-          </div>
-        </Badge>
+        <div>
+          {/* 当前余额显示 */}
+          <Badge count={t('当前余额')} position='rightTop' type='danger'>
+            <div className='text-2xl sm:text-3xl md:text-4xl font-bold tracking-wide'>
+              {renderQuota(userState?.user?.quota)}
+            </div>
+          </Badge>
+
+          {/* 展示货币选择（管理员未配置预设货币时不显示） */}
+          {customCurrencies.length > 0 && (
+            <div className='flex items-center gap-2 mt-3'>
+              <Typography.Text size='small' type='tertiary'>
+                {t('展示货币')}
+              </Typography.Text>
+              <Select
+                size='small'
+                value={
+                  currencyOptions.some((o) => o.value === currentCurrency)
+                    ? currentCurrency
+                    : currentCurrency
+                      ? undefined
+                      : ''
+                }
+                placeholder={t('已失效，请重新选择')}
+                onChange={handleCurrencyChange}
+                style={{ width: 180 }}
+                loading={savingCurrency}
+                optionList={currencyOptions}
+              />
+            </div>
+          )}
+        </div>
 
         {/* 桌面版统计信息（Semi UI 卡片） */}
         <div className='hidden lg:block flex-shrink-0'>
