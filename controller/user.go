@@ -726,6 +726,31 @@ func UpdateSelf(c *gin.Context) {
 		return
 	}
 
+	// 检查是否是展示货币偏好更新请求（仅能选择管理员预设的货币，不能自定义）
+	if displayCurrency, dcExists := requestData["display_currency"]; dcExists {
+		key, _ := displayCurrency.(string)
+		// 校验：空字符串表示清除偏好（跟随站点默认），否则必须在预设列表内
+		if key != "" && operation_setting.GetCustomCurrency(key) == nil {
+			common.ApiError(c, errors.New("不支持的展示货币"))
+			return
+		}
+		userId := c.GetInt("id")
+		user, err := model.GetUserById(userId, false)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		currentSetting := user.GetSetting()
+		currentSetting.DisplayCurrency = key
+		user.SetSetting(currentSetting)
+		if err := user.Update(false); err != nil {
+			common.ApiErrorI18n(c, i18n.MsgUpdateFailed)
+			return
+		}
+		common.ApiSuccessI18n(c, i18n.MsgUpdateSuccess, nil)
+		return
+	}
+
 	// 原有的用户信息更新逻辑
 	var user model.User
 	requestDataBytes, err := json.Marshal(requestData)

@@ -10,6 +10,18 @@ const (
 	QuotaDisplayTypeCustom = "CUSTOM"
 )
 
+// CustomCurrency 预设自定义货币（管理员配置，成员可从中选择展示偏好）
+type CustomCurrency struct {
+	// 唯一标识（成员偏好存储引用此 key）
+	Key string `json:"key"`
+	// 显示名称
+	Name string `json:"name"`
+	// 货币符号
+	Symbol string `json:"symbol"`
+	// 1 USD = X 该货币
+	RateToUSD float64 `json:"rate_to_usd"`
+}
+
 type GeneralSetting struct {
 	DocsLink            string `json:"docs_link"`
 	PingIntervalEnabled bool   `json:"ping_interval_enabled"`
@@ -20,6 +32,8 @@ type GeneralSetting struct {
 	CustomCurrencySymbol string `json:"custom_currency_symbol"`
 	// 自定义货币与美元汇率（1 USD = X Custom）
 	CustomCurrencyExchangeRate float64 `json:"custom_currency_exchange_rate"`
+	// 预设自定义货币列表：成员可在个人设置中选择展示货币，仅能从此列表选择
+	CustomCurrencies []CustomCurrency `json:"custom_currencies"`
 	// Discord 社区入口：开启后在页脚展示跳转链接
 	DiscordEnabled bool   `json:"discord_enabled"`
 	DiscordLink    string `json:"discord_link"`
@@ -42,8 +56,33 @@ func init() {
 	config.GlobalConfig.Register("general_setting", &generalSetting)
 }
 
+// GetGeneralSetting 返回通用设置
 func GetGeneralSetting() *GeneralSetting {
 	return &generalSetting
+}
+
+// GetCustomCurrencies 返回预设自定义货币列表（过滤无效项）
+func GetCustomCurrencies() []CustomCurrency {
+	result := make([]CustomCurrency, 0, len(generalSetting.CustomCurrencies))
+	for _, c := range generalSetting.CustomCurrencies {
+		if c.Key != "" && c.Symbol != "" && c.RateToUSD > 0 {
+			result = append(result, c)
+		}
+	}
+	return result
+}
+
+// GetCustomCurrency 按 key 查找预设货币，不存在返回 nil
+func GetCustomCurrency(key string) *CustomCurrency {
+	if key == "" {
+		return nil
+	}
+	for i, c := range generalSetting.CustomCurrencies {
+		if c.Key == key && c.Symbol != "" && c.RateToUSD > 0 {
+			return &generalSetting.CustomCurrencies[i]
+		}
+	}
+	return nil
 }
 
 // IsCurrencyDisplay 是否以货币形式展示（美元或人民币）

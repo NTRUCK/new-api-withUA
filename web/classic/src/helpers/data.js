@@ -26,6 +26,17 @@ export function setStatusData(data) {
   // 兼容：保留旧字段，同时写入新的额度展示类型
   localStorage.setItem('display_in_currency', data.display_in_currency);
   localStorage.setItem('quota_display_type', data.quota_display_type || 'USD');
+  // 预设自定义货币列表（成员可在个人设置中选择展示货币）
+  if (Array.isArray(data.custom_currencies) && data.custom_currencies.length > 0) {
+    localStorage.setItem(
+      'custom_currencies',
+      JSON.stringify(data.custom_currencies),
+    );
+  } else {
+    localStorage.removeItem('custom_currencies');
+    // 货币列表已清空时，清除已失效的用户偏好
+    localStorage.removeItem('display_currency');
+  }
   localStorage.setItem('enable_drawing', data.enable_drawing);
   localStorage.setItem('enable_task', data.enable_task);
   localStorage.setItem('enable_data_export', data.enable_data_export);
@@ -61,4 +72,17 @@ export function setStatusData(data) {
 
 export function setUserData(data) {
   localStorage.setItem('user', JSON.stringify(data));
+  // 派生展示货币偏好到独立键（renderQuota 等函数直读）
+  let currencyPref = '';
+  try {
+    if (data && data.setting) {
+      const s = JSON.parse(data.setting);
+      currencyPref = s?.display_currency || '';
+    }
+  } catch (e) {}
+  if (currencyPref) {
+    localStorage.setItem('display_currency', currencyPref);
+  } else {
+    localStorage.removeItem('display_currency');
+  }
 }

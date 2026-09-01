@@ -999,6 +999,10 @@ export function renderQuotaNumberWithDigit(num, digits = 2) {
   if (typeof num !== 'number' || isNaN(num)) {
     return 0;
   }
+  const userCur = getUserCurrencyPref();
+  if (userCur) {
+    return userCur.symbol + num.toFixed(digits);
+  }
   const quotaDisplayType = localStorage.getItem('quota_display_type') || 'USD';
   num = num.toFixed(digits);
   if (quotaDisplayType === 'CNY') {
@@ -1055,6 +1059,32 @@ export function getQuotaPerUnit() {
   return quotaPerUnit;
 }
 
+/**
+ * 获取用户个人展示货币偏好（仅能选择管理员预设的货币）
+ * 返回 { symbol, rate } 或 null（未选择/已失效则跟随站点默认）
+ */
+function getUserCurrencyPref() {
+  try {
+    const key = localStorage.getItem('display_currency');
+    if (!key) return null;
+    const statusStr = localStorage.getItem('status');
+    if (!statusStr) return null;
+    const s = JSON.parse(statusStr);
+    const list = s?.custom_currencies;
+    if (!Array.isArray(list)) return null;
+    const cur = list.find(
+      (c) => c && c.key === key && c.symbol && Number(c.rate_to_usd) > 0,
+    );
+    if (!cur) return null;
+    return { symbol: cur.symbol, rate: Number(cur.rate_to_usd) };
+  } catch (e) {
+    return null;
+  }
+}
+
+// 导出供个人设置页使用
+export { getUserCurrencyPref };
+
 export function renderUnitWithQuota(quota) {
   let quotaPerUnit = localStorage.getItem('quota_per_unit');
   quotaPerUnit = parseFloat(quotaPerUnit);
@@ -1069,6 +1099,14 @@ export function getQuotaWithUnit(quota, digits = 6) {
 }
 
 export function renderQuotaWithAmount(amount) {
+  const userCur = getUserCurrencyPref();
+  if (userCur) {
+    const numericAmount = Number(amount);
+    if (Number.isFinite(numericAmount)) {
+      return userCur.symbol + (numericAmount * userCur.rate).toFixed(2);
+    }
+    return userCur.symbol + amount;
+  }
   const quotaDisplayType = localStorage.getItem('quota_display_type') || 'USD';
   if (quotaDisplayType === 'TOKENS') {
     return renderNumber(renderUnitWithQuota(amount));
@@ -1100,6 +1138,10 @@ export function renderQuotaWithAmount(amount) {
  * @returns {Object} - { symbol, rate, type }
  */
 export function getCurrencyConfig() {
+  const userCur = getUserCurrencyPref();
+  if (userCur) {
+    return { symbol: userCur.symbol, rate: userCur.rate, type: 'CUSTOM' };
+  }
   const quotaDisplayType = localStorage.getItem('quota_display_type') || 'USD';
   const statusStr = localStorage.getItem('status');
 
@@ -1140,6 +1182,18 @@ export function convertUSDToCurrency(usdAmount, digits = 2) {
 }
 
 export function renderQuota(quota, digits = 2) {
+  const userCur = getUserCurrencyPref();
+  if (userCur) {
+    let quotaPerUnit = parseFloat(localStorage.getItem('quota_per_unit'));
+    if (isNaN(quotaPerUnit) || quotaPerUnit <= 0) quotaPerUnit = 500000;
+    const value = (quota / quotaPerUnit) * userCur.rate;
+    const fixedResult = value.toFixed(digits);
+    if (parseFloat(fixedResult) === 0 && quota > 0 && value > 0) {
+      const minValue = Math.pow(10, -digits);
+      return userCur.symbol + minValue.toFixed(digits);
+    }
+    return userCur.symbol + fixedResult;
+  }
   let quotaPerUnit = localStorage.getItem('quota_per_unit');
   const quotaDisplayType = localStorage.getItem('quota_display_type') || 'USD';
   quotaPerUnit = parseFloat(quotaPerUnit);
@@ -2733,7 +2787,7 @@ export function renderAudioModelPrice(opts) {
 
 export function renderQuotaWithPrompt(quota, digits) {
   const quotaDisplayType = localStorage.getItem('quota_display_type') || 'USD';
-  if (quotaDisplayType !== 'TOKENS') {
+  if (quotaDisplayType !== 'TOKENS' || getUserCurrencyPref()) {
     return i18next.t('等价金额：') + renderQuota(quota, digits);
   }
   return '';

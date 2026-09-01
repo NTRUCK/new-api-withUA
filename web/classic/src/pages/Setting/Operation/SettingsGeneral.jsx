@@ -38,6 +38,7 @@ import {
   toBoolean,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
+import { Plus, Trash2 } from 'lucide-react';
 
 const { Text } = Typography;
 
@@ -51,6 +52,7 @@ export default function GeneralSettings(props) {
     'general_setting.quota_display_type': 'USD',
     'general_setting.custom_currency_symbol': '¤',
     'general_setting.custom_currency_exchange_rate': '',
+    'general_setting.custom_currencies': '[]',
     QuotaPerUnit: '',
     RetryTimes: '',
     USDExchangeRate: '',
@@ -65,11 +67,77 @@ export default function GeneralSettings(props) {
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
+  // 预设自定义货币行编辑（inputs 中存 JSON 字符串）
+  const [currencyRows, setCurrencyRows] = useState([]);
 
   function handleFieldChange(fieldName) {
     return (value) => {
       setInputs((inputs) => ({ ...inputs, [fieldName]: value }));
     };
+  }
+
+  // JSON 字符串 -> 可编辑行数组
+  function parseCurrencyRows(jsonStr) {
+    try {
+      const arr = jsonStr ? JSON.parse(jsonStr) : [];
+      if (!Array.isArray(arr)) return [];
+      return arr.map((c) => ({
+        key: c?.key || '',
+        name: c?.name || '',
+        symbol: c?.symbol || '',
+        rate: c?.rate_to_usd != null ? String(c.rate_to_usd) : '',
+      }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // 行数组 -> 规范化 JSON 字符串（过滤无效行，自动补 key）
+  function serializeCurrencyRows(rows) {
+    const valid = rows.filter(
+      (r) => (r.name || '').trim() && (r.symbol || '').trim() && parseFloat(r.rate) > 0,
+    );
+    const seen = new Set();
+    return JSON.stringify(
+      valid.map((r, i) => {
+        let key = (r.key || '').trim();
+        if (!key || seen.has(key)) key = `cur_${Date.now().toString(36)}_${i}`;
+        seen.add(key);
+        return {
+          key,
+          name: r.name.trim(),
+          symbol: r.symbol.trim(),
+          rate_to_usd: parseFloat(r.rate),
+        };
+      }),
+    );
+  }
+
+  function updateCurrencyInputs(rows) {
+    setCurrencyRows(rows);
+    const json = serializeCurrencyRows(rows);
+    setInputs((inputs) => ({
+      ...inputs,
+      'general_setting.custom_currencies': json,
+    }));
+  }
+
+  function updateCurrencyRow(idx, field, value) {
+    const rows = currencyRows.map((r, i) =>
+      i === idx ? { ...r, [field]: value } : r,
+    );
+    updateCurrencyInputs(rows);
+  }
+
+  function addCurrencyRow() {
+    updateCurrencyInputs([
+      ...currencyRows,
+      { key: '', name: '', symbol: '', rate: '' },
+    ]);
+  }
+
+  function removeCurrencyRow(idx) {
+    updateCurrencyInputs(currencyRows.filter((_, i) => i !== idx));
   }
 
   function onSubmit() {
@@ -237,6 +305,7 @@ export default function GeneralSettings(props) {
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
     refForm.current.setValues(currentInputs);
+    setCurrencyRows(parseCurrencyRows(currentInputs['general_setting.custom_currencies']));
   }, [props.options]);
 
   return (
@@ -353,6 +422,68 @@ export default function GeneralSettings(props) {
                 <Text type='tertiary' size='small'>
                   {t('预览效果')}：{previewText}
                 </Text>
+              </Col>
+            </Row>
+            {/* 预设自定义货币：成员可在个人设置中选择展示货币，仅能从此列表选择 */}
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Slot
+                  label={t('预设自定义货币')}
+                  extraText={t(
+                    '配置后成员可在 个人设置-偏好设置 中选择余额展示货币，仅能从此列表选择，不能自定义；留空则成员跟随站点默认展示',
+                  )}
+                >
+                  {currencyRows.length === 0 && (
+                    <Text type='tertiary' size='small'>
+                      {t('尚未配置，成员将跟随站点默认展示')}
+                    </Text>
+                  )}
+                  {currencyRows.map((row, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginBottom: 8,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <Input
+                        placeholder={t('名称，如 猫粮')}
+                        style={{ width: 150 }}
+                        value={row.name}
+                        onChange={(v) => updateCurrencyRow(idx, 'name', v)}
+                      />
+                      <Input
+                        placeholder={t('符号')}
+                        style={{ width: 90 }}
+                        value={row.symbol}
+                        onChange={(v) => updateCurrencyRow(idx, 'symbol', v)}
+                      />
+                      <Input
+                        prefix='1 USD ='
+                        style={{ width: 170 }}
+                        placeholder='10'
+                        value={row.rate}
+                        onChange={(v) => updateCurrencyRow(idx, 'rate', v)}
+                      />
+                      <Button
+                        type='danger'
+                        theme='borderless'
+                        icon={<Trash2 size={16} />}
+                        onClick={() => removeCurrencyRow(idx)}
+                      />
+                    </div>
+                  ))}
+                  <Button
+                    theme='light'
+                    icon={<Plus size={14} />}
+                    onClick={addCurrencyRow}
+                  >
+                    {t('添加货币')}
+                  </Button>
+                </Form.Slot>
               </Col>
             </Row>
             <Row gutter={16}>
