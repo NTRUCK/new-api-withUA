@@ -89,9 +89,11 @@ func (s *StreamStatus) IsNormalEnd() bool {
 	if s == nil {
 		return true
 	}
+	// client_gone 为客户端主动断开（用户点停止/swipe/关页面），属正常用户行为
 	return s.EndReason == StreamEndReasonDone ||
 		s.EndReason == StreamEndReasonEOF ||
-		s.EndReason == StreamEndReasonHandlerStop
+		s.EndReason == StreamEndReasonHandlerStop ||
+		s.EndReason == StreamEndReasonClientGone
 }
 
 func (s *StreamStatus) Summary() string {

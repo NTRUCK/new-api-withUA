@@ -221,8 +221,9 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			case <-ctx.Done():
 				return
 			case <-c.Request.Context().Done():
-				info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, c.Request.Context().Err())
-				return
+			// 客户端主动断开（停止生成/swipe/关页面），不传 context.Err() 避免噪音
+			info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, nil)
+			return
 			default:
 			}
 
@@ -275,7 +276,8 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 	case <-stopChan:
 		// EndReason already set by the goroutine that triggered stopChan
 	case <-c.Request.Context().Done():
-		info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, c.Request.Context().Err())
+		// 客户端主动断开，不传 context.Err() 避免噪音
+		info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, nil)
 	}
 
 	if info.StreamStatus.IsNormalEnd() && !info.StreamStatus.HasErrors() {
