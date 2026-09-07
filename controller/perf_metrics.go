@@ -19,8 +19,9 @@ func GetPerfMetricsSummary(c *gin.Context) {
 		}
 	}
 
-	activeGroups := append(lo.Keys(ratio_setting.GetGroupRatioCopy()), "auto")
-	result, err := perfmetrics.QuerySummaryAll(hours, activeGroups)
+	// 模型健康页只统计 default 分组的数据，
+	// 避免把其他分组（付费/专属分组等）的模型与表现暴露给所有用户
+	result, err := perfmetrics.QuerySummaryAll(hours, []string{"default"})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
