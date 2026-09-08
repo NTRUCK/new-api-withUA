@@ -49,7 +49,7 @@ import {
   IconMore,
   IconAlertTriangle,
 } from '@douyinfe/semi-icons';
-import { FaRandom } from 'react-icons/fa';
+import { FaRandom, FaSortNumericDown } from 'react-icons/fa';
 
 // Render functions
 const renderType = (type, record = {}, t) => {
@@ -63,10 +63,16 @@ const renderType = (type, record = {}, t) => {
   let icon = getChannelIcon(type);
 
   if (channelInfo?.is_multi_key) {
+    const multiKeyMode = channelInfo?.multi_key_mode;
     icon =
-      channelInfo?.multi_key_mode === 'random' ? (
+      multiKeyMode === 'random' ? (
         <div className='flex items-center gap-1'>
           <FaRandom className='text-blue-500' />
+          {icon}
+        </div>
+      ) : multiKeyMode === 'sequential' ? (
+        <div className='flex items-center gap-1'>
+          <FaSortNumericDown className='text-blue-500' />
           {icon}
         </div>
       ) : (

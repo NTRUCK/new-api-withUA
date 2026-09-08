@@ -3483,6 +3483,7 @@ const EditChannelModal = (props) => {
                             optionList={[
                               { label: t('随机'), value: 'random' },
                               { label: t('轮询'), value: 'polling' },
+                              { label: t('依次耗尽'), value: 'sequential' },
                             ]}
                             style={{ width: '100%' }}
                             value={inputs.multi_key_mode || 'random'}
@@ -3490,6 +3491,15 @@ const EditChannelModal = (props) => {
                               setMultiKeyMode(value);
                               handleInputChange('multi_key_mode', value);
                             }}
+                            extraText={
+                              inputs.multi_key_mode === 'sequential' ? (
+                                <Text type='tertiary' size='small'>
+                                  {t(
+                                    '依次耗尽：固定使用第一个密钥，上游返回 401/403（密钥失效/耗尽）时自动禁用该密钥并切换到下一个',
+                                  )}
+                                </Text>
+                              ) : undefined
+                            }
                           />
                           {inputs.multi_key_mode === 'polling' && (
                             <Banner

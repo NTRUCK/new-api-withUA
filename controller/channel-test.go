@@ -829,6 +829,27 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 	return testRequest
 }
 
+// buildSingleKeyTestChannel 返回仅包含指定索引密钥的渠道副本，
+// 用于多密钥渠道下单独测试某一个密钥（包括已被禁用的密钥）
+func buildSingleKeyTestChannel(channel *model.Channel, keyIndex int) (*model.Channel, error) {
+	if !channel.ChannelInfo.IsMultiKey {
+		return nil, errors.New("该渠道不是多密钥模式")
+	}
+	keys := channel.GetKeys()
+	if keyIndex < 0 || keyIndex >= len(keys) {
+		return nil, errors.New("密钥索引超出范围")
+	}
+	single := *channel
+	single.Key = keys[keyIndex]
+	single.Keys = []string{keys[keyIndex]}
+	// 以单密钥渠道的形式测试，绕过多密钥选择逻辑，使已禁用的密钥也能被测试
+	single.ChannelInfo.IsMultiKey = false
+	single.ChannelInfo.MultiKeyStatusList = nil
+	single.ChannelInfo.MultiKeyDisabledReason = nil
+	single.ChannelInfo.MultiKeyDisabledTime = nil
+	return &single, nil
+}
+
 func TestChannel(c *gin.Context) {
 	channelId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -851,6 +872,26 @@ func TestChannel(c *gin.Context) {
 	testModel := c.Query("model")
 	endpointType := c.Query("endpoint_type")
 	isStream, _ := strconv.ParseBool(c.Query("stream"))
+	// key_index 指定测试多密钥渠道中的某一个密钥
+	testSingleKey := false
+	if keyIndexStr := c.Query("key_index"); keyIndexStr != "" {
+		keyIndex, convErr := strconv.Atoi(keyIndexStr)
+		if convErr != nil {
+			common.ApiError(c, convErr)
+			return
+		}
+		singleKeyChannel, buildErr := buildSingleKeyTestChannel(channel, keyIndex)
+		if buildErr != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": buildErr.Error(),
+				"time":    0.0,
+			})
+			return
+		}
+		channel = singleKeyChannel
+		testSingleKey = true
+	}
 	testUserID, err := resolveChannelTestUserID(c)
 	if err != nil {
 		common.ApiError(c, err)
@@ -872,7 +913,10 @@ func TestChannel(c *gin.Context) {
 	}
 	tok := time.Now()
 	milliseconds := tok.Sub(tik).Milliseconds()
-	go channel.UpdateResponseTime(milliseconds)
+	// 单密钥测试不更新渠道响应时间，避免单个密钥的结果污染渠道统计
+	if !testSingleKey {
+		go channel.UpdateResponseTime(milliseconds)
+	}
 	consumedTime := float64(milliseconds) / 1000.0
 	if result.newAPIError != nil {
 		c.JSON(http.StatusOK, gin.H{

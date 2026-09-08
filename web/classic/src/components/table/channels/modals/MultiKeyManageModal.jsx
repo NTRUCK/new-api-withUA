@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Modal,
@@ -44,6 +44,7 @@ import {
 import {
   API,
   showError,
+  showInfo,
   showSuccess,
   timestamp2string,
 } from '../../../../helpers';
@@ -69,6 +70,11 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState(null); // null=all, 1=enabled, 2=manual_disabled, 3=auto_disabled
+
+  // Key test states: index -> { success, time, message }
+  const [testResults, setTestResults] = useState({});
+  const [batchTesting, setBatchTesting] = useState(false);
+  const stopBatchTestRef = useRef(false);
 
   // Load key status data
   const loadKeyStatus = async (
@@ -273,6 +279,65 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
     }
   };
 
+  // Test a specific key
+  const handleTestKey = async (keyIndex) => {
+    const operationId = `test_${keyIndex}`;
+    setOperationLoading((prev) => ({ ...prev, [operationId]: true }));
+
+    try {
+      const res = await API.get(
+        `/api/channel/test/${channel.id}?key_index=${keyIndex}`,
+      );
+      const { success, message, time } = res.data;
+      setTestResults((prev) => ({
+        ...prev,
+        [keyIndex]: { success, time, message },
+      }));
+      return { success, message, time };
+    } catch (error) {
+      const message = error?.message || t('测试密钥失败');
+      setTestResults((prev) => ({
+        ...prev,
+        [keyIndex]: { success: false, message },
+      }));
+      return { success: false, message };
+    } finally {
+      setOperationLoading((prev) => ({ ...prev, [operationId]: false }));
+    }
+  };
+
+  // Test all keys on the current page one by one
+  const handleTestCurrentPage = async () => {
+    if (batchTesting) {
+      stopBatchTestRef.current = true;
+      return;
+    }
+    stopBatchTestRef.current = false;
+    setBatchTesting(true);
+    let successCount = 0;
+    let failCount = 0;
+    try {
+      for (const record of keyStatusList) {
+        if (stopBatchTestRef.current) break;
+        const result = await handleTestKey(record.index);
+        if (result?.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+      showInfo(
+        t('测试完成：成功 {{success}} 个，失败 {{fail}} 个', {
+          success: successCount,
+          fail: failCount,
+        }),
+      );
+    } finally {
+      setBatchTesting(false);
+      stopBatchTestRef.current = false;
+    }
+  };
+
   // Handle page change
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -312,6 +377,8 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
       setManualDisabledCount(0);
       setAutoDisabledCount(0);
       setStatusFilter(null); // Reset filter
+      setTestResults({});
+      stopBatchTestRef.current = true;
     }
   }, [visible]);
 
@@ -407,12 +474,47 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
       },
     },
     {
+      title: t('测试结果'),
+      key: 'test_result',
+      render: (_, record) => {
+        const result = testResults[record.index];
+        if (operationLoading[`test_${record.index}`]) {
+          return <Text type='tertiary'>{t('测试中...')}</Text>;
+        }
+        if (!result) {
+          return <Text type='quaternary'>-</Text>;
+        }
+        if (result.success) {
+          return (
+            <Tag color='green' shape='circle' size='small'>
+              {t('可用')} {Number(result.time || 0).toFixed(2)}s
+            </Tag>
+          );
+        }
+        return (
+          <Tooltip content={result.message || t('测试失败')}>
+            <Tag color='red' shape='circle' size='small'>
+              {t('不可用')}
+            </Tag>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: t('操作'),
       key: 'action',
       fixed: 'right',
-      width: 150,
+      width: 210,
       render: (_, record) => (
         <Space>
+          <Button
+            size='small'
+            type='tertiary'
+            loading={operationLoading[`test_${record.index}`]}
+            onClick={() => handleTestKey(record.index)}
+          >
+            {t('测试')}
+          </Button>
           {record.status === 1 ? (
             <Button
               type='danger'
@@ -469,7 +571,9 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
             <Tag size='small' shape='circle' color='white'>
               {channel.channel_info.multi_key_mode === 'random'
                 ? t('随机模式')
-                : t('轮询模式')}
+                : channel.channel_info.multi_key_mode === 'sequential'
+                  ? t('依次耗尽模式')
+                  : t('轮询模式')}
             </Tag>
           )}
         </Space>
@@ -639,6 +743,18 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
                         >
                           {t('刷新')}
                         </Button>
+                        {keyStatusList.length > 0 && (
+                          <Button
+                            size='small'
+                            type={batchTesting ? 'danger' : 'primary'}
+                            theme={batchTesting ? 'solid' : 'light'}
+                            onClick={handleTestCurrentPage}
+                          >
+                            {batchTesting
+                              ? t('停止测试')
+                              : t('依次测试本页密钥')}
+                          </Button>
+                        )}
                         {manualDisabledCount + autoDisabledCount > 0 && (
                           <Popconfirm
                             title={t('确定要启用所有密钥吗？')}

@@ -15,7 +15,11 @@ type StatusCodeRange struct {
 	End   int
 }
 
-var AutomaticDisableStatusCodeRanges = []StatusCodeRange{{Start: 401, End: 401}}
+// 401(密钥无效/耗尽) 403(密钥被封禁/无权限) 均视为密钥失效信号
+var AutomaticDisableStatusCodeRanges = []StatusCodeRange{
+	{Start: 401, End: 401},
+	{Start: 403, End: 403},
+}
 
 // Default behavior matches legacy hardcoded retry rules in controller/relay.go shouldRetry:
 // retry for 1xx, 3xx, 4xx(except 400/408), 5xx(except 504/524), and no retry for 2xx.

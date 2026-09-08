@@ -244,6 +244,10 @@ func (channel *Channel) GetNextEnabledKey() (string, int, *types.NewAPIError) {
 		// Randomly pick one enabled key
 		selectedIdx := enabledIdx[rand.Intn(len(enabledIdx))]
 		return keys[selectedIdx], selectedIdx, nil
+	case constant.MultiKeyModeSequential:
+		// 依次耗尽：固定使用序号最小的可用key（默认第一个），
+		// 该key被禁用(如上游401/403耗尽)后自动落到下一个，实现"用完1再用2"
+		return keys[enabledIdx[0]], enabledIdx[0], nil
 	case constant.MultiKeyModePolling:
 		// Use channel-specific lock to ensure thread-safe polling
 
