@@ -292,6 +292,21 @@ func checkGuildRules(c *gin.Context, token *OAuthToken, rules []system_setting.D
 	return &AccessDeniedError{Message: i18n.T(c, i18n.MsgOAuthDiscordGuildRulesNotSatisfied)}
 }
 
+// CheckAffGuildAccess 校验邀请码注册用户的 Discord 服务器准入要求。
+// 规则来自邀请专属配置（aff_guild_rules），满足任一规则即放行；未配置则直接放行。
+// 仅在新用户注册时调用，已有用户登录不受影响。
+func CheckAffGuildAccess(c *gin.Context, token *OAuthToken) error {
+	rules := system_setting.GetDiscordSettings().GetAffGuildRules()
+	if len(rules) == 0 {
+		return nil
+	}
+	if err := checkGuildRules(c, token, rules, false); err != nil {
+		// 统一换成邀请注册场景的提示文案，避免暴露准入规则细节
+		return &AccessDeniedError{Message: i18n.T(c, i18n.MsgUserAffGuildNotSatisfied)}
+	}
+	return nil
+}
+
 func (p *DiscordProvider) FillUserByProviderID(user *model.User, providerUserID string) error {
 	user.DiscordId = providerUserID
 	return user.FillUserByDiscordId()

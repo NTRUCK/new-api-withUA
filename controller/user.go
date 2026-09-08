@@ -18,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"github.com/QuantumNous/new-api/constant"
 
@@ -193,7 +194,16 @@ func Register(c *gin.Context) {
 		return
 	}
 	affCode := user.AffCode // this code is the inviter's code, not the user's own code
-	inviterId, _ := model.GetUserIdByAffCode(affCode)
+	inviterId, affErr := service.ResolveInviterByAffCode(affCode)
+	if affErr != nil {
+		common.ApiErrorI18n(c, service.AffCodeErrorI18nKey(affErr))
+		return
+	}
+	// 开启邀请专属 DC 准入后，密码注册无法验证 Discord 身份，直接拒绝
+	if len(system_setting.GetDiscordSettings().GetAffGuildRules()) > 0 {
+		common.ApiErrorI18n(c, i18n.MsgUserAffDiscordOnly)
+		return
+	}
 	cleanUser := model.User{
 		Username:    user.Username,
 		Password:    user.Password,
@@ -393,7 +403,7 @@ func GetAffCode(c *gin.Context) {
 		return
 	}
 	if user.AffCode == "" {
-		user.AffCode = common.GetRandomString(4)
+		user.AffCode = model.GenerateUniqueAffCode()
 		if err := user.Update(false); err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -427,33 +437,41 @@ func GetSelf(c *gin.Context) {
 	// 获取用户设置并提取sidebar_modules
 	userSetting := user.GetSetting()
 
+	// 邀请人资格：未开启强制邀请码时人人有效；开启后仅邀请白名单内用户有效。
+	// 前端据此决定是否展示钱包页的邀请码/邀请奖励内容。
+	affInviterEligible := true
+	if common.AffCodeRequiredForRegister {
+		affInviterEligible = service.IsAffInviterWhitelisted(user.Id)
+	}
+
 	// 构建响应数据，包含用户信息和权限
 	responseData := map[string]interface{}{
-		"id":                user.Id,
-		"username":          user.Username,
-		"display_name":      user.DisplayName,
-		"role":              user.Role,
-		"status":            user.Status,
-		"email":             user.Email,
-		"github_id":         user.GitHubId,
-		"discord_id":        user.DiscordId,
-		"oidc_id":           user.OidcId,
-		"wechat_id":         user.WeChatId,
-		"telegram_id":       user.TelegramId,
-		"group":             user.Group,
-		"quota":             user.Quota,
-		"used_quota":        user.UsedQuota,
-		"request_count":     user.RequestCount,
-		"aff_code":          user.AffCode,
-		"aff_count":         user.AffCount,
-		"aff_quota":         user.AffQuota,
-		"aff_history_quota": user.AffHistoryQuota,
-		"inviter_id":        user.InviterId,
-		"linux_do_id":       user.LinuxDOId,
-		"setting":           user.Setting,
-		"stripe_customer":   user.StripeCustomer,
-		"sidebar_modules":   userSetting.SidebarModules, // 正确提取sidebar_modules字段
-		"permissions":       permissions,                // 新增权限字段
+		"id":                   user.Id,
+		"username":             user.Username,
+		"display_name":         user.DisplayName,
+		"role":                 user.Role,
+		"status":               user.Status,
+		"email":                user.Email,
+		"github_id":            user.GitHubId,
+		"discord_id":           user.DiscordId,
+		"oidc_id":              user.OidcId,
+		"wechat_id":            user.WeChatId,
+		"telegram_id":          user.TelegramId,
+		"group":                user.Group,
+		"quota":                user.Quota,
+		"used_quota":           user.UsedQuota,
+		"request_count":        user.RequestCount,
+		"aff_code":             user.AffCode,
+		"aff_count":            user.AffCount,
+		"aff_quota":            user.AffQuota,
+		"aff_history_quota":    user.AffHistoryQuota,
+		"aff_inviter_eligible": affInviterEligible,
+		"inviter_id":           user.InviterId,
+		"linux_do_id":          user.LinuxDOId,
+		"setting":              user.Setting,
+		"stripe_customer":      user.StripeCustomer,
+		"sidebar_modules":      userSetting.SidebarModules, // 正确提取sidebar_modules字段
+		"permissions":          permissions,                // 新增权限字段
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -863,10 +881,10 @@ func BatchDeregisterDisabledUsers(c *gin.Context) {
 		}
 	}
 	adminInfo := map[string]interface{}{
-		"admin_id":            c.GetInt("id"),
-		"admin_username":      c.GetString("username"),
-		"deregistered_count":  len(deregisteredIds),
-		"exclude_violation":   excludeViolation,
+		"admin_id":           c.GetInt("id"),
+		"admin_username":     c.GetString("username"),
+		"deregistered_count": len(deregisteredIds),
+		"exclude_violation":  excludeViolation,
 	}
 	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("一键注销已禁用用户，共注销 %d 个用户（排除违规榜：%v）", len(deregisteredIds), excludeViolation), adminInfo)
 	c.JSON(http.StatusOK, gin.H{
@@ -1108,13 +1126,13 @@ func BatchDisableLogUsers(c *gin.Context) {
 		return
 	}
 	adminInfo := map[string]interface{}{
-		"admin_id":         c.GetInt("id"),
-		"admin_username":   c.GetString("username"),
-		"matched_count":    matchedCount,
-		"disabled_count":   len(disabledIds),
-		"listed_count":     listedCount,
+		"admin_id":          c.GetInt("id"),
+		"admin_username":    c.GetString("username"),
+		"matched_count":     matchedCount,
+		"disabled_count":    len(disabledIds),
+		"listed_count":      listedCount,
 		"whitelisted_count": whitelistedCount,
-		"user_agent":       req.UserAgent,
+		"user_agent":        req.UserAgent,
 	}
 	model.RecordLogWithAdminInfo(c.GetInt("id"), model.LogTypeManage, fmt.Sprintf("按日志筛选批量封禁用户，共封禁 %d 个用户", len(disabledIds)), adminInfo)
 	c.JSON(http.StatusOK, gin.H{

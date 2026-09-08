@@ -47,6 +47,9 @@ func InitOptionMap() {
 	common.OptionMap["TurnstileCheckEnabled"] = strconv.FormatBool(common.TurnstileCheckEnabled)
 	common.OptionMap["RegisterEnabled"] = strconv.FormatBool(common.RegisterEnabled)
 	common.OptionMap["MaxRegisterUserCount"] = strconv.Itoa(common.MaxRegisterUserCount)
+	common.OptionMap["AffCodeRequiredForRegister"] = strconv.FormatBool(common.AffCodeRequiredForRegister)
+	common.OptionMap["AffInviterWhitelist"] = common.AffInviterWhitelist
+	common.OptionMap["MaxAffInviteCount"] = strconv.Itoa(common.MaxAffInviteCount)
 	common.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(common.AutomaticDisableChannelEnabled)
 	common.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(common.AutomaticEnableChannelEnabled)
 	common.OptionMap["LogConsumeEnabled"] = strconv.FormatBool(common.LogConsumeEnabled)
@@ -296,9 +299,11 @@ func updateOptionMap(key string, value string) (err error) {
 			common.ImageDownloadPermission = intValue
 		}
 	}
-	if strings.HasSuffix(key, "Enabled") || key == "DefaultCollapseSidebar" || key == "DefaultUseAutoGroup" || key == "SMTPForceAuthLogin" {
+	if strings.HasSuffix(key, "Enabled") || key == "DefaultCollapseSidebar" || key == "DefaultUseAutoGroup" || key == "SMTPForceAuthLogin" || key == "AffCodeRequiredForRegister" {
 		boolValue := value == "true"
 		switch key {
+		case "AffCodeRequiredForRegister":
+			common.AffCodeRequiredForRegister = boolValue
 		case "PasswordRegisterEnabled":
 			common.PasswordRegisterEnabled = boolValue
 		case "PasswordLoginEnabled":
@@ -535,6 +540,10 @@ func updateOptionMap(key string, value string) (err error) {
 		common.QuotaForInvitee, _ = strconv.Atoi(value)
 	case "MaxRegisterUserCount":
 		common.MaxRegisterUserCount, _ = strconv.Atoi(value)
+	case "AffInviterWhitelist":
+		common.AffInviterWhitelist = value
+	case "MaxAffInviteCount":
+		common.MaxAffInviteCount, _ = strconv.Atoi(value)
 	case "QuotaRemindThreshold":
 		common.QuotaRemindThreshold, _ = strconv.Atoi(value)
 	case "PreConsumedQuota":

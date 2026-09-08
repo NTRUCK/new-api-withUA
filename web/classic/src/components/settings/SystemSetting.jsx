@@ -61,6 +61,7 @@ const SystemSetting = () => {
     'discord.require_role': '',
     'discord.role_id': '',
     'discord.guild_rules': '',
+    'discord.aff_guild_rules': '',
     'discord.guild_rules_match': 'any',
     'discord.register_limit_whitelist': '',
     'oidc.enabled': '',
@@ -89,6 +90,9 @@ const SystemSetting = () => {
     TurnstileSecretKey: '',
     RegisterEnabled: '',
     MaxRegisterUserCount: '',
+    AffCodeRequiredForRegister: '',
+    AffInviterWhitelist: '',
+    MaxAffInviteCount: '',
     'passkey.enabled': '',
     'passkey.rp_display_name': '',
     'passkey.rp_id': '',
@@ -206,6 +210,7 @@ const SystemSetting = () => {
           case 'WeChatAuthEnabled':
           case 'TelegramOAuthEnabled':
           case 'RegisterEnabled':
+          case 'AffCodeRequiredForRegister':
           case 'TurnstileCheckEnabled':
           case 'EmailDomainRestrictionEnabled':
           case 'EmailAliasRestrictionEnabled':
@@ -241,6 +246,21 @@ const SystemSetting = () => {
               const rules = item.value ? JSON.parse(item.value) : [];
               item.value = Array.isArray(rules)
                 ? rules
+                    .map((r) =>
+                      [r.guild_id, r.role_id].filter(Boolean).join(','),
+                    )
+                    .join('\n')
+                : '';
+            } catch (e) {
+              item.value = '';
+            }
+            break;
+          case 'discord.aff_guild_rules':
+            // JSON 数组 → 每行一条「服务器ID,身份组ID」（身份组可省略）
+            try {
+              const affRules = item.value ? JSON.parse(item.value) : [];
+              item.value = Array.isArray(affRules)
+                ? affRules
                     .map((r) =>
                       [r.guild_id, r.role_id].filter(Boolean).join(','),
                     )
@@ -516,6 +536,19 @@ const SystemSetting = () => {
     ]);
   };
 
+  const submitAffInviteSettings = async () => {
+    await updateOptions([
+      {
+        key: 'AffInviterWhitelist',
+        value: String(inputs.AffInviterWhitelist || ''),
+      },
+      {
+        key: 'MaxAffInviteCount',
+        value: String(parseInt(inputs.MaxAffInviteCount, 10) || 0),
+      },
+    ]);
+  };
+
   const submitGitHubOAuth = async () => {
     const options = [];
 
@@ -607,6 +640,38 @@ const SystemSetting = () => {
       options.push({
         key: 'discord.guild_rules',
         value: JSON.stringify(rules),
+      });
+    }
+    // 邀请码注册专属规则：TextArea 文本 → JSON 数组
+    if (
+      originInputs['discord.aff_guild_rules'] !==
+      inputs['discord.aff_guild_rules']
+    ) {
+      const affLines = (inputs['discord.aff_guild_rules'] || '')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      const affRules = [];
+      for (const line of affLines) {
+        const parts = line.split(/[,，\s]+/).map((s) => s.trim());
+        const [guildId, roleId] = parts;
+        if (!guildId || !/^\d+$/.test(guildId)) {
+          showError(
+            t('邀请注册专属规则格式有误：每行应为「服务器ID」或「服务器ID,身份组ID」，且 ID 为纯数字'),
+          );
+          return;
+        }
+        if (roleId && !/^\d+$/.test(roleId)) {
+          showError(
+            t('邀请注册专属规则格式有误：每行应为「服务器ID」或「服务器ID,身份组ID」，且 ID 为纯数字'),
+          );
+          return;
+        }
+        affRules.push({ guild_id: guildId, role_id: roleId || '' });
+      }
+      options.push({
+        key: 'discord.aff_guild_rules',
+        value: JSON.stringify(affRules),
       });
     }
     if (
@@ -1163,6 +1228,18 @@ const SystemSetting = () => {
                       >
                         {t('允许 Turnstile 用户校验')}
                       </Form.Checkbox>
+                      <Form.Checkbox
+                        field='AffCodeRequiredForRegister'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange('AffCodeRequiredForRegister', e)
+                        }
+                        extraText={t(
+                          '开启后新用户注册必须携带有效邀请码，且邀请人须在下方邀请白名单内（微信注册不支持邀请码，开启后将无法通过微信注册）',
+                        )}
+                      >
+                        {t('注册必须使用邀请码')}
+                      </Form.Checkbox>
                     </Col>
                     <Col xs={24} sm={24} md={12} lg={12} xl={12}>
                       <Form.InputNumber
@@ -1194,6 +1271,34 @@ const SystemSetting = () => {
                         onClick={submitMaxRegisterUserCount}
                       >
                         {t('保存注册上限')}
+                      </Button>
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.TextArea
+                        field='AffInviterWhitelist'
+                        label={t('邀请白名单（用户 ID）')}
+                        placeholder={t('一行一个用户 ID，例如：\n1\n1024')}
+                        autosize={{ minRows: 3, maxRows: 8 }}
+                        style={{ width: '100%' }}
+                        extraText={t(
+                          '仅名单内用户的邀请码有效。被邀请进来的新用户不会自动获得邀请权限，需管理员手动加入名单。',
+                        )}
+                      />
+                      <Form.InputNumber
+                        field='MaxAffInviteCount'
+                        label={t('每人邀请人数上限')}
+                        placeholder={t('0 表示不限制')}
+                        min={0}
+                        style={{ width: '100%', marginTop: 12 }}
+                        extraText={t(
+                          '按用户已邀请人数统计，达到上限后该邀请码失效。0 表示不限制。',
+                        )}
+                      />
+                      <Button
+                        style={{ marginTop: 12 }}
+                        onClick={submitAffInviteSettings}
+                      >
+                        {t('保存邀请设置')}
                       </Button>
                     </Col>
                     <Col xs={24} sm={24} md={12} lg={12} xl={12}>
@@ -1746,6 +1851,16 @@ const SystemSetting = () => {
                     label={t('满员注册 Discord ID 白名单')}
                     extraText={t('一行一个 Discord 用户数字 ID，仅在达到注册用户数上限时放行；其他注册和服务器准入限制仍然生效')}
                     placeholder={'123456789012345678\n987654321098765432'}
+                    autosize={{ minRows: 4, maxRows: 10 }}
+                    style={{ fontFamily: 'JetBrains Mono, Consolas' }}
+                  />
+                  <Form.TextArea
+                    field="['discord.aff_guild_rules']"
+                    label={t('邀请码注册专属准入规则')}
+                    extraText={t(
+                      '开启邀请码注册后生效：新用户仅可通过 Discord 注册，且需满足任一规则（叠加在上方服务器准入之上）。每行一条：「服务器ID」或「服务器ID,身份组ID」。留空则不启用。',
+                    )}
+                    placeholder={'1134557553011998840,1335363403870502912\n987654321098765432'}
                     autosize={{ minRows: 4, maxRows: 10 }}
                     style={{ fontFamily: 'JetBrains Mono, Consolas' }}
                   />

@@ -95,6 +95,18 @@ var RegisterEnabled = true
 // <= 0 表示不限制。
 var MaxRegisterUserCount = 0
 
+// AffCodeRequiredForRegister 注册时是否强制要求提供有效邀请码。
+// 开启后，密码注册与 OAuth 注册均需携带邀请码，且邀请人必须在 AffInviterWhitelist 内。
+var AffCodeRequiredForRegister = false
+
+// AffInviterWhitelist 允许发起邀请的用户 ID 列表（换行分隔）。
+// 仅名单内用户的邀请码有效；为空则表示无人可邀请（在开启 AffCodeRequiredForRegister 时等于关闭注册）。
+var AffInviterWhitelist = ""
+
+// MaxAffInviteCount 单个邀请人最多可邀请的人数（按 users.aff_count 统计）。
+// <= 0 表示不限制。
+var MaxAffInviteCount = 0
+
 var EmailDomainRestrictionEnabled = false // 是否启用邮箱域名限制
 var EmailAliasRestrictionEnabled = false  // 是否启用邮箱别名限制
 var EmailDomainWhitelist = []string{

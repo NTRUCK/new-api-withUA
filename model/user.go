@@ -348,6 +348,33 @@ func GetUserIdByAffCode(affCode string) (int, error) {
 	return user.Id, err
 }
 
+// GenerateUniqueAffCode 生成一个未被占用的邀请码。
+// aff_code 列上有唯一索引，直接随机生成存在撞号风险（会导致注册直接失败），
+// 这里做有限次重试并在多次冲突后逐步加长，尽量保证成功。
+func GenerateUniqueAffCode() string {
+	return generateUniqueAffCodeWithTx(DB)
+}
+
+func generateUniqueAffCodeWithTx(tx *gorm.DB) string {
+	length := 4
+	for attempt := 0; attempt < 12; attempt++ {
+		if attempt > 0 && attempt%4 == 0 {
+			length++
+		}
+		code := common.GetRandomString(length)
+		var count int64
+		// 软删除的用户仍占用唯一索引，必须用 Unscoped 统计
+		if err := tx.Unscoped().Model(&User{}).Where("aff_code = ?", code).Count(&count).Error; err != nil {
+			// 查询失败时退回原有行为，由唯一索引兜底
+			return code
+		}
+		if count == 0 {
+			return code
+		}
+	}
+	return common.GetRandomString(8)
+}
+
 func DeleteUserById(id int) (err error) {
 	if id == 0 {
 		return errors.New("id 为空！")
@@ -422,7 +449,7 @@ func (user *User) Insert(inviterId int) error {
 	}
 	user.Quota = common.QuotaForNewUser
 	//user.SetAccessToken(common.GetUUID())
-	user.AffCode = common.GetRandomString(4)
+	user.AffCode = GenerateUniqueAffCode()
 
 	// 初始化用户设置，包括默认的边栏配置
 	if user.Setting == "" {
@@ -480,7 +507,7 @@ func (user *User) InsertWithTx(tx *gorm.DB, inviterId int) error {
 		}
 	}
 	user.Quota = common.QuotaForNewUser
-	user.AffCode = common.GetRandomString(4)
+	user.AffCode = generateUniqueAffCodeWithTx(tx)
 
 	// 初始化用户设置
 	if user.Setting == "" {

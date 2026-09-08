@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -112,14 +113,30 @@ func HandleOAuth(c *gin.Context) {
 		}
 	}
 
+	// 6.6 邀请码专属准入：开启后新用户注册只能通过 Discord 完成，
+	// 且需满足邀请专属的服务器/身份组规则（已有用户登录不受影响）
+	if !provider.IsUserIDTaken(oauthUser.ProviderUserID) &&
+		len(system_setting.GetDiscordSettings().GetAffGuildRules()) > 0 {
+		if provider.GetName() != "Discord" {
+			common.ApiErrorI18n(c, i18n.MsgUserAffDiscordOnly)
+			return
+		}
+		if err := oauth.CheckAffGuildAccess(c, token); err != nil {
+			handleOAuthError(c, err)
+			return
+		}
+	}
+
 	// 7. Find or create user
 	user, err := findOrCreateOAuthUser(c, provider, oauthUser, session)
 	if err != nil {
-		switch err.(type) {
+		switch e := err.(type) {
 		case *OAuthUserDeletedError:
 			common.ApiErrorI18n(c, i18n.MsgOAuthUserDeleted)
 		case *OAuthRegistrationDisabledError:
 			common.ApiErrorI18n(c, i18n.MsgUserRegisterDisabled)
+		case *OAuthAffCodeError:
+			common.ApiErrorI18n(c, e.MsgKey)
 		default:
 			common.ApiError(c, err)
 		}
@@ -301,9 +318,13 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 
 	// Handle affiliate code
 	affCode := session.Get("aff")
-	inviterId := 0
+	affCodeStr := ""
 	if affCode != nil {
-		inviterId, _ = model.GetUserIdByAffCode(affCode.(string))
+		affCodeStr, _ = affCode.(string)
+	}
+	inviterId, affErr := service.ResolveInviterByAffCode(affCodeStr)
+	if affErr != nil {
+		return nil, &OAuthAffCodeError{MsgKey: service.AffCodeErrorI18nKey(affErr)}
 	}
 
 	// Use transaction to ensure user creation and OAuth binding are atomic
@@ -390,6 +411,15 @@ type OAuthRegistrationDisabledError struct{}
 
 func (e *OAuthRegistrationDisabledError) Error() string {
 	return "registration is disabled"
+}
+
+// OAuthAffCodeError 表示 OAuth 注册阶段邀请码校验失败，MsgKey 为对应的 i18n 消息 key
+type OAuthAffCodeError struct {
+	MsgKey string
+}
+
+func (e *OAuthAffCodeError) Error() string {
+	return "invitation code check failed"
 }
 
 // handleOAuthError handles OAuth errors and returns translated message

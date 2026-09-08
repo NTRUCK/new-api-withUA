@@ -40,6 +40,7 @@ import {
   Divider,
   Form,
   Icon,
+  Input,
   Modal,
 } from '@douyinfe/semi-ui';
 import Title from '@douyinfe/semi-ui/lib/es/typography/title';
@@ -143,6 +144,37 @@ const RegisterForm = () => {
 
   const [showEmailVerification, setShowEmailVerification] = useState(false);
 
+  // 是否强制要求邀请码，由后端 /api/status 下发
+  const affCodeRequired = Boolean(status.aff_code_required);
+  // 邀请专属 DC 准入开启时，注册仅保留 Discord 入口，由后端 /api/status 下发
+  const affDiscordGating = Boolean(status.aff_discord_gating);
+  const [affCodeInput, setAffCodeInput] = useState(
+    () =>
+      new URLSearchParams(window.location.search).get('aff') ||
+      localStorage.getItem('aff') ||
+      '',
+  );
+
+  // 邀请码同时用于 OAuth 注册（OAuth 走 localStorage 传递），因此输入即落盘
+  const handleAffCodeChange = (value) => {
+    setAffCodeInput(value);
+    const trimmed = (value || '').trim();
+    if (trimmed) {
+      localStorage.setItem('aff', trimmed);
+    } else {
+      localStorage.removeItem('aff');
+    }
+  };
+
+  // 强制邀请码时，先在前端拦住空邀请码，避免 OAuth 跳转一圈才失败
+  const ensureAffCodeFilled = () => {
+    if (affCodeRequired && !(affCodeInput || '').trim()) {
+      showInfo('本站需要邀请码才能注册，请填写邀请码');
+      return false;
+    }
+    return true;
+  };
+
   useEffect(() => {
     setShowEmailVerification(!!status?.email_verification);
     if (status?.turnstile_check) {
@@ -225,16 +257,17 @@ const RegisterForm = () => {
       return;
     }
     if (username && password) {
+      if (affCodeRequired && !(affCodeInput || '').trim()) {
+        showInfo('本站需要邀请码才能注册，请填写邀请码');
+        return;
+      }
       if (turnstileEnabled && turnstileToken === '') {
         showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
         return;
       }
       setRegisterLoading(true);
       try {
-        if (!affCode) {
-          affCode = localStorage.getItem('aff');
-        }
-        inputs.aff_code = affCode;
+        inputs.aff_code = (affCodeInput || '').trim();
         const res = await API.post(
           `/api/user/register?turnstile=${turnstileToken}`,
           inputs,
@@ -280,6 +313,7 @@ const RegisterForm = () => {
   };
 
   const handleGitHubClick = () => {
+    if (!ensureAffCodeFilled()) return;
     if (githubButtonDisabled) {
       return;
     }
@@ -302,6 +336,7 @@ const RegisterForm = () => {
   };
 
   const handleDiscordClick = () => {
+    if (!ensureAffCodeFilled()) return;
     setDiscordLoading(true);
     try {
       onDiscordOAuthClicked(status.discord_client_id, { shouldLogout: true });
@@ -311,6 +346,7 @@ const RegisterForm = () => {
   };
 
   const handleOIDCClick = () => {
+    if (!ensureAffCodeFilled()) return;
     setOidcLoading(true);
     try {
       onOIDCClicked(
@@ -334,6 +370,7 @@ const RegisterForm = () => {
   };
 
   const handleCustomOAuthClick = (provider) => {
+    if (!ensureAffCodeFilled()) return;
     setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: true }));
     try {
       onCustomOAuthClicked(provider, { shouldLogout: true });
@@ -409,8 +446,25 @@ const RegisterForm = () => {
               </Title>
             </div>
             <div className='px-2 py-8'>
+              {affCodeRequired && (
+                <div className='mb-4'>
+                  <Text className='block mb-2'>
+                    {t('邀请码')}
+                    <span className='text-red-500 ml-1'>*</span>
+                  </Text>
+                  <Input
+                    value={affCodeInput}
+                    onChange={handleAffCodeChange}
+                    placeholder={t('请输入邀请码')}
+                    prefix={<IconKey />}
+                  />
+                  <Text size='small' type='tertiary' className='block mt-1'>
+                    {t('本站需要邀请码才能注册，请向邀请人索取邀请链接')}
+                  </Text>
+                </div>
+              )}
               <div className='space-y-3'>
-                {status.wechat_login && (
+                {status.wechat_login && !affDiscordGating && (
                   <Button
                     theme='outline'
                     className='w-full h-12 flex items-center justify-center !rounded-full border border-gray-200 hover:bg-gray-50 transition-colors'
@@ -425,7 +479,7 @@ const RegisterForm = () => {
                   </Button>
                 )}
 
-                {status.github_oauth && (
+                {status.github_oauth && !affDiscordGating && (
                   <Button
                     theme='outline'
                     className='w-full h-12 flex items-center justify-center !rounded-full border border-gray-200 hover:bg-gray-50 transition-colors'
@@ -460,7 +514,7 @@ const RegisterForm = () => {
                   </Button>
                 )}
 
-                {status.oidc_enabled && (
+                {status.oidc_enabled && !affDiscordGating && (
                   <Button
                     theme='outline'
                     className='w-full h-12 flex items-center justify-center !rounded-full border border-gray-200 hover:bg-gray-50 transition-colors'
@@ -511,7 +565,7 @@ const RegisterForm = () => {
                     </Button>
                   ))}
 
-                {status.telegram_oauth && (
+                {status.telegram_oauth && !affDiscordGating && (
                   <div className='flex justify-center my-2'>
                     <TelegramLoginButton
                       dataOnauth={onTelegramLoginClicked}
@@ -520,20 +574,24 @@ const RegisterForm = () => {
                   </div>
                 )}
 
-                <Divider margin='12px' align='center'>
-                  {t('或')}
-                </Divider>
+                {!affDiscordGating && (
+                  <>
+                    <Divider margin='12px' align='center'>
+                      {t('或')}
+                    </Divider>
 
-                <Button
-                  theme='solid'
-                  type='primary'
-                  className='w-full h-12 flex items-center justify-center bg-black text-white !rounded-full hover:bg-gray-800 transition-colors'
-                  icon={<IconMail size='large' />}
-                  onClick={handleEmailRegisterClick}
-                  loading={emailRegisterLoading}
-                >
-                  <span className='ml-3'>{t('使用 用户名 注册')}</span>
-                </Button>
+                    <Button
+                      theme='solid'
+                      type='primary'
+                      className='w-full h-12 flex items-center justify-center bg-black text-white !rounded-full hover:bg-gray-800 transition-colors'
+                      icon={<IconMail size='large' />}
+                      onClick={handleEmailRegisterClick}
+                      loading={emailRegisterLoading}
+                    >
+                      <span className='ml-3'>{t('使用 用户名 注册')}</span>
+                    </Button>
+                  </>
+                )}
               </div>
 
               <div className='mt-6 text-center text-sm'>
@@ -573,6 +631,26 @@ const RegisterForm = () => {
             </div>
             <div className='px-2 py-8'>
               <Form className='space-y-3'>
+                {affCodeRequired && (
+                  <Form.Input
+                    field='aff_code'
+                    label={
+                      <>
+                        {t('邀请码')}
+                        <span className='text-red-500 ml-1'>*</span>
+                      </>
+                    }
+                    placeholder={t('请输入邀请码')}
+                    name='aff_code'
+                    initValue={affCodeInput}
+                    onChange={handleAffCodeChange}
+                    prefix={<IconKey />}
+                    extraText={t(
+                      '本站需要邀请码才能注册，请向邀请人索取邀请链接',
+                    )}
+                  />
+                )}
+
                 <Form.Input
                   field='username'
                   label={t('用户名')}
@@ -781,8 +859,8 @@ const RegisterForm = () => {
         style={{ top: '50%', left: '-120px' }}
       />
       <div className='w-full max-w-sm mt-[60px]'>
-        {showEmailRegister ||
-        !hasOAuthRegisterOptions
+        {!affDiscordGating &&
+        (showEmailRegister || !hasOAuthRegisterOptions)
           ? renderEmailRegisterForm()
           : renderOAuthOptions()}
         {renderWeChatLoginModal()}

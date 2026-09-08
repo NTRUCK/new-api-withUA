@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -91,6 +93,16 @@ func WeChatAuth(c *gin.Context) {
 		}
 	} else {
 		if common.RegisterEnabled {
+			// 微信注册路径不支持携带邀请码，开启邀请码强制校验时直接拒绝
+			if common.AffCodeRequiredForRegister {
+				common.ApiErrorI18n(c, i18n.MsgUserAffCodeRequired)
+				return
+			}
+			// 开启邀请专属 DC 准入后，微信注册无法验证 Discord 身份，直接拒绝
+			if len(system_setting.GetDiscordSettings().GetAffGuildRules()) > 0 {
+				common.ApiErrorI18n(c, i18n.MsgUserAffDiscordOnly)
+				return
+			}
 			user.Username = "wechat_" + strconv.Itoa(model.GetMaxUserId()+1)
 			user.DisplayName = "WeChat User"
 			user.Role = common.RoleCommonUser

@@ -107,15 +107,25 @@ const (
 	MsgUserRegisterFailed            = "user.register_failed"
 	MsgUserDefaultTokenFailed        = "user.default_token_failed"
 	MsgUserAffCodeEmpty              = "user.aff_code_empty"
-	MsgUserEmailEmpty                = "user.email_empty"
-	MsgUserGitHubIdEmpty             = "user.github_id_empty"
-	MsgUserDiscordIdEmpty            = "user.discord_id_empty"
-	MsgUserOidcIdEmpty               = "user.oidc_id_empty"
-	MsgUserWeChatIdEmpty             = "user.wechat_id_empty"
-	MsgUserTelegramIdEmpty           = "user.telegram_id_empty"
-	MsgUserTelegramNotBound          = "user.telegram_not_bound"
-	MsgUserLinuxDOIdEmpty            = "user.linux_do_id_empty"
-	MsgUserQuotaChangeZero           = "user.quota_change_zero"
+	// MsgUserAffCodeRequired 开启邀请码强制校验后，注册未携带邀请码
+	MsgUserAffCodeRequired = "user.aff_code_required"
+	// MsgUserAffCodeInvalid 邀请码不存在，或邀请人无邀请权限
+	MsgUserAffCodeInvalid = "user.aff_code_invalid"
+	// MsgUserAffInviteLimitReached 邀请人已达到邀请人数上限
+	MsgUserAffInviteLimitReached = "user.aff_invite_limit_reached"
+	// MsgUserAffDiscordOnly 开启邀请专属 DC 准入后，非 Discord 注册方式被拒绝
+	MsgUserAffDiscordOnly = "user.aff_discord_only"
+	// MsgUserAffGuildNotSatisfied 邀请注册时未满足专属服务器/身份组要求
+	MsgUserAffGuildNotSatisfied = "user.aff_guild_not_satisfied"
+	MsgUserEmailEmpty           = "user.email_empty"
+	MsgUserGitHubIdEmpty        = "user.github_id_empty"
+	MsgUserDiscordIdEmpty       = "user.discord_id_empty"
+	MsgUserOidcIdEmpty          = "user.oidc_id_empty"
+	MsgUserWeChatIdEmpty        = "user.wechat_id_empty"
+	MsgUserTelegramIdEmpty      = "user.telegram_id_empty"
+	MsgUserTelegramNotBound     = "user.telegram_not_bound"
+	MsgUserLinuxDOIdEmpty       = "user.linux_do_id_empty"
+	MsgUserQuotaChangeZero      = "user.quota_change_zero"
 )
 
 // Quota related messages

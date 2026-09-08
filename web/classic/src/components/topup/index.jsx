@@ -1017,15 +1017,18 @@ const TopUp = () => {
           reloadSubscriptionSelf={getSubscriptionSelf}
           enableRedemption={topupInfo.enable_redemption !== false}
         />
-        <InvitationCard
-          t={t}
-          userState={userState}
-          renderQuota={renderQuota}
-          setOpenTransfer={setOpenTransfer}
-          affLink={affLink}
-          handleAffLinkClick={handleAffLinkClick}
-          complianceConfirmed={topupInfo.payment_compliance_confirmed !== false}
-        />
+        {/* 开启强制邀请码后，非邀请白名单用户不展示邀请奖励/邀请码内容 */}
+        {userState?.user?.aff_inviter_eligible !== false && (
+          <InvitationCard
+            t={t}
+            userState={userState}
+            renderQuota={renderQuota}
+            setOpenTransfer={setOpenTransfer}
+            affLink={affLink}
+            handleAffLinkClick={handleAffLinkClick}
+            complianceConfirmed={topupInfo.payment_compliance_confirmed !== false}
+          />
+        )}
       </div>
     </div>
   );

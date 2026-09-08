@@ -215,6 +215,14 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case "AffCodeRequiredForRegister":
+		if option.Value == "true" && strings.TrimSpace(common.AffInviterWhitelist) == "" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "无法开启邀请码强制校验，请先填入邀请白名单（用户 ID），否则所有人都将无法注册！",
+			})
+			return
+		}
 	case "theme.frontend":
 		if option.Value != "default" && option.Value != "classic" {
 			c.JSON(http.StatusOK, gin.H{

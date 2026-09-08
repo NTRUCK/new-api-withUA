@@ -27,6 +27,9 @@ type DiscordSettings struct {
 	// 服务器准入（多服务器）：配置后优先生效，忽略上方单服务器配置。
 	GuildRules      []DiscordGuildRule `json:"guild_rules"`       // 服务器+身份组规则列表
 	GuildRulesMatch string             `json:"guild_rules_match"` // any=满足任一规则 / all=全部规则均需满足
+	// 邀请码专属准入：配置后，新用户注册只能通过 Discord OAuth 完成，
+	// 且必须满足其中任一规则（叠加在全局服务器准入之上）。为空则不启用。
+	AffGuildRules []DiscordGuildRule `json:"aff_guild_rules"` // 邀请注册专属的服务器+身份组规则
 }
 
 // 默认配置
@@ -43,13 +46,22 @@ func GetDiscordSettings() *DiscordSettings {
 
 // GetGuildRules 返回有效的多服务器准入规则（过滤掉未填服务器 ID 的条目）
 func (s *DiscordSettings) GetGuildRules() []DiscordGuildRule {
-	rules := make([]DiscordGuildRule, 0, len(s.GuildRules))
-	for _, rule := range s.GuildRules {
+	return filterGuildRules(s.GuildRules)
+}
+
+// GetAffGuildRules 返回邀请码专属的服务器准入规则（过滤掉未填服务器 ID 的条目）
+func (s *DiscordSettings) GetAffGuildRules() []DiscordGuildRule {
+	return filterGuildRules(s.AffGuildRules)
+}
+
+func filterGuildRules(rules []DiscordGuildRule) []DiscordGuildRule {
+	valid := make([]DiscordGuildRule, 0, len(rules))
+	for _, rule := range rules {
 		if strings.TrimSpace(rule.GuildId) != "" {
-			rules = append(rules, rule)
+			valid = append(valid, rule)
 		}
 	}
-	return rules
+	return valid
 }
 
 // IsGuildRulesMatchAll 是否要求全部规则均满足（默认满足任一即可）
