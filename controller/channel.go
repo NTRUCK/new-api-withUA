@@ -257,6 +257,32 @@ func FixChannelsAbilities(c *gin.Context) {
 	})
 }
 
+// GetChannelsByModel 按模型名精确返回提供该模型的渠道列表（管理员），
+// 供模型广场卡片上的渠道测试入口使用
+func GetChannelsByModel(c *gin.Context) {
+	modelName := strings.TrimSpace(c.Query("model"))
+	if modelName == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "model 参数不能为空",
+		})
+		return
+	}
+	channels, err := model.GetChannelsByModel(modelName)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    channels,
+	})
+}
+
 func SearchChannels(c *gin.Context) {
 	keyword := c.Query("keyword")
 	group := c.Query("group")

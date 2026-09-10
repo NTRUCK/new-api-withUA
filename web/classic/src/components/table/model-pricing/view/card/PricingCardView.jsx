@@ -29,7 +29,7 @@ import {
   Avatar,
 } from '@douyinfe/semi-ui';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
-import { Copy, Activity, MessageSquareWarning } from 'lucide-react';
+import { Copy, Activity, MessageSquareWarning, FlaskConical } from 'lucide-react';
 import {
   IllustrationNoResult,
   IllustrationNoResultDark,
@@ -40,9 +40,11 @@ import {
   formatPriceInfo,
   formatDynamicPriceSummary,
   getLobeHubIcon,
+  isAdmin,
 } from '../../../../../helpers';
 import PricingCardSkeleton from './PricingCardSkeleton';
 import ModelFeedbackModal from './ModelFeedbackModal';
+import ModelChannelTestModal from '../../modal/ModelChannelTestModal';
 import { useMinimumLoadingTime } from '../../../../../hooks/common/useMinimumLoadingTime';
 import { renderLimitedItems } from '../../../../common/ui/RenderUtils';
 import { useIsMobile } from '../../../../../hooks/common/useIsMobile';
@@ -184,6 +186,9 @@ const PricingCardView = ({
   // 模型反馈弹窗状态
   const [feedbackModel, setFeedbackModel] = React.useState(null);
   const isLoggedIn = !!(userState && userState.user);
+  // 渠道测试弹窗状态（仅管理员可见入口）
+  const [testModel, setTestModel] = React.useState(null);
+  const isAdminUser = isLoggedIn && isAdmin();
 
   const handleCheckboxChange = (model, checked) => {
     if (!setSelectedRowKeys) return;
@@ -411,6 +416,22 @@ const PricingCardView = ({
                       </Tooltip>
                     )}
 
+                    {/* 渠道测试按钮：仅管理员可见，按模型发起渠道测试 */}
+                    {isAdminUser && (
+                      <Tooltip content={t('测试渠道')}>
+                        <Button
+                          size='small'
+                          theme='outline'
+                          type='secondary'
+                          icon={<FlaskConical size={12} />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTestModel(model.model_name);
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+
                     {/* 选择框 */}
                     {rowSelection && (
                       <Checkbox
@@ -508,6 +529,13 @@ const PricingCardView = ({
         visible={!!feedbackModel}
         modelName={feedbackModel}
         onClose={() => setFeedbackModel(null)}
+        t={t}
+      />
+
+      <ModelChannelTestModal
+        visible={!!testModel}
+        modelName={testModel}
+        onClose={() => setTestModel(null)}
         t={t}
       />
     </div>

@@ -52,6 +52,46 @@ func GetEnabledModels() []string {
 	return models
 }
 
+// ModelChannelInfo 按模型测试渠道时返回的渠道摘要信息（不含密钥）
+type ModelChannelInfo struct {
+	Id       int    `json:"id"`
+	Name     string `json:"name"`
+	Type     int    `json:"type"`
+	Status   int    `json:"status"`
+	Tag      string `json:"tag"`
+	Priority int64  `json:"priority"`
+	Weight   uint   `json:"weight"`
+	// Groups 该渠道在当前模型下覆盖的分组（去重，逗号分隔）
+	Groups string `json:"groups"`
+	// AbilityEnabled 渠道本身可能被禁用，此处为 abilities 层面的启用状态
+	AbilityEnabled bool `json:"ability_enabled"`
+}
+
+// GetChannelsByModel 按模型名精确查询提供该模型的所有渠道（abilities 表 join channels，去重）。
+// 用于模型广场管理员按模型发起渠道测试。
+func GetChannelsByModel(modelName string) ([]*ModelChannelInfo, error) {
+	var channels []*ModelChannelInfo
+	// 分组聚合列需按数据库方言选择：MySQL/SQLite 用 GROUP_CONCAT/MAX(bool)，
+	// PostgreSQL 用 STRING_AGG/BOOL_OR（MAX 不支持 boolean）
+	groupAgg := "GROUP_CONCAT(DISTINCT abilities." + commonGroupCol + ")"
+	enabledAgg := "MAX(abilities.enabled)"
+	if common.UsingPostgreSQL {
+		groupAgg = "STRING_AGG(DISTINCT abilities." + commonGroupCol + ", ',')"
+		enabledAgg = "BOOL_OR(abilities.enabled)"
+	}
+	err := DB.Table("abilities").
+		Select("channels.id, channels.name, channels.type, channels.status, channels.tag, "+
+			"MAX(abilities.priority) as priority, MAX(abilities.weight) as weight, "+
+			groupAgg+" as groups, "+
+			enabledAgg+" as ability_enabled").
+		Joins("JOIN channels ON abilities.channel_id = channels.id").
+		Where("abilities.model = ?", modelName).
+		Group("channels.id, channels.name, channels.type, channels.status, channels.tag").
+		Order("channels.id ASC").
+		Scan(&channels).Error
+	return channels, err
+}
+
 func GetAllEnableAbilities() []Ability {
 	var abilities []Ability
 	DB.Find(&abilities, "enabled = ?", true)
