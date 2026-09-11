@@ -18,7 +18,14 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, Table, Tag, Typography, Banner } from '@douyinfe/semi-ui';
+import {
+  Modal,
+  Button,
+  Table,
+  Tag,
+  Typography,
+  Banner,
+} from '@douyinfe/semi-ui';
 import { API, showError } from '../../../../helpers';
 import { CHANNEL_OPTIONS } from '../../../../constants/channel.constants';
 
@@ -31,6 +38,7 @@ const ModelChannelTestModal = ({ visible, modelName, onClose, t }) => {
   const [testingIds, setTestingIds] = useState(() => new Set());
   const [results, setResults] = useState({});
   const [batchRunning, setBatchRunning] = useState(false);
+  const [errorDetail, setErrorDetail] = useState('');
 
   useEffect(() => {
     if (!visible || !modelName) return;
@@ -165,6 +173,7 @@ const ModelChannelTestModal = ({ visible, modelName, onClose, t }) => {
     {
       title: t('测试结果'),
       dataIndex: 'result',
+      width: 190,
       render: (text, record) => {
         if (testingIds.has(record.id)) {
           return (
@@ -182,29 +191,28 @@ const ModelChannelTestModal = ({ visible, modelName, onClose, t }) => {
           );
         }
         return (
-          <div className='flex flex-col gap-1'>
-            <div className='flex items-center gap-2'>
-              <Tag color={result.success ? 'green' : 'red'} shape='circle'>
-                {result.success ? t('成功') : t('失败')}
-              </Tag>
-              {result.success && (
-                <Typography.Text type='tertiary' size='small'>
-                  {t('请求时长: ${time}s').replace(
-                    '${time}',
-                    result.time.toFixed(2),
-                  )}
-                </Typography.Text>
-              )}
-            </div>
-            {!result.success && result.message && (
-              <Typography.Text
-                type='danger'
-                size='small'
-                className='break-all'
-                style={{ maxWidth: '300px', fontSize: '12px' }}
-              >
-                {result.message}
+          <div className='flex items-center gap-2 whitespace-nowrap'>
+            <Tag color={result.success ? 'green' : 'red'} shape='circle'>
+              {result.success ? t('成功') : t('失败')}
+            </Tag>
+            {result.success ? (
+              <Typography.Text type='tertiary' size='small'>
+                {t('请求时长: ${time}s').replace(
+                  '${time}',
+                  result.time.toFixed(2),
+                )}
               </Typography.Text>
+            ) : (
+              result.message && (
+                <Button
+                  size='small'
+                  type='danger'
+                  theme='borderless'
+                  onClick={() => setErrorDetail(result.message)}
+                >
+                  {t('错误详情')}
+                </Button>
+              )
             )}
           </div>
         );
@@ -232,74 +240,96 @@ const ModelChannelTestModal = ({ visible, modelName, onClose, t }) => {
   ];
 
   return (
-    <Modal
-      title={
-        <div className='flex items-center gap-2'>
-          <Typography.Text
-            strong
-            className='!text-[var(--semi-color-text-0)] !text-base'
-          >
-            {modelName}
-          </Typography.Text>
-          <Typography.Text type='tertiary' size='small'>
-            {t('的渠道测试')}
-          </Typography.Text>
-          {channels.length > 0 && (
-            <Typography.Text type='tertiary' size='small'>
-              {t('共')} {channels.length} {t('个渠道')}
+    <>
+      <Modal
+        title={
+          <div className='flex items-center gap-2'>
+            <Typography.Text
+              strong
+              className='!text-[var(--semi-color-text-0)] !text-base'
+            >
+              {modelName}
             </Typography.Text>
+            <Typography.Text type='tertiary' size='small'>
+              {t('的渠道测试')}
+            </Typography.Text>
+            {channels.length > 0 && (
+              <Typography.Text type='tertiary' size='small'>
+                {t('共')} {channels.length} {t('个渠道')}
+              </Typography.Text>
+            )}
+          </div>
+        }
+        visible={visible}
+        onCancel={onClose}
+        footer={
+          <div className='flex justify-end'>
+            <Button type='tertiary' onClick={onClose} disabled={batchRunning}>
+              {t('取消')}
+            </Button>
+            <Button
+              onClick={handleBatchTest}
+              loading={batchRunning}
+              disabled={batchRunning || channels.length === 0}
+            >
+              {batchRunning
+                ? t('测试中...')
+                : t('测试选中${count}个渠道').replace(
+                    '${count}',
+                    selectedIds.length,
+                  )}
+            </Button>
+          </div>
+        }
+        maskClosable={!batchRunning}
+        className='!rounded-lg'
+        size='large'
+      >
+        <Banner
+          type='info'
+          closeIcon={null}
+          className='!rounded-lg mb-2'
+          description={t(
+            '说明：测试使用当前站点管理员配置的测试账号真实调用上游并计费；已禁用的渠道也可测试。',
           )}
-        </div>
-      }
-      visible={visible}
-      onCancel={onClose}
-      footer={
-        <div className='flex justify-end'>
-          <Button type='tertiary' onClick={onClose} disabled={batchRunning}>
-            {t('取消')}
-          </Button>
-          <Button
-            onClick={handleBatchTest}
-            loading={batchRunning}
-            disabled={batchRunning || channels.length === 0}
-          >
-            {batchRunning
-              ? t('测试中...')
-              : t('测试选中${count}个渠道').replace(
-                  '${count}',
-                  selectedIds.length,
-                )}
-          </Button>
-        </div>
-      }
-      maskClosable={!batchRunning}
-      className='!rounded-lg'
-      size='large'
-    >
-      <Banner
-        type='info'
-        closeIcon={null}
-        className='!rounded-lg mb-2'
-        description={t(
-          '说明：测试使用当前站点管理员配置的测试账号真实调用上游并计费；已禁用的渠道也可测试。',
-        )}
-      />
-      <Table
-        columns={columns}
-        dataSource={channels.map((ch) => ({ ...ch, key: ch.id }))}
-        loading={loading}
-        rowSelection={{
-          selectedRowKeys: selectedIds,
-          onChange: (keys) => setSelectedIds(keys),
-          getCheckboxProps: (record) => ({
-            disabled: batchRunning,
-          }),
-        }}
-        pagination={false}
-        size='small'
-        empty={t('暂无渠道提供该模型')}
-      />
-    </Modal>
+        />
+        <Table
+          columns={columns}
+          dataSource={channels.map((ch) => ({ ...ch, key: ch.id }))}
+          loading={loading}
+          rowSelection={{
+            selectedRowKeys: selectedIds,
+            onChange: (keys) => setSelectedIds(keys),
+            getCheckboxProps: () => ({
+              disabled: batchRunning,
+            }),
+          }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: false,
+          }}
+          size='small'
+          empty={t('暂无渠道提供该模型')}
+        />
+      </Modal>
+
+      <Modal
+        title={t('错误详情')}
+        visible={!!errorDetail}
+        onCancel={() => setErrorDetail('')}
+        footer={
+          <Button onClick={() => setErrorDetail('')}>{t('关闭')}</Button>
+        }
+        width={640}
+      >
+        <pre
+          className='whitespace-pre-wrap break-words overflow-auto'
+          style={{ maxHeight: '60vh', margin: 0, fontSize: 12 }}
+        >
+          {errorDetail}
+        </pre>
+      </Modal>
+    </>
   );
 };
 
