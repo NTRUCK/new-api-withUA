@@ -75,18 +75,36 @@ func GetPricing(c *gin.Context) {
 				if _, ok := usableGroup[g]; !ok {
 					continue
 				}
-				if entry.Limit <= 0 {
+				if entry.Limit <= 0 && len(entry.Slots) == 0 {
 					continue
 				}
 				if dailyLimits[modelName] == nil {
 					dailyLimits[modelName] = map[string]gin.H{}
 				}
-				dailyLimits[modelName][g] = gin.H{
+				usage := gin.H{
 					"limit":      entry.Limit,
-					"used":       service.GetModelDailyUsage(entry.CounterName, g, entry.ResetHour),
 					"reset_hour": entry.ResetHour,
 					"tiers":      entry.Tiers,
+					"slots":      entry.Slots,
 				}
+				// 分时段配置：按当前命中时段读取已用次数；未命中供应时段时 used=0（前端展示暂停供应）
+				if len(entry.Slots) > 0 {
+					window := setting.ResolveModelLimitWindow(modelName, g)
+					if window.Found && window.InSupply {
+						usage["used"] = service.GetWindowUsage(entry.CounterName, g, window)
+						usage["current_slot"] = gin.H{
+							"start": window.WindowStart.In(setting.BeiJing()).Hour(),
+							"end":   window.WindowEnd.In(setting.BeiJing()).Hour(),
+							"limit": window.Limit,
+						}
+					} else {
+						usage["used"] = 0
+						usage["paused"] = true
+					}
+				} else {
+					usage["used"] = service.GetModelDailyUsage(entry.CounterName, g, entry.ResetHour)
+				}
+				dailyLimits[modelName][g] = usage
 			}
 		}
 	}

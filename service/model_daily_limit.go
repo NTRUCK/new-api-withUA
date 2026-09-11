@@ -10,7 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/setting"
 )
 
-// 模型每日调用计数服务。统计口径：仅成功调用；重置时间：服务器时区配置整点。
+// 模型每日/分时段调用计数服务。统计口径：仅成功调用；重置时间：北京时间配置整点。
 const modelDailyLimitRedisPrefix = "modelDailyLimit"
 
 type memoryDailyCounter struct {
@@ -30,6 +30,17 @@ func modelDailyLimitPeriod(now time.Time, resetHour int) (string, time.Time) {
 		periodStart = todayReset.AddDate(0, 0, -1)
 	}
 	return periodStart.Format("2006-01-02T15"), periodStart.AddDate(0, 0, 1)
+}
+
+// windowCounterKey 生成一个窗口计数器键：counterName + 分组 + 窗口标识。
+// 整日模式窗口标识为日期周期（兼容旧键格式）；时段模式为窗口起点时间戳。
+func windowCounterKey(prefix, counterName, group string, window setting.ModelLimitWindow) string {
+	windowId := window.WindowStart.Format("2006-01-02T15")
+	if window.WindowStart.IsZero() {
+		period, _ := modelDailyLimitPeriod(time.Now(), window.ResetHour)
+		windowId = period
+	}
+	return fmt.Sprintf("%s:%s:%s:%s", prefix, windowId, counterName, group)
 }
 
 func modelDailyLimitKey(counterName, group string, resetHour int) string {
@@ -53,8 +64,21 @@ func secondsUntilNextReset(resetHour int) int64 {
 
 // GetModelDailyUsage 返回指定计数标识在当前配置周期内已用的成功调用次数。
 func GetModelDailyUsage(counterName, group string, resetHour int) int64 {
+	window := setting.ModelLimitWindow{CounterName: counterName, ResetHour: resetHour}
+	return getWindowUsage(window, group)
+}
+
+// GetWindowUsage 读取一个窗口计数器的当前值（Redis 或内存），供 pricing 展示使用。
+func GetWindowUsage(counterName, group string, window setting.ModelLimitWindow) int64 {
+	window.CounterName = counterName
+	return getWindowUsage(window, group)
+}
+
+// getWindowUsage 读取一个窗口计数器的当前值（Redis 或内存）。
+func getWindowUsage(window setting.ModelLimitWindow, group string) int64 {
+	key := windowCounterKey(modelDailyLimitRedisPrefix, window.CounterName, group, window)
 	if common.RedisEnabled {
-		value, err := common.RDB.Get(context.Background(), modelDailyLimitKey(counterName, group, resetHour)).Int64()
+		value, err := common.RDB.Get(context.Background(), key).Int64()
 		if err != nil {
 			return 0
 		}
@@ -63,48 +87,25 @@ func GetModelDailyUsage(counterName, group string, resetHour int) int64 {
 
 	memDailyCounter.mu.Lock()
 	defer memDailyCounter.mu.Unlock()
-	return memDailyCounter.count[memoryCounterKey(counterName, group, resetHour)]
+	return memDailyCounter.count[key]
 }
 
-func CheckModelDailyLimit(modelName, group string) (allowed bool, limit int, used int64) {
-	if !setting.ModelDailyLimitEnabled {
-		return true, 0, 0
-	}
-	counterName, limit, resetHour, _, found := setting.ResolveModelDailyLimit(modelName, group)
-	if !found {
-		return true, 0, 0
-	}
-	used = GetModelDailyUsage(counterName, group, resetHour)
-	return used < int64(limit), limit, used
-}
-
-func GetModelDailyLimitMultiplier(modelName, group string) float64 {
-	if !setting.ModelDailyLimitEnabled {
-		return 1
-	}
-	counterName, _, resetHour, tiers, found := setting.ResolveModelDailyLimit(modelName, group)
-	if !found || len(tiers) == 0 {
-		return 1
-	}
-	used := GetModelDailyUsage(counterName, group, resetHour)
-	return setting.ResolveModelDailyLimitMultiplier(tiers, used)
-}
-
-func IncrModelDailyUsage(modelName, group string) {
-	if !setting.ModelDailyLimitEnabled {
-		return
-	}
-	counterName, _, resetHour, _, found := setting.ResolveModelDailyLimit(modelName, group)
-	if !found {
-		return
+// incrWindowUsage 对窗口计数器 +1，并设置窗口过期时间。
+func incrWindowUsage(window setting.ModelLimitWindow, group string) {
+	key := windowCounterKey(modelDailyLimitRedisPrefix, window.CounterName, group, window)
+	ttl := secondsUntilNextReset(window.ResetHour)
+	if !window.WindowEnd.IsZero() {
+		ttl = int64(time.Until(window.WindowEnd).Seconds())
+		if ttl < 1 {
+			ttl = 1
+		}
 	}
 
 	if common.RedisEnabled {
 		ctx := context.Background()
-		key := modelDailyLimitKey(counterName, group, resetHour)
 		pipe := common.RDB.TxPipeline()
 		pipe.Incr(ctx, key)
-		pipe.Expire(ctx, key, time.Duration(secondsUntilNextReset(resetHour))*time.Second)
+		pipe.Expire(ctx, key, time.Duration(ttl)*time.Second)
 		if _, err := pipe.Exec(ctx); err != nil {
 			common.SysError("failed to incr model daily usage: " + err.Error())
 		}
@@ -112,6 +113,46 @@ func IncrModelDailyUsage(modelName, group string) {
 	}
 
 	memDailyCounter.mu.Lock()
-	memDailyCounter.count[memoryCounterKey(counterName, group, resetHour)]++
+	memDailyCounter.count[key]++
 	memDailyCounter.mu.Unlock()
+}
+
+// CheckModelDailyLimit 检查模型/分组当前窗口是否允许调用。
+// 未配置限额或时段暂停供应时不允许（后者 limit=0 供调用方区分文案）。
+func CheckModelDailyLimit(modelName, group string) (allowed bool, limit int, used int64) {
+	if !setting.ModelDailyLimitEnabled {
+		return true, 0, 0
+	}
+	window := setting.ResolveModelLimitWindow(modelName, group)
+	if !window.Found {
+		return true, 0, 0
+	}
+	if !window.InSupply {
+		return false, 0, 0
+	}
+	used = getWindowUsage(window, group)
+	return used < int64(window.Limit), window.Limit, used
+}
+
+func GetModelDailyLimitMultiplier(modelName, group string) float64 {
+	if !setting.ModelDailyLimitEnabled {
+		return 1
+	}
+	window := setting.ResolveModelLimitWindow(modelName, group)
+	if !window.Found || !window.InSupply || len(window.Tiers) == 0 {
+		return 1
+	}
+	used := getWindowUsage(window, group)
+	return setting.ResolveModelDailyLimitMultiplier(window.Tiers, used)
+}
+
+func IncrModelDailyUsage(modelName, group string) {
+	if !setting.ModelDailyLimitEnabled {
+		return
+	}
+	window := setting.ResolveModelLimitWindow(modelName, group)
+	if !window.Found || !window.InSupply {
+		return
+	}
+	incrWindowUsage(window, group)
 }

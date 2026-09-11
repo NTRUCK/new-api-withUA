@@ -2292,7 +2292,7 @@
     "测试模型": "Mô hình kiểm tra",
     "测试模型耗时": "Thời gian kiểm tra mô hình",
     "测试模式": "Chế độ kiểm tra",
-    "测试渠道": "Kênh kiểm tra",
+    "测试渠道": "Kiểm thử kênh",
     "测试结果": "Kết quả kiểm tra",
     "测试耗时": "Thời gian kiểm tra",
     "测试连接": "Test Connection",
@@ -4276,7 +4276,6 @@
     "邀请码注册专属准入规则": "Quy tắc truy cập riêng cho đăng ký bằng mã mời",
     "开启邀请码注册后生效：新用户仅可通过 Discord 注册，且需满足任一规则（叠加在上方服务器准入之上）。每行一条：「服务器ID」或「服务器ID,身份组ID」。留空则不启用。": "Có hiệu lực khi bật đăng ký bằng mã mời: người dùng mới chỉ có thể đăng ký qua Discord và phải đáp ứng ít nhất một quy tắc (cộng thêm các quy tắc truy cập máy chủ ở trên). Mỗi dòng một quy tắc: \"ID máy chủ\" hoặc \"ID máy chủ,ID vai trò\". Để trống nếu không bật.",
     "邀请注册专属规则格式有误：每行应为「服务器ID」或「服务器ID,身份组ID」，且 ID 为纯数字": "Định dạng quy tắc riêng cho đăng ký bằng mã mời không hợp lệ: mỗi dòng phải là \"ID máy chủ\" hoặc \"ID máy chủ,ID vai trò\", ID chỉ gồm chữ số",
-    "测试渠道": "Kiểm thử kênh",
     "的渠道测试": " - Kiểm thử kênh",
     "个渠道": "kênh",
     "模型未启用": "Mô hình bị tắt",
@@ -4380,6 +4379,18 @@
     "分组 UA 黑名单": "Danh sách đen UA theo nhóm",
     "每行一个分组，格式 group:ua1,ua2；该分组请求 UA 命中任一关键词即算违规（子串包含）": "Mỗi dòng một nhóm, định dạng group:ua1,ua2; yêu cầu trong nhóm đó vi phạm nếu UA khớp bất kỳ từ khóa nào (chuỗi con).",
     "分组 UA 白名单": "Danh sách trắng UA theo nhóm",
-    "每行一个分组，格式 group:ua1,ua2；该分组只允许 UA 命中列表内的请求，其余算违规": "Mỗi dòng một nhóm, định dạng group:ua1,ua2; nhóm đó chỉ cho phép yêu cầu có UA khớp danh sách, còn lại là vi phạm."
+    "每行一个分组，格式 group:ua1,ua2；该分组只允许 UA 命中列表内的请求，其余算违规": "Mỗi dòng một nhóm, định dạng group:ua1,ua2; nhóm đó chỉ cho phép yêu cầu có UA khớp danh sách, còn lại là vi phạm.",
+    "整日": "Cả ngày",
+    "分时段": "Khung giờ",
+    "供应时段（北京时间）": "Khung giờ cung cấp (giờ Bắc Kinh)",
+    "全天供应": "Có sẵn cả ngày",
+    "添加时段": "Thêm khung giờ",
+    "上限": "Giới hạn",
+    "分时段供应（可选，优先于整日上限）": "Cung cấp theo khung giờ (tùy chọn, ưu tiên hơn giới hạn ngày)",
+    "添加分组时段": "Thêm khung giờ nhóm",
+    "分时段限额": "Giới hạn theo khung giờ",
+    "当前时段暂停供应": "Tạm dừng trong khung giờ hiện tại",
+    "当前时段 {{start}}-{{end}} 点": "Khung giờ hiện tại {{start}}-{{end}} giờ",
+    "停": "nghỉ"
   }
 }

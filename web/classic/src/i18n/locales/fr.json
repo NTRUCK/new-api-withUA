@@ -3847,6 +3847,18 @@
     "分组 UA 黑名单": "Liste noire UA par groupe",
     "每行一个分组，格式 group:ua1,ua2；该分组请求 UA 命中任一关键词即算违规（子串包含）": "Un groupe par ligne, format group:ua1,ua2 ; une requête de ce groupe est en infraction si son UA correspond à un mot-clé (sous-chaîne).",
     "分组 UA 白名单": "Liste blanche UA par groupe",
-    "每行一个分组，格式 group:ua1,ua2；该分组只允许 UA 命中列表内的请求，其余算违规": "Un groupe par ligne, format group:ua1,ua2 ; ce groupe n'autorise que les requêtes dont l'UA correspond à la liste, sinon infraction."
+    "每行一个分组，格式 group:ua1,ua2；该分组只允许 UA 命中列表内的请求，其余算违规": "Un groupe par ligne, format group:ua1,ua2 ; ce groupe n'autorise que les requêtes dont l'UA correspond à la liste, sinon infraction.",
+    "整日": "Toute la journée",
+    "分时段": "Plages horaires",
+    "供应时段（北京时间）": "Plages horaires (heure de Pékin)",
+    "全天供应": "Disponible toute la journée",
+    "添加时段": "Ajouter une plage",
+    "上限": "Limite",
+    "分时段供应（可选，优先于整日上限）": "Approvisionnement par plage horaire (optionnel, prioritaire sur la limite quotidienne)",
+    "添加分组时段": "Ajouter des plages de groupe",
+    "分时段限额": "Limite par plage horaire",
+    "当前时段暂停供应": "En pause pendant la plage actuelle",
+    "当前时段 {{start}}-{{end}} 点": "Plage actuelle {{start}}h-{{end}}h",
+    "停": "off"
   }
 }

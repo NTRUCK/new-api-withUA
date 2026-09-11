@@ -46,24 +46,46 @@ import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
 
-// 将 {model:{group:limit}} 的 JSON 字符串解析为行数组 [{model,group,limit}]
+// 将 {model:{group:limit}} 的 JSON 字符串解析为行数组 [{model,group,limit,slots}]
 
-function limitJSONToRows(jsonStr, resetHoursJson, tiersJson) {
-  if (!jsonStr) return [];
+function limitJSONToRows(jsonStr, resetHoursJson, tiersJson, slotsJson) {
+  if (!jsonStr && !slotsJson) return [];
   try {
-    const obj = JSON.parse(jsonStr);
+    const obj = jsonStr ? JSON.parse(jsonStr) : {};
     const resetHours = resetHoursJson ? JSON.parse(resetHoursJson) : {};
     const tiers = tiersJson ? JSON.parse(tiersJson) : {};
+    const slots = slotsJson ? JSON.parse(slotsJson) : {};
     const rows = [];
+    const seen = new Set();
+    Object.keys(slots || {}).forEach((model) => {
+      const groups = slots[model] || {};
+      Object.keys(groups).forEach((group) => {
+        if (!Array.isArray(groups[group]) || groups[group].length === 0)
+          return;
+        rows.push({
+          model,
+          group,
+          limit: 0,
+          resetHour: resetHours[model] ?? 0,
+          tiers: tiers?.[model]?.[group] || [],
+          useSlots: true,
+          slots: groups[group],
+        });
+        seen.add(`${model}|${group}`);
+      });
+    });
     Object.keys(obj || {}).forEach((model) => {
       const groups = obj[model] || {};
       Object.keys(groups).forEach((group) => {
+        if (seen.has(`${model}|${group}`)) return;
         rows.push({
           model,
           group,
           limit: groups[group],
           resetHour: resetHours[model] ?? 0,
           tiers: tiers?.[model]?.[group] || [],
+          useSlots: false,
+          slots: [],
         });
       });
     });
@@ -73,15 +95,45 @@ function limitJSONToRows(jsonStr, resetHoursJson, tiersJson) {
   }
 }
 
-// 行数组转回 {model:{group:limit}} JSON 字符串；忽略不完整行
+// 行数组转回 {model:{group:limit}} JSON 字符串；忽略不完整行；分时段行不写入整日配置
 function rowsToLimitJSON(rows) {
   const obj = {};
-  (rows || []).forEach(({ model, group, limit }) => {
+  (rows || []).forEach(({ model, group, limit, useSlots }) => {
     if (!model || !group) return;
+    if (useSlots) return;
     const n = parseInt(limit, 10);
     if (!Number.isFinite(n) || n < 1) return;
     if (!obj[model]) obj[model] = {};
     obj[model][group] = n;
+  });
+  return JSON.stringify(obj, null, 2);
+}
+
+// 行数组转分时段配置 JSON：{model:{group:[{start,end,limit}]}}
+function rowsToTimeSlotsJSON(rows) {
+  const obj = {};
+  (rows || []).forEach(({ model, group, useSlots, slots }) => {
+    if (!model || !group || !useSlots) return;
+    const valid = (slots || [])
+      .map(({ start, end, limit }) => ({
+        start: parseInt(start, 10),
+        end: parseInt(end, 10),
+        limit: parseInt(limit, 10),
+      }))
+      .filter(
+        ({ start, end, limit }) =>
+          Number.isInteger(start) &&
+          Number.isInteger(end) &&
+          Number.isInteger(limit) &&
+          start >= 0 &&
+          start <= 23 &&
+          end >= 0 &&
+          end <= 24 &&
+          limit >= 0,
+      );
+    if (valid.length === 0) return;
+    if (!obj[model]) obj[model] = {};
+    obj[model][group] = valid;
   });
   return JSON.stringify(obj, null, 2);
 }
@@ -106,7 +158,7 @@ function rowsToResetHoursJSON(rows) {
   return JSON.stringify(obj, null, 2);
 }
 
-// 共享限额组 JSON -> 卡片数组。每组：{name, models:[], limits:[{group,limit}]}
+// 共享限额组 JSON -> 卡片数组。每组：{name, models:[], limits:[{group,limit,timeSlots}]}
 function groupsJSONToCards(jsonStr) {
   if (!jsonStr) return [];
   try {
@@ -120,6 +172,12 @@ function groupsJSONToCards(jsonStr) {
         group,
         limit: g.limits[group],
         tiers: g?.tiers?.[group] || [],
+        useSlots: false,
+        slots: [],
+      })),
+      timeSlots: Object.keys(g?.time_slots || {}).map((group) => ({
+        group,
+        slots: g.time_slots[group] || [],
       })),
     }));
   } catch {
@@ -130,27 +188,56 @@ function groupsJSONToCards(jsonStr) {
 // 卡片数组 -> 共享限额组 JSON 字符串；忽略不完整项
 function cardsToGroupsJSON(cards) {
   const arr = [];
-  (cards || []).forEach(({ name, models, limits, resetHour }) => {
+  (cards || []).forEach(({ name, models, limits, timeSlots, resetHour }) => {
     if (!name) return;
     const validModels = (models || []).filter(Boolean);
     const limitObj = {};
     const tierObj = {};
-    (limits || []).forEach(({ group, limit, tiers }) => {
-      if (!group) return;
+    (limits || []).forEach(({ group, limit, tiers, useSlots }) => {
+      if (!group || useSlots) return;
       const n = parseInt(limit, 10);
       if (!Number.isFinite(n) || n < 1) return;
       limitObj[group] = n;
       if (Array.isArray(tiers)) tierObj[group] = tiers;
     });
-    if (validModels.length === 0 && Object.keys(limitObj).length === 0) return;
+    const slotObj = {};
+    (timeSlots || []).forEach(({ group, slots }) => {
+      if (!group) return;
+      const valid = (slots || [])
+        .map(({ start, end, limit }) => ({
+          start: parseInt(start, 10),
+          end: parseInt(end, 10),
+          limit: parseInt(limit, 10),
+        }))
+        .filter(
+          ({ start, end, limit }) =>
+            Number.isInteger(start) &&
+            Number.isInteger(end) &&
+            Number.isInteger(limit) &&
+            start >= 0 &&
+            start <= 23 &&
+            end >= 0 &&
+            end <= 24 &&
+            limit >= 0,
+        );
+      if (valid.length > 0) slotObj[group] = valid;
+    });
+    if (
+      validModels.length === 0 &&
+      Object.keys(limitObj).length === 0 &&
+      Object.keys(slotObj).length === 0
+    )
+      return;
     const hour = parseInt(resetHour, 10);
-    arr.push({
+    const item = {
       name,
       models: validModels,
       limits: limitObj,
       tiers: tierObj,
       reset_hour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 0,
-    });
+    };
+    if (Object.keys(slotObj).length > 0) item.time_slots = slotObj;
+    arr.push(item);
   });
   return JSON.stringify(arr, null, 2);
 }
@@ -169,6 +256,7 @@ export default function ModelDailyLimit(props) {
     ModelDailyLimitTiers: '',
     ModelDailyLimitResetHours: '',
     ModelDailyLimitGroups: '',
+    ModelTimeSlotLimits: '',
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -218,8 +306,11 @@ export default function ModelDailyLimit(props) {
     jsonStr,
     resetHoursJson = inputs.ModelDailyLimitResetHours,
     tiersJson = inputs.ModelDailyLimitTiers,
+    slotsJson = inputs.ModelTimeSlotLimits,
   ) => {
-    setLimitRows(limitJSONToRows(jsonStr, resetHoursJson, tiersJson));
+    setLimitRows(
+      limitJSONToRows(jsonStr, resetHoursJson, tiersJson, slotsJson),
+    );
   };
 
   // 行编辑器变更后回写 JSON
@@ -228,21 +319,32 @@ export default function ModelDailyLimit(props) {
     const json = rowsToLimitJSON(rows);
     const tiersJson = rowsToTiersJSON(rows);
     const resetHoursJson = rowsToResetHoursJSON(rows);
+    const slotsJson = rowsToTimeSlotsJSON(rows);
     setInputs((prev) => ({
       ...prev,
       ModelDailyLimit: json,
       ModelDailyLimitTiers: tiersJson,
       ModelDailyLimitResetHours: resetHoursJson,
+      ModelTimeSlotLimits: slotsJson,
     }));
     refForm.current?.setValue('ModelDailyLimit', json);
     refForm.current?.setValue('ModelDailyLimitTiers', tiersJson);
     refForm.current?.setValue('ModelDailyLimitResetHours', resetHoursJson);
+    refForm.current?.setValue('ModelTimeSlotLimits', slotsJson);
   };
 
   const addRow = () => {
     applyRowsToInputs([
       ...limitRows,
-      { model: '', group: 'default', limit: 100, resetHour: 0, tiers: [] },
+      {
+        model: '',
+        group: 'default',
+        limit: 100,
+        resetHour: 0,
+        tiers: [],
+        useSlots: false,
+        slots: [],
+      },
     ]);
   };
   const removeRow = (idx) => {
@@ -253,6 +355,19 @@ export default function ModelDailyLimit(props) {
   const updateRow = (idx, key, value) => {
     const next = limitRows.slice();
     next[idx] = { ...next[idx], [key]: value };
+    // 切换到分时段时初始化时段列表（经典三分段）；切回整日时清空
+    if (key === 'useSlots') {
+      if (value && (!next[idx].slots || next[idx].slots.length === 0)) {
+        next[idx].slots = [
+          { start: 0, end: 8, limit: 100 },
+          { start: 8, end: 16, limit: 100 },
+          { start: 16, end: 24, limit: 100 },
+        ];
+      }
+      if (!value) {
+        next[idx].slots = [];
+      }
+    }
     applyRowsToInputs(next);
   };
   const addRowTier = (idx) => {
@@ -278,6 +393,53 @@ export default function ModelDailyLimit(props) {
     applyRowsToInputs(next);
   };
 
+  // ---- 分时段行编辑 ----
+  // 起始时刻 0~23；结束时刻额外提供 24:00（存储时 24 归一化为 0，后端 End=0 视为 24）
+  const hourOptions = Array.from({ length: 24 }, (_, h) => ({
+    value: h,
+    label: `${String(h).padStart(2, '0')}:00`,
+  }));
+  const endHourOptions = [
+    ...hourOptions,
+    { value: 24, label: '24:00' },
+  ];
+  // 存储用 end（0~24，24 归一化为 0）；显示用 end（0 转回 24，仅当 start>0）
+  const slotEndToDisplay = (start, end) => {
+    if (Number(end) === 0 && Number(start) > 0) return 24;
+    return Number(end);
+  };
+  const slotEndToStore = (end) => (Number(end) >= 24 ? 0 : Number(end));
+  const addRowSlot = (idx) => {
+    const next = limitRows.slice();
+    const slots = [...(next[idx].slots || [])];
+    // 默认从上一个时段结束点开始，8 小时一段，上限 100
+    const start = slots.length
+      ? Number(slots[slots.length - 1].end) % 24
+      : 0;
+    const end = (start + 8) % 24;
+    slots.push({ start, end, limit: 100 });
+    next[idx] = { ...next[idx], useSlots: true, slots };
+    applyRowsToInputs(next);
+  };
+  const updateRowSlot = (rowIdx, slotIdx, key, value) => {
+    const next = limitRows.slice();
+    const slots = [...(next[rowIdx].slots || [])];
+    slots[slotIdx] = { ...slots[slotIdx], [key]: value };
+    next[rowIdx] = { ...next[rowIdx], slots };
+    applyRowsToInputs(next);
+  };
+  const removeRowSlot = (rowIdx, slotIdx) => {
+    const next = limitRows.slice();
+    const slots = [...(next[rowIdx].slots || [])];
+    slots.splice(slotIdx, 1);
+    next[rowIdx] = {
+      ...next[rowIdx],
+      slots,
+      useSlots: slots.length > 0,
+    };
+    applyRowsToInputs(next);
+  };
+
   // ---- 共享限额组卡片同步 ----
   const syncCardsFromJSON = (jsonStr) => {
     setGroupCards(groupsJSONToCards(jsonStr));
@@ -294,7 +456,8 @@ export default function ModelDailyLimit(props) {
       {
         name: '',
         models: [],
-        limits: [{ group: 'default', limit: 500, tiers: [] }],
+        limits: [{ group: 'default', limit: 500, tiers: [], useSlots: false, slots: [] }],
+        timeSlots: [],
         resetHour: 0,
       },
     ]);
@@ -312,7 +475,7 @@ export default function ModelDailyLimit(props) {
   const addCardLimit = (cardIdx) => {
     const next = groupCards.slice();
     const limits = (next[cardIdx].limits || []).slice();
-    limits.push({ group: 'default', limit: 500, tiers: [] });
+    limits.push({ group: 'default', limit: 500, tiers: [], useSlots: false, slots: [] });
     next[cardIdx] = { ...next[cardIdx], limits };
     applyCardsToInputs(next);
   };
@@ -360,6 +523,58 @@ export default function ModelDailyLimit(props) {
     tiers.splice(tierIdx, 1);
     limits[limitIdx] = { ...limits[limitIdx], tiers };
     next[cardIdx] = { ...next[cardIdx], limits };
+    applyCardsToInputs(next);
+  };
+
+  // ---- 卡片分时段编辑：每行一个分组 + 该分组的时段列表 ----
+  const addCardTimeSlotRow = (cardIdx) => {
+    const next = groupCards.slice();
+    const timeSlots = [...(next[cardIdx].timeSlots || [])];
+    timeSlots.push({ group: 'default', slots: [] });
+    next[cardIdx] = { ...next[cardIdx], timeSlots };
+    applyCardsToInputs(next);
+  };
+  const removeCardTimeSlotRow = (cardIdx, slotRowIdx) => {
+    const next = groupCards.slice();
+    const timeSlots = [...(next[cardIdx].timeSlots || [])];
+    timeSlots.splice(slotRowIdx, 1);
+    next[cardIdx] = { ...next[cardIdx], timeSlots };
+    applyCardsToInputs(next);
+  };
+  const updateCardTimeSlotRow = (cardIdx, slotRowIdx, key, value) => {
+    const next = groupCards.slice();
+    const timeSlots = [...(next[cardIdx].timeSlots || [])];
+    timeSlots[slotRowIdx] = { ...timeSlots[slotRowIdx], [key]: value };
+    next[cardIdx] = { ...next[cardIdx], timeSlots };
+    applyCardsToInputs(next);
+  };
+  const addCardSlot = (cardIdx, slotRowIdx) => {
+    const next = groupCards.slice();
+    const timeSlots = [...(next[cardIdx].timeSlots || [])];
+    const slots = [...(timeSlots[slotRowIdx].slots || [])];
+    const start = slots.length ? Number(slots[slots.length - 1].end) % 24 : 0;
+    const end = (start + 8) % 24;
+    slots.push({ start, end, limit: 100 });
+    timeSlots[slotRowIdx] = { ...timeSlots[slotRowIdx], slots };
+    next[cardIdx] = { ...next[cardIdx], timeSlots };
+    applyCardsToInputs(next);
+  };
+  const updateCardSlot = (cardIdx, slotRowIdx, slotIdx, key, value) => {
+    const next = groupCards.slice();
+    const timeSlots = [...(next[cardIdx].timeSlots || [])];
+    const slots = [...(timeSlots[slotRowIdx].slots || [])];
+    slots[slotIdx] = { ...slots[slotIdx], [key]: value };
+    timeSlots[slotRowIdx] = { ...timeSlots[slotRowIdx], slots };
+    next[cardIdx] = { ...next[cardIdx], timeSlots };
+    applyCardsToInputs(next);
+  };
+  const removeCardSlot = (cardIdx, slotRowIdx, slotIdx) => {
+    const next = groupCards.slice();
+    const timeSlots = [...(next[cardIdx].timeSlots || [])];
+    const slots = [...(timeSlots[slotRowIdx].slots || [])];
+    slots.splice(slotIdx, 1);
+    timeSlots[slotRowIdx] = { ...timeSlots[slotRowIdx], slots };
+    next[cardIdx] = { ...next[cardIdx], timeSlots };
     applyCardsToInputs(next);
   };
 
@@ -414,6 +629,7 @@ export default function ModelDailyLimit(props) {
       currentInputs.ModelDailyLimit,
       currentInputs.ModelDailyLimitResetHours,
       currentInputs.ModelDailyLimitTiers,
+      currentInputs.ModelTimeSlotLimits,
     );
     syncCardsFromJSON(currentInputs.ModelDailyLimitGroups);
   }, [props.options]);
@@ -499,16 +715,101 @@ export default function ModelDailyLimit(props) {
                   {
                     title: t('每日上限'),
                     dataIndex: 'limit',
-                    width: '16%',
+                    width: 150,
                     render: (val, record, idx) => (
-                      <InputNumber
-                        style={{ width: '100%' }}
-                        min={1}
-                        step={1}
-                        value={val}
-                        onChange={(v) => updateRow(idx, 'limit', v)}
-                      />
+                      <div>
+                        <Select
+                          style={{ width: 104, marginBottom: record.useSlots ? 6 : 0 }}
+                          optionList={[
+                            { value: 'daily', label: t('整日') },
+                            { value: 'slots', label: t('分时段') },
+                          ]}
+                          value={record.useSlots ? 'slots' : 'daily'}
+                          onChange={(v) =>
+                            updateRow(idx, 'useSlots', v === 'slots')
+                          }
+                        />
+                        {!record.useSlots && (
+                          <InputNumber
+                            style={{ width: 104 }}
+                            min={1}
+                            step={1}
+                            value={val}
+                            onChange={(v) => updateRow(idx, 'limit', v)}
+                          />
+                        )}
+                      </div>
                     ),
+                  },
+                  {
+                    title: t('供应时段（北京时间）'),
+                    dataIndex: 'slots',
+                    width: 340,
+                    render: (slots, record, rowIdx) => {
+                      if (!record.useSlots) {
+                        return (
+                          <Text type='tertiary' size='small'>
+                            {t('全天供应')}
+                          </Text>
+                        );
+                      }
+                      return (
+                        <div>
+                          {(slots || []).map((slot, slotIdx) => (
+                            <div
+                              key={slotIdx}
+                              className='flex items-center gap-1 mb-1'
+                            >
+                              <Select
+                                style={{ width: 82 }}
+                                optionList={hourOptions}
+                                value={slot.start}
+                                onChange={(v) =>
+                                  updateRowSlot(rowIdx, slotIdx, 'start', v)
+                                }
+                              />
+                              <Text type='tertiary'>-</Text>
+                              <Select
+                                style={{ width: 82 }}
+                                optionList={endHourOptions}
+                                value={slotEndToDisplay(slot.start, slot.end)}
+                                onChange={(v) =>
+                                  updateRowSlot(
+                                    rowIdx,
+                                    slotIdx,
+                                    'end',
+                                    slotEndToStore(v),
+                                  )
+                                }
+                              />
+                              <InputNumber
+                                min={0}
+                                step={1}
+                                value={slot.limit}
+                                prefix={t('上限')}
+                                style={{ width: 105 }}
+                                onChange={(v) =>
+                                  updateRowSlot(rowIdx, slotIdx, 'limit', v)
+                                }
+                              />
+                              <Button
+                                theme='borderless'
+                                type='danger'
+                                icon={<IconDelete />}
+                                onClick={() => removeRowSlot(rowIdx, slotIdx)}
+                              />
+                            </div>
+                          ))}
+                          <Button
+                            size='small'
+                            icon={<IconPlus />}
+                            onClick={() => addRowSlot(rowIdx)}
+                          >
+                            {t('添加时段')}
+                          </Button>
+                        </div>
+                      );
+                    },
                   },
                   {
                     title: t('梯度计费'),
@@ -854,6 +1155,136 @@ export default function ModelDailyLimit(props) {
                           onClick={() => addCardLimit(cardIdx)}
                         >
                           {t('添加分组上限')}
+                        </Button>
+                      </div>
+
+                      {/* 共享组分时段供应：按分组的时段列表，优先于整日上限 */}
+                      <div style={{ marginTop: 12 }}>
+                        <Text type='tertiary' size='small'>
+                          {t('分时段供应（可选，优先于整日上限）')}
+                        </Text>
+                        {(card.timeSlots || []).map((slotRow, slotRowIdx) => (
+                          <div
+                            key={slotRowIdx}
+                            style={{
+                              marginTop: 8,
+                              padding: 10,
+                              border: '1px solid var(--semi-color-border)',
+                              borderRadius: 8,
+                            }}
+                          >
+                            <div className='flex items-center gap-2'>
+                              <Select
+                                filter
+                                style={{ width: 220 }}
+                                placeholder={t('分组')}
+                                optionList={groupOptions}
+                                value={slotRow.group || undefined}
+                                allowCreate
+                                onChange={(v) =>
+                                  updateCardTimeSlotRow(
+                                    cardIdx,
+                                    slotRowIdx,
+                                    'group',
+                                    v,
+                                  )
+                                }
+                              />
+                              <Button
+                                theme='borderless'
+                                type='danger'
+                                icon={<IconDelete />}
+                                onClick={() =>
+                                  removeCardTimeSlotRow(cardIdx, slotRowIdx)
+                                }
+                              />
+                            </div>
+                            <div style={{ marginTop: 8 }}>
+                              {(slotRow.slots || []).map((slot, slotIdx) => (
+                                <div
+                                  key={slotIdx}
+                                  className='flex items-center gap-2 mt-1'
+                                >
+                                  <Select
+                                    style={{ width: 92 }}
+                                    optionList={hourOptions}
+                                    value={slot.start}
+                                    onChange={(v) =>
+                                      updateCardSlot(
+                                        cardIdx,
+                                        slotRowIdx,
+                                        slotIdx,
+                                        'start',
+                                        v,
+                                      )
+                                    }
+                                  />
+                                  <Text type='tertiary'>-</Text>
+                                  <Select
+                                    style={{ width: 92 }}
+                                    optionList={endHourOptions}
+                                    value={slotEndToDisplay(
+                                      slot.start,
+                                      slot.end,
+                                    )}
+                                    onChange={(v) =>
+                                      updateCardSlot(
+                                        cardIdx,
+                                        slotRowIdx,
+                                        slotIdx,
+                                        'end',
+                                        slotEndToStore(v),
+                                      )
+                                    }
+                                  />
+                                  <InputNumber
+                                    min={0}
+                                    step={1}
+                                    value={slot.limit}
+                                    prefix={t('上限')}
+                                    style={{ width: 120 }}
+                                    onChange={(v) =>
+                                      updateCardSlot(
+                                        cardIdx,
+                                        slotRowIdx,
+                                        slotIdx,
+                                        'limit',
+                                        v,
+                                      )
+                                    }
+                                  />
+                                  <Button
+                                    theme='borderless'
+                                    type='danger'
+                                    icon={<IconDelete />}
+                                    onClick={() =>
+                                      removeCardSlot(
+                                        cardIdx,
+                                        slotRowIdx,
+                                        slotIdx,
+                                      )
+                                    }
+                                  />
+                                </div>
+                              ))}
+                              <Button
+                                size='small'
+                                style={{ marginTop: 6 }}
+                                icon={<IconPlus />}
+                                onClick={() => addCardSlot(cardIdx, slotRowIdx)}
+                              >
+                                {t('添加时段')}
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                        <Button
+                          size='small'
+                          style={{ marginTop: 8 }}
+                          icon={<IconPlus />}
+                          onClick={() => addCardTimeSlotRow(cardIdx)}
+                        >
+                          {t('添加分组时段')}
                         </Button>
                       </div>
                     </Card>

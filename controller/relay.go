@@ -136,11 +136,15 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		return
 	}
 
-	// 模型每日调用次数限制（按 模型+分组 统计，仅计成功调用，自然日零点重置）
+	// 模型每日/分时段调用次数限制（按 模型+分组 统计，仅计成功调用）
 	dailyLimitGroup := modelDailyLimitGroup(relayInfo)
 	if allowed, limit, used := service.CheckModelDailyLimit(relayInfo.OriginModelName, dailyLimitGroup); !allowed {
+		msg := fmt.Sprintf("模型 %s 在分组 %s 今日调用次数已达上限（%d/%d），请明日再试", relayInfo.OriginModelName, dailyLimitGroup, used, limit)
+		if limit <= 0 {
+			msg = fmt.Sprintf("模型 %s 在分组 %s 当前时段暂停供应，请在供应时段内使用", relayInfo.OriginModelName, dailyLimitGroup)
+		}
 		newAPIError = types.NewErrorWithStatusCode(
-			fmt.Errorf("模型 %s 在分组 %s 今日调用次数已达上限（%d/%d），请明日再试", relayInfo.OriginModelName, dailyLimitGroup, used, limit),
+			errors.New(msg),
 			types.ErrorCodeModelDailyLimitExceeded,
 			http.StatusTooManyRequests,
 			types.ErrOptionWithSkipRetry(),

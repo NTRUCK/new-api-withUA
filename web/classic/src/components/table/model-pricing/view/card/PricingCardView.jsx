@@ -78,6 +78,58 @@ const renderDailyLimit = (model, selectedGroup, t) => {
           const used = usage?.used ?? 0;
           const resetHour = usage?.reset_hour ?? 0;
           const tiers = Array.isArray(usage?.tiers) ? usage.tiers : [];
+          const slots = Array.isArray(usage?.slots) ? usage.slots : [];
+          // 分时段配置：展示各时段上限与当前时段进度；暂停供应时红标提示
+          if (slots.length > 0) {
+            const paused = usage?.paused;
+            const currentSlot = usage?.current_slot;
+            return (
+              <div
+                key={group}
+                className='flex flex-wrap items-center gap-1 text-xs'
+              >
+                <span style={{ color: 'var(--semi-color-text-2)' }}>
+                  {t('分时段限额')}
+                </span>
+                {showGroup && (
+                  <Tag size='small' color={stringToColor(group)} shape='circle'>
+                    {group}
+                  </Tag>
+                )}
+                {paused ? (
+                  <Tag size='small' color='red' shape='circle'>
+                    {t('当前时段暂停供应')}
+                  </Tag>
+                ) : (
+                  currentSlot && (
+                    <Tag size='small' color='green' shape='circle'>
+                      {t('当前时段 {{start}}-{{end}} 点', {
+                        start: String(currentSlot.start).padStart(2, '0'),
+                        end: String(currentSlot.end).padStart(2, '0'),
+                      })}
+                    </Tag>
+                  )
+                )}
+                {!paused && currentSlot && (
+                  <Tag
+                    size='small'
+                    color={used >= currentSlot.limit ? 'red' : 'green'}
+                    shape='circle'
+                  >
+                    {used.toLocaleString()}/{currentSlot.limit.toLocaleString()}
+                  </Tag>
+                )}
+                <span className='whitespace-nowrap'>
+                  {slots
+                    .map(
+                      (s) =>
+                        `${String(s.start).padStart(2, '0')}-${String(s.end === 0 ? 24 : s.end).padStart(2, '0')}:${s.limit === 0 ? t('停') : s.limit}`,
+                    )
+                    .join(' ')}
+                </span>
+              </div>
+            );
+          }
           const reached = used >= limit;
           return (
             <div

@@ -318,6 +318,12 @@ func UpdateOption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
 			return
 		}
+	case "ModelTimeSlotLimits":
+		err = setting.CheckModelTimeSlotLimits(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+			return
+		}
 	case "UserDailyTier":
 		err = setting.CheckUserDailyTier(option.Value.(string))
 		if err != nil {

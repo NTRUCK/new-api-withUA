@@ -146,8 +146,10 @@ func InitOptionMap() {
 	common.OptionMap["ModelRequestRateLimitGroup"] = setting.ModelRequestRateLimitGroup2JSONString()
 	common.OptionMap["ModelDailyLimitEnabled"] = strconv.FormatBool(setting.ModelDailyLimitEnabled)
 	common.OptionMap["ModelDailyLimit"] = setting.ModelDailyLimit2JSONString()
+	common.OptionMap["ModelDailyLimitTiers"] = setting.ModelDailyLimitTiers2JSONString()
 	common.OptionMap["ModelDailyLimitResetHours"] = setting.ModelDailyLimitResetHours2JSONString()
 	common.OptionMap["ModelDailyLimitGroups"] = setting.ModelDailyLimitGroups2JSONString()
+	common.OptionMap["ModelTimeSlotLimits"] = setting.ModelTimeSlotLimits2JSONString()
 	common.OptionMap["UserDailyTierEnabled"] = strconv.FormatBool(setting.UserDailyTierEnabled)
 	common.OptionMap["UserDailyTierAdminExempt"] = strconv.FormatBool(setting.UserDailyTierAdminExempt)
 	common.OptionMap["UserDailyTierResetHour"] = strconv.Itoa(setting.UserDailyTierResetHour)
@@ -558,10 +560,14 @@ func updateOptionMap(key string, value string) (err error) {
 		err = setting.UpdateModelRequestRateLimitGroupByJSONString(value)
 	case "ModelDailyLimit":
 		err = setting.UpdateModelDailyLimitByJSONString(value)
+	case "ModelDailyLimitTiers":
+		err = setting.UpdateModelDailyLimitTiersByJSONString(value)
 	case "ModelDailyLimitResetHours":
 		err = setting.UpdateModelDailyLimitResetHoursByJSONString(value)
 	case "ModelDailyLimitGroups":
 		err = setting.UpdateModelDailyLimitGroupsByJSONString(value)
+	case "ModelTimeSlotLimits":
+		err = setting.UpdateModelTimeSlotLimitsByJSONString(value)
 	case "UserDailyTierResetHour":
 		var hour int
 		hour, err = strconv.Atoi(value)
