@@ -58,6 +58,11 @@ func SetupApiRequestHeader(info *common.RelayInfo, c *gin.Context, req *http.Hea
 
 const clientHeaderPlaceholderPrefix = "{client_header:"
 
+// channelTestClientHeaderPlaceholder 渠道测试时注入 {client_header:xxx} 占位符的兜底值。
+// 部分上游（如 opencode）强制要求客户端会话头才能路由请求，真实流量由客户端提供，
+// 测试流量没有客户端头，注入固定占位值让测试请求可被上游正常处理。
+const channelTestClientHeaderPlaceholder = "channel-test"
+
 const (
 	headerPassthroughAllKey        = "*"
 	headerPassthroughRegexPrefix   = "re:"
@@ -144,7 +149,7 @@ func shouldSkipPassthroughHeader(name string) bool {
 	return false
 }
 
-func applyHeaderOverridePlaceholders(template string, c *gin.Context, apiKey string) (string, bool, error) {
+func applyHeaderOverridePlaceholders(template string, c *gin.Context, apiKey string, isChannelTest bool) (string, bool, error) {
 	trimmed := strings.TrimSpace(template)
 	if strings.HasPrefix(trimmed, clientHeaderPlaceholderPrefix) {
 		afterPrefix := trimmed[len(clientHeaderPlaceholderPrefix):]
@@ -157,8 +162,10 @@ func applyHeaderOverridePlaceholders(template string, c *gin.Context, apiKey str
 		if name == "" {
 			return "", false, fmt.Errorf("client_header placeholder name is empty: %q", template)
 		}
-		if c == nil || c.Request == nil {
-			return "", false, fmt.Errorf("missing request context for client_header placeholder")
+		// 渠道测试：没有真实客户端头，注入占位值（上游路由所需的会话头等），
+		// 避免 opencode 这类强校验客户端头的上游在测试时直接 400
+		if isChannelTest || c == nil || c.Request == nil {
+			return channelTestClientHeaderPlaceholder, true, nil
 		}
 		clientHeaderValue := c.Request.Header.Get(name)
 		if strings.TrimSpace(clientHeaderValue) == "" {
@@ -270,11 +277,8 @@ func processHeaderOverride(info *common.RelayInfo, c *gin.Context) (map[string]s
 		if !ok {
 			return nil, types.NewError(nil, types.ErrorCodeChannelHeaderOverrideInvalid)
 		}
-		if info.IsChannelTest && strings.HasPrefix(strings.TrimSpace(str), clientHeaderPlaceholderPrefix) {
-			continue
-		}
 
-		value, include, err := applyHeaderOverridePlaceholders(str, c, info.ApiKey)
+		value, include, err := applyHeaderOverridePlaceholders(str, c, info.ApiKey, info.IsChannelTest)
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeChannelHeaderOverrideInvalid)
 		}

@@ -33,7 +33,7 @@ func TestProcessHeaderOverride_ChannelTestSkipsPassthroughRules(t *testing.T) {
 	require.Empty(t, headers)
 }
 
-func TestProcessHeaderOverride_ChannelTestSkipsClientHeaderPlaceholder(t *testing.T) {
+func TestProcessHeaderOverride_ChannelTestInjectsClientHeaderPlaceholder(t *testing.T) {
 	t.Parallel()
 
 	gin.SetMode(gin.TestMode)
@@ -53,8 +53,8 @@ func TestProcessHeaderOverride_ChannelTestSkipsClientHeaderPlaceholder(t *testin
 
 	headers, err := processHeaderOverride(info, ctx)
 	require.NoError(t, err)
-	_, ok := headers["x-upstream-trace"]
-	require.False(t, ok)
+	// 渠道测试没有真实客户端头，应注入占位值以便上游路由请求
+	require.Equal(t, channelTestClientHeaderPlaceholder, headers["x-upstream-trace"])
 }
 
 func TestProcessHeaderOverride_NonTestKeepsClientHeaderPlaceholder(t *testing.T) {
