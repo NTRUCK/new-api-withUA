@@ -53,8 +53,8 @@ func TestProcessHeaderOverride_ChannelTestInjectsClientHeaderPlaceholder(t *test
 
 	headers, err := processHeaderOverride(info, ctx)
 	require.NoError(t, err)
-	// 渠道测试没有真实客户端头，应注入占位值以便上游路由请求
-	require.Equal(t, channelTestClientHeaderPlaceholder, headers["x-upstream-trace"])
+	// 渠道测试没有真实客户端头，应注入兜底值以便上游路由请求
+	require.Equal(t, clientHeaderFallbackValue, headers["x-upstream-trace"])
 }
 
 func TestProcessHeaderOverride_NonTestKeepsClientHeaderPlaceholder(t *testing.T) {
@@ -78,6 +78,30 @@ func TestProcessHeaderOverride_NonTestKeepsClientHeaderPlaceholder(t *testing.T)
 	headers, err := processHeaderOverride(info, ctx)
 	require.NoError(t, err)
 	require.Equal(t, "trace-123", headers["x-upstream-trace"])
+}
+
+func TestProcessHeaderOverride_NonTestMissingClientHeaderInjectsFallback(t *testing.T) {
+	t.Parallel()
+
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	// 模拟酒馆等第三方客户端：真实流量但未携带上游要求的会话头
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+
+	info := &relaycommon.RelayInfo{
+		IsChannelTest: false,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			HeadersOverride: map[string]any{
+				"X-Upstream-Trace": "{client_header:X-Trace-Id}",
+			},
+		},
+	}
+
+	headers, err := processHeaderOverride(info, ctx)
+	require.NoError(t, err)
+	// 客户端未携带该头时应注入兜底值，避免强校验会话头的上游返回 400
+	require.Equal(t, clientHeaderFallbackValue, headers["x-upstream-trace"])
 }
 
 func TestProcessHeaderOverride_RuntimeOverrideIsFinalHeaderMap(t *testing.T) {
