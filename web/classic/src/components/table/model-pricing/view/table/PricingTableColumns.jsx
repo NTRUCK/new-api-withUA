@@ -101,6 +101,12 @@ function renderSupportedEndpoints(endpoints) {
   );
 }
 
+const formatSlotHour = (hour, start, isEnd = false) =>
+  String(isEnd && hour === 0 && start > 0 ? 24 : hour).padStart(2, '0');
+
+const formatSlotRange = (slot) =>
+  `${formatSlotHour(slot.start)}:00–${formatSlotHour(slot.end, slot.start, true)}:00`;
+
 // 渲染模型在当前所选分组下的每日调用限额（已用/上限）
 function renderDailyLimit(record, selectedGroup, t) {
   const limits = record.daily_limits;
@@ -123,16 +129,26 @@ function renderDailyLimit(record, selectedGroup, t) {
           const resetHour = usage?.reset_hour ?? 0;
           const tiers = Array.isArray(usage?.tiers) ? usage.tiers : [];
           const slots = Array.isArray(usage?.slots) ? usage.slots : [];
-          // 分时段配置：展示各时段上限与当前时段进度；暂停供应时红标提示
+          // 分时段配置：只突出当前时段，完整时段放在悬浮提示中，避免重复堆叠
           if (slots.length > 0) {
             const paused = usage?.paused;
             const currentSlot = usage?.current_slot;
+            const slotSummary = slots
+              .map(
+                (slot) =>
+                  `${formatSlotRange(slot)}  ${slot.limit === 0 ? t('停') : slot.limit.toLocaleString()}`,
+              )
+              .join('\n');
             return (
               <div
                 key={group}
                 className='flex flex-wrap items-center gap-1 text-xs text-gray-600'
               >
-                <span>{t('分时段限额')}</span>
+                <Tooltip content={<div className='whitespace-pre-line'>{slotSummary}</div>}>
+                  <Tag size='small' color='light-blue' shape='circle'>
+                    {t('分时段限额')}
+                  </Tag>
+                </Tooltip>
                 {(!selectedGroup || selectedGroup === 'all') && (
                   <Tag size='small' color={stringToColor(group)} shape='circle'>
                     {group}
@@ -144,31 +160,16 @@ function renderDailyLimit(record, selectedGroup, t) {
                   </Tag>
                 ) : (
                   currentSlot && (
-                    <Tag size='small' color='green' shape='circle'>
-                      {t('当前时段 {{start}}-{{end}} 点', {
-                        start: String(currentSlot.start).padStart(2, '0'),
-                        end: String(currentSlot.end).padStart(2, '0'),
-                      })}
+                    <Tag
+                      size='small'
+                      color={used >= currentSlot.limit ? 'red' : 'green'}
+                      shape='circle'
+                    >
+                      {formatSlotRange(currentSlot)} · {used.toLocaleString()}/
+                      {currentSlot.limit.toLocaleString()}
                     </Tag>
                   )
                 )}
-                {!paused && currentSlot && (
-                  <Tag
-                    size='small'
-                    color={used >= currentSlot.limit ? 'red' : 'green'}
-                    shape='circle'
-                  >
-                    {used.toLocaleString()}/{currentSlot.limit.toLocaleString()}
-                  </Tag>
-                )}
-                <span className='whitespace-nowrap'>
-                  {slots
-                    .map(
-                      (s) =>
-                        `${String(s.start).padStart(2, '0')}-${String(s.end === 0 ? 24 : s.end).padStart(2, '0')}:${s.limit === 0 ? t('停') : s.limit}`,
-                    )
-                    .join(' ')}
-                </span>
               </div>
             );
           }
