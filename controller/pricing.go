@@ -102,7 +102,11 @@ func GetPricing(c *gin.Context) {
 						usage["paused"] = true
 					}
 				} else {
-					usage["used"] = service.GetModelDailyUsage(entry.CounterName, g, entry.ResetHour)
+					window := setting.ModelLimitWindow{
+						CounterGroup: entry.CounterGroup,
+						ResetHour:    entry.ResetHour,
+					}
+					usage["used"] = service.GetWindowUsage(entry.CounterName, g, window)
 				}
 				dailyLimits[modelName][g] = usage
 			}

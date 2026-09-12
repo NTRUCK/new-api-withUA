@@ -3,6 +3,8 @@ package setting
 import (
 	"fmt"
 	"math"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,7 +55,6 @@ type ModelTimeSlotLimit struct {
 // ModelTimeSlotLimits 结构：模型名 -> 分组名 -> 时段列表。
 // 配置后替代该模型/分组的整日每日上限（ModelDailyLimit）生效。
 var ModelTimeSlotLimits = map[string]map[string][]ModelTimeSlotLimit{}
-
 
 var ModelDailyLimitMutex sync.RWMutex
 
@@ -216,15 +217,16 @@ func timeSlotWindow(slot ModelTimeSlotLimit, now time.Time) (time.Time, time.Tim
 
 // ModelLimitWindow 一次模型限额解析的完整结果。
 type ModelLimitWindow struct {
-	Found       bool                   // 是否命中任何限额配置（时段或整日）
-	InSupply    bool                   // 当前时间是否在供应时段内（未配时段时恒为 true）
-	CounterName string                 // 计数标识（时段模式含窗口起点，需配合 WindowStart 使用）
-	Limit       int                    // 当前窗口上限
-	ResetHour   int                    // 整日限额的北京时间重置整点；时段模式为 -1
-	Tiers       []ModelDailyLimitTier  // 计费梯度（按窗口内成功序号匹配）
-	WindowStart time.Time              // 时段窗口起点（北京时间）；整日模式为零值
-	WindowEnd   time.Time              // 时段窗口终点（北京时间）；整日模式为零值
-	Slots       []ModelTimeSlotLimit   // 该模型/分组配置的全部时段（展示用）
+	Found        bool                  // 是否命中任何限额配置（时段或整日）
+	InSupply     bool                  // 当前时间是否在供应时段内（未配时段时恒为 true）
+	CounterName  string                // 计数标识（时段模式含窗口起点，需配合 WindowStart 使用）
+	CounterGroup string                // 计数分组；共享多个用户分组时为规范化组合键
+	Limit        int                   // 当前窗口上限
+	ResetHour    int                   // 整日限额的北京时间重置整点；时段模式为 -1
+	Tiers        []ModelDailyLimitTier // 计费梯度（按窗口内成功序号匹配）
+	WindowStart  time.Time             // 时段窗口起点（北京时间）；整日模式为零值
+	WindowEnd    time.Time             // 时段窗口终点（北京时间）；整日模式为零值
+	Slots        []ModelTimeSlotLimit  // 该模型/分组配置的全部时段（展示用）
 }
 
 // ResolveModelLimitWindow 解析模型在指定分组的当前限额窗口（内部取当前时间）。
@@ -234,6 +236,63 @@ func ResolveModelLimitWindow(modelName, group string) ModelLimitWindow {
 	return resolveModelLimitWindowLocked(modelName, group, time.Now())
 }
 
+// splitSharedLimitGroups 将共享限额配置键拆为用户分组列表。
+// 单个分组保持兼容；逗号分隔表示这些分组共用同一份计数（如 default,coding）。
+func splitSharedLimitGroups(configKey string) []string {
+	seen := make(map[string]struct{})
+	groups := make([]string, 0)
+	for _, group := range strings.Split(configKey, ",") {
+		group = strings.TrimSpace(group)
+		if group == "" {
+			continue
+		}
+		if _, exists := seen[group]; exists {
+			continue
+		}
+		seen[group] = struct{}{}
+		groups = append(groups, group)
+	}
+	return groups
+}
+
+func canonicalSharedLimitGroup(configKey string) string {
+	groups := splitSharedLimitGroups(configKey)
+	sort.Strings(groups)
+	return strings.Join(groups, ",")
+}
+
+func sharedLimitGroupMatches(configKey, group string) bool {
+	return containsString(splitSharedLimitGroups(configKey), group)
+}
+
+func findSharedTimeSlots(config map[string][]ModelTimeSlotLimit, group string) (string, []ModelTimeSlotLimit, bool) {
+	keys := make([]string, 0, len(config))
+	for key := range config {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if sharedLimitGroupMatches(key, group) && len(config[key]) > 0 {
+			return key, config[key], true
+		}
+	}
+	return "", nil, false
+}
+
+func findSharedDailyLimit(config map[string]int, group string) (string, int, bool) {
+	keys := make([]string, 0, len(config))
+	for key := range config {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if sharedLimitGroupMatches(key, group) && config[key] > 0 {
+			return key, config[key], true
+		}
+	}
+	return "", 0, false
+}
+
 // resolveModelLimitWindowLocked 已持锁的解析实现，支持指定时间（便于测试）。
 // 优先级：共享组时段 > 共享组每日 > 单模型时段 > 单模型每日。
 func resolveModelLimitWindowLocked(modelName, group string, now time.Time) ModelLimitWindow {
@@ -241,32 +300,35 @@ func resolveModelLimitWindowLocked(modelName, group string, now time.Time) Model
 		if sg.Name == "" || !containsString(sg.Models, modelName) {
 			continue
 		}
-		if slots, ok := sg.TimeSlots[group]; ok && len(slots) > 0 {
+		if configKey, slots, ok := findSharedTimeSlots(sg.TimeSlots, group); ok {
+			counterGroup := canonicalSharedLimitGroup(configKey)
 			if slot, hit := resolveTimeSlot(slots, now); hit {
 				start, end := timeSlotWindow(slot, now)
 				return ModelLimitWindow{
-					Found:       true,
-					InSupply:    true,
-					CounterName: modelDailyLimitSharedCounterPrefix + sg.Name,
-					Limit:       slot.Limit,
-					ResetHour:   -1,
-					Tiers:       copyModelDailyLimitTiers(sg.Tiers[group]),
-					WindowStart: start,
-					WindowEnd:   end,
-					Slots:       copyTimeSlots(slots),
+					Found:        true,
+					InSupply:     true,
+					CounterName:  modelDailyLimitSharedCounterPrefix + sg.Name,
+					CounterGroup: counterGroup,
+					Limit:        slot.Limit,
+					ResetHour:    -1,
+					Tiers:        copyModelDailyLimitTiers(sg.Tiers[configKey]),
+					WindowStart:  start,
+					WindowEnd:    end,
+					Slots:        copyTimeSlots(slots),
 				}
 			}
 			// 配置了时段但当前未命中：该模型/分组在此时段暂停供应
-			return ModelLimitWindow{Found: true, InSupply: false, ResetHour: -1, Slots: copyTimeSlots(slots)}
+			return ModelLimitWindow{Found: true, InSupply: false, CounterGroup: counterGroup, ResetHour: -1, Slots: copyTimeSlots(slots)}
 		}
-		if l, ok := sg.Limits[group]; ok && l > 0 {
+		if configKey, limit, ok := findSharedDailyLimit(sg.Limits, group); ok {
 			return ModelLimitWindow{
-				Found:       true,
-				InSupply:    true,
-				CounterName: modelDailyLimitSharedCounterPrefix + sg.Name,
-				Limit:       l,
-				ResetHour:   sg.ResetHour,
-				Tiers:       copyModelDailyLimitTiers(sg.Tiers[group]),
+				Found:        true,
+				InSupply:     true,
+				CounterName:  modelDailyLimitSharedCounterPrefix + sg.Name,
+				CounterGroup: canonicalSharedLimitGroup(configKey),
+				Limit:        limit,
+				ResetHour:    sg.ResetHour,
+				Tiers:        copyModelDailyLimitTiers(sg.Tiers[configKey]),
 			}
 		}
 	}
@@ -343,11 +405,12 @@ func containsString(list []string, target string) bool {
 }
 
 type ModelDailyLimitDisplayEntry struct {
-	Limit       int
-	CounterName string
-	ResetHour   int
-	Tiers       []ModelDailyLimitTier
-	Slots       []ModelTimeSlotLimit
+	Limit        int
+	CounterName  string
+	CounterGroup string
+	ResetHour    int
+	Tiers        []ModelDailyLimitTier
+	Slots        []ModelTimeSlotLimit
 }
 
 func GetModelDailyLimitDisplayCopy() map[string]map[string]ModelDailyLimitDisplayEntry {
@@ -389,27 +452,37 @@ func GetModelDailyLimitDisplayCopy() map[string]map[string]ModelDailyLimitDispla
 		}
 		counter := modelDailyLimitSharedCounterPrefix + sg.Name
 		for _, modelName := range sg.Models {
-			for group, limit := range sg.Limits {
+			for configKey, limit := range sg.Limits {
 				if limit <= 0 {
 					continue
 				}
-				if result[modelName] == nil {
-					result[modelName] = make(map[string]ModelDailyLimitDisplayEntry)
+				counterGroup := canonicalSharedLimitGroup(configKey)
+				for _, group := range splitSharedLimitGroups(configKey) {
+					if result[modelName] == nil {
+						result[modelName] = make(map[string]ModelDailyLimitDisplayEntry)
+					}
+					result[modelName][group] = ModelDailyLimitDisplayEntry{
+						Limit: limit, CounterName: counter, CounterGroup: counterGroup,
+						ResetHour: sg.ResetHour, Tiers: copyModelDailyLimitTiers(sg.Tiers[configKey]),
+					}
 				}
-				result[modelName][group] = ModelDailyLimitDisplayEntry{Limit: limit, CounterName: counter, ResetHour: sg.ResetHour, Tiers: copyModelDailyLimitTiers(sg.Tiers[group])}
 			}
-			for group, slots := range sg.TimeSlots {
+			for configKey, slots := range sg.TimeSlots {
 				if len(slots) == 0 {
 					continue
 				}
-				if result[modelName] == nil {
-					result[modelName] = make(map[string]ModelDailyLimitDisplayEntry)
+				counterGroup := canonicalSharedLimitGroup(configKey)
+				for _, group := range splitSharedLimitGroups(configKey) {
+					if result[modelName] == nil {
+						result[modelName] = make(map[string]ModelDailyLimitDisplayEntry)
+					}
+					entry := result[modelName][group]
+					entry.CounterName = counter
+					entry.CounterGroup = counterGroup
+					entry.ResetHour = 0
+					entry.Slots = copyTimeSlots(slots)
+					result[modelName][group] = entry
 				}
-				entry := result[modelName][group]
-				entry.CounterName = counter
-				entry.ResetHour = 0
-				entry.Slots = copyTimeSlots(slots)
-				result[modelName][group] = entry
 			}
 		}
 	}
@@ -520,6 +593,38 @@ func CheckModelDailyLimitResetHours(jsonStr string) error {
 	return nil
 }
 
+func checkSharedLimitGroupKeys(sharedGroupName, configName string, keys []string) error {
+	seenGroups := make(map[string]string)
+	seenKeys := make(map[string]string)
+	for _, key := range keys {
+		parts := strings.Split(key, ",")
+		groupsInKey := make(map[string]struct{}, len(parts))
+		for _, part := range parts {
+			group := strings.TrimSpace(part)
+			if group == "" {
+				return fmt.Errorf("shared limit group %s has invalid %s group key %q", sharedGroupName, configName, key)
+			}
+			if _, exists := groupsInKey[group]; exists {
+				return fmt.Errorf("shared limit group %s repeats user group %s in %s key %q", sharedGroupName, group, configName, key)
+			}
+			groupsInKey[group] = struct{}{}
+		}
+
+		canonicalKey := canonicalSharedLimitGroup(key)
+		if previousKey, exists := seenKeys[canonicalKey]; exists {
+			return fmt.Errorf("shared limit group %s has duplicate %s group keys %q and %q", sharedGroupName, configName, previousKey, key)
+		}
+		seenKeys[canonicalKey] = key
+		for group := range groupsInKey {
+			if previousKey, exists := seenGroups[group]; exists {
+				return fmt.Errorf("shared limit group %s user group %s appears in multiple %s keys %q and %q", sharedGroupName, group, configName, previousKey, key)
+			}
+			seenGroups[group] = key
+		}
+	}
+	return nil
+}
+
 func CheckModelDailyLimitGroups(jsonStr string) error {
 	if jsonStr == "" {
 		return nil
@@ -539,6 +644,20 @@ func CheckModelDailyLimitGroups(jsonStr string) error {
 		names[sharedGroup.Name] = struct{}{}
 		if sharedGroup.ResetHour < 0 || sharedGroup.ResetHour > 23 {
 			return fmt.Errorf("shared limit group %s reset hour must be between 0 and 23", sharedGroup.Name)
+		}
+		limitKeys := make([]string, 0, len(sharedGroup.Limits))
+		for group := range sharedGroup.Limits {
+			limitKeys = append(limitKeys, group)
+		}
+		if err := checkSharedLimitGroupKeys(sharedGroup.Name, "limit", limitKeys); err != nil {
+			return err
+		}
+		timeSlotKeys := make([]string, 0, len(sharedGroup.TimeSlots))
+		for group := range sharedGroup.TimeSlots {
+			timeSlotKeys = append(timeSlotKeys, group)
+		}
+		if err := checkSharedLimitGroupKeys(sharedGroup.Name, "time slot", timeSlotKeys); err != nil {
+			return err
 		}
 		for group, limit := range sharedGroup.Limits {
 			if group == "" || limit < 1 || limit > math.MaxInt32 {

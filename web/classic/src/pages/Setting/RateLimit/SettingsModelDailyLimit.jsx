@@ -60,8 +60,7 @@ function limitJSONToRows(jsonStr, resetHoursJson, tiersJson, slotsJson) {
     Object.keys(slots || {}).forEach((model) => {
       const groups = slots[model] || {};
       Object.keys(groups).forEach((group) => {
-        if (!Array.isArray(groups[group]) || groups[group].length === 0)
-          return;
+        if (!Array.isArray(groups[group]) || groups[group].length === 0) return;
         rows.push({
           model,
           group,
@@ -158,7 +157,23 @@ function rowsToResetHoursJSON(rows) {
   return JSON.stringify(obj, null, 2);
 }
 
-// 共享限额组 JSON -> 卡片数组。每组：{name, models:[], limits:[{group,limit,timeSlots}]}
+// 共享限额的多个用户分组使用逗号连接存储，兼容旧版单分组键。
+const sharedGroupKeyToArray = (groupKey) =>
+  String(groupKey || '')
+    .split(',')
+    .map((group) => group.trim())
+    .filter(Boolean);
+
+const sharedGroupArrayToKey = (groups) =>
+  [
+    ...new Set(
+      (groups || []).map((group) => String(group).trim()).filter(Boolean),
+    ),
+  ]
+    .sort()
+    .join(',');
+
+// 共享限额组 JSON -> 卡片数组。每组：{name, models:[], limits:[{groups,limit,timeSlots}]}
 function groupsJSONToCards(jsonStr) {
   if (!jsonStr) return [];
   try {
@@ -168,16 +183,16 @@ function groupsJSONToCards(jsonStr) {
       name: g?.name || '',
       models: Array.isArray(g?.models) ? g.models : [],
       resetHour: g?.reset_hour ?? 0,
-      limits: Object.keys(g?.limits || {}).map((group) => ({
-        group,
-        limit: g.limits[group],
-        tiers: g?.tiers?.[group] || [],
+      limits: Object.keys(g?.limits || {}).map((groupKey) => ({
+        groups: sharedGroupKeyToArray(groupKey),
+        limit: g.limits[groupKey],
+        tiers: g?.tiers?.[groupKey] || [],
         useSlots: false,
         slots: [],
       })),
-      timeSlots: Object.keys(g?.time_slots || {}).map((group) => ({
-        group,
-        slots: g.time_slots[group] || [],
+      timeSlots: Object.keys(g?.time_slots || {}).map((groupKey) => ({
+        groups: sharedGroupKeyToArray(groupKey),
+        slots: g.time_slots[groupKey] || [],
       })),
     }));
   } catch {
@@ -193,16 +208,18 @@ function cardsToGroupsJSON(cards) {
     const validModels = (models || []).filter(Boolean);
     const limitObj = {};
     const tierObj = {};
-    (limits || []).forEach(({ group, limit, tiers, useSlots }) => {
-      if (!group || useSlots) return;
+    (limits || []).forEach(({ groups, limit, tiers, useSlots }) => {
+      const groupKey = sharedGroupArrayToKey(groups);
+      if (!groupKey || useSlots) return;
       const n = parseInt(limit, 10);
       if (!Number.isFinite(n) || n < 1) return;
-      limitObj[group] = n;
-      if (Array.isArray(tiers)) tierObj[group] = tiers;
+      limitObj[groupKey] = n;
+      if (Array.isArray(tiers)) tierObj[groupKey] = tiers;
     });
     const slotObj = {};
-    (timeSlots || []).forEach(({ group, slots }) => {
-      if (!group) return;
+    (timeSlots || []).forEach(({ groups, slots }) => {
+      const groupKey = sharedGroupArrayToKey(groups);
+      if (!groupKey) return;
       const valid = (slots || [])
         .map(({ start, end, limit }) => ({
           start: parseInt(start, 10),
@@ -220,7 +237,7 @@ function cardsToGroupsJSON(cards) {
             end <= 24 &&
             limit >= 0,
         );
-      if (valid.length > 0) slotObj[group] = valid;
+      if (valid.length > 0) slotObj[groupKey] = valid;
     });
     if (
       validModels.length === 0 &&
@@ -399,10 +416,7 @@ export default function ModelDailyLimit(props) {
     value: h,
     label: `${String(h).padStart(2, '0')}:00`,
   }));
-  const endHourOptions = [
-    ...hourOptions,
-    { value: 24, label: '24:00' },
-  ];
+  const endHourOptions = [...hourOptions, { value: 24, label: '24:00' }];
   // 存储用 end（0~24，24 归一化为 0）；显示用 end（0 转回 24，仅当 start>0）
   const slotEndToDisplay = (start, end) => {
     if (Number(end) === 0 && Number(start) > 0) return 24;
@@ -413,9 +427,7 @@ export default function ModelDailyLimit(props) {
     const next = limitRows.slice();
     const slots = [...(next[idx].slots || [])];
     // 默认从上一个时段结束点开始，8 小时一段，上限 100
-    const start = slots.length
-      ? Number(slots[slots.length - 1].end) % 24
-      : 0;
+    const start = slots.length ? Number(slots[slots.length - 1].end) % 24 : 0;
     const end = (start + 8) % 24;
     slots.push({ start, end, limit: 100 });
     next[idx] = { ...next[idx], useSlots: true, slots };
@@ -456,7 +468,15 @@ export default function ModelDailyLimit(props) {
       {
         name: '',
         models: [],
-        limits: [{ group: 'default', limit: 500, tiers: [], useSlots: false, slots: [] }],
+        limits: [
+          {
+            groups: ['default'],
+            limit: 500,
+            tiers: [],
+            useSlots: false,
+            slots: [],
+          },
+        ],
         timeSlots: [],
         resetHour: 0,
       },
@@ -475,7 +495,13 @@ export default function ModelDailyLimit(props) {
   const addCardLimit = (cardIdx) => {
     const next = groupCards.slice();
     const limits = (next[cardIdx].limits || []).slice();
-    limits.push({ group: 'default', limit: 500, tiers: [], useSlots: false, slots: [] });
+    limits.push({
+      groups: ['default'],
+      limit: 500,
+      tiers: [],
+      useSlots: false,
+      slots: [],
+    });
     next[cardIdx] = { ...next[cardIdx], limits };
     applyCardsToInputs(next);
   };
@@ -530,7 +556,7 @@ export default function ModelDailyLimit(props) {
   const addCardTimeSlotRow = (cardIdx) => {
     const next = groupCards.slice();
     const timeSlots = [...(next[cardIdx].timeSlots || [])];
-    timeSlots.push({ group: 'default', slots: [] });
+    timeSlots.push({ groups: ['default'], slots: [] });
     next[cardIdx] = { ...next[cardIdx], timeSlots };
     applyCardsToInputs(next);
   };
@@ -719,7 +745,10 @@ export default function ModelDailyLimit(props) {
                     render: (val, record, idx) => (
                       <div>
                         <Select
-                          style={{ width: 104, marginBottom: record.useSlots ? 6 : 0 }}
+                          style={{
+                            width: 104,
+                            marginBottom: record.useSlots ? 6 : 0,
+                          }}
                           optionList={[
                             { value: 'daily', label: t('整日') },
                             { value: 'slots', label: t('分时段') },
@@ -967,7 +996,7 @@ export default function ModelDailyLimit(props) {
                   <div style={{ marginBottom: 8 }}>
                     <Text type='tertiary'>
                       {t(
-                        '让同一渠道的多个模型共用一份每日额度。每个组：填组名、多选模型（下拉含渠道名）、设置各分组的每日上限。共享组优先于上方单模型配置。',
+                        '让多个模型共用一份额度。每条限额可多选用户分组，所选分组（如 default 和 coding）共同消耗同一额度。共享组优先于上方单模型配置。',
                       )}
                     </Text>
                   </div>
@@ -1044,14 +1073,15 @@ export default function ModelDailyLimit(props) {
                           >
                             <div className='flex items-center gap-2'>
                               <Select
+                                multiple
                                 filter
-                                style={{ width: 220 }}
-                                placeholder={t('分组')}
+                                style={{ width: 320 }}
+                                placeholder={t('分组（可多选）')}
                                 optionList={groupOptions}
-                                value={lim.group || undefined}
+                                value={lim.groups || []}
                                 allowCreate
                                 onChange={(v) =>
-                                  updateCardLimit(cardIdx, limIdx, 'group', v)
+                                  updateCardLimit(cardIdx, limIdx, 'groups', v)
                                 }
                               />
                               <InputNumber
@@ -1175,17 +1205,18 @@ export default function ModelDailyLimit(props) {
                           >
                             <div className='flex items-center gap-2'>
                               <Select
+                                multiple
                                 filter
-                                style={{ width: 220 }}
-                                placeholder={t('分组')}
+                                style={{ width: 320 }}
+                                placeholder={t('分组（可多选）')}
                                 optionList={groupOptions}
-                                value={slotRow.group || undefined}
+                                value={slotRow.groups || []}
                                 allowCreate
                                 onChange={(v) =>
                                   updateCardTimeSlotRow(
                                     cardIdx,
                                     slotRowIdx,
-                                    'group',
+                                    'groups',
                                     v,
                                   )
                                 }
@@ -1307,7 +1338,7 @@ export default function ModelDailyLimit(props) {
                     <Form.TextArea
                       noLabel
                       placeholder={
-                        '[\n  {\n    "name": "channel_a",\n    "models": ["gpt-4o", "gpt-4o-mini"],\n    "limits": { "default": 500 }\n  }\n]'
+                        '[\n  {\n    "name": "channel_a",\n    "models": ["gpt-4o", "gpt-4o-mini"],\n    "limits": { "coding,default": 500 }\n  }\n]'
                       }
                       field={'ModelDailyLimitGroups'}
                       autosize={{ minRows: 6, maxRows: 18 }}
@@ -1326,7 +1357,7 @@ export default function ModelDailyLimit(props) {
                           <ul>
                             <li>
                               {t(
-                                '用于让来自同一渠道的多个模型共用一份每日额度。数组格式，每个组包含 name（组名，需唯一）、models（模型名列表）、limits（分组名到上限的映射）。',
+                                '用于让多个模型和用户分组共用一份额度。数组格式，每个组包含 name（组名，需唯一）、models（模型名列表）、limits（用户分组组合到上限的映射，多个分组用逗号连接）。',
                               )}
                             </li>
                             <li>

@@ -74,9 +74,16 @@ func GetWindowUsage(counterName, group string, window setting.ModelLimitWindow) 
 	return getWindowUsage(window, group)
 }
 
+func counterGroup(window setting.ModelLimitWindow, requestGroup string) string {
+	if window.CounterGroup != "" {
+		return window.CounterGroup
+	}
+	return requestGroup
+}
+
 // getWindowUsage 读取一个窗口计数器的当前值（Redis 或内存）。
 func getWindowUsage(window setting.ModelLimitWindow, group string) int64 {
-	key := windowCounterKey(modelDailyLimitRedisPrefix, window.CounterName, group, window)
+	key := windowCounterKey(modelDailyLimitRedisPrefix, window.CounterName, counterGroup(window, group), window)
 	if common.RedisEnabled {
 		value, err := common.RDB.Get(context.Background(), key).Int64()
 		if err != nil {
@@ -92,7 +99,7 @@ func getWindowUsage(window setting.ModelLimitWindow, group string) int64 {
 
 // incrWindowUsage 对窗口计数器 +1，并设置窗口过期时间。
 func incrWindowUsage(window setting.ModelLimitWindow, group string) {
-	key := windowCounterKey(modelDailyLimitRedisPrefix, window.CounterName, group, window)
+	key := windowCounterKey(modelDailyLimitRedisPrefix, window.CounterName, counterGroup(window, group), window)
 	ttl := secondsUntilNextReset(window.ResetHour)
 	if !window.WindowEnd.IsZero() {
 		ttl = int64(time.Until(window.WindowEnd).Seconds())

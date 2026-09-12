@@ -73,9 +73,9 @@ func TestResolveModelLimitWindowPriority(t *testing.T) {
 
 	ModelDailyLimitGroups = []ModelDailyLimitSharedGroup{
 		{
-			Name:    "sharedA",
-			Models:  []string{"gpt-x"},
-			Limits:  map[string]int{"default": 999},
+			Name:   "sharedA",
+			Models: []string{"gpt-x"},
+			Limits: map[string]int{"default": 999},
 			TimeSlots: map[string][]ModelTimeSlotLimit{
 				"default": {{Start: 8, End: 16, Limit: 100}},
 			},
@@ -208,5 +208,69 @@ func TestCheckModelDailyLimitGroupsWithTimeSlots(t *testing.T) {
 	badStr := `[{"name":"a","models":["m1"],"limits":{},"time_slots":{"default":[{"start":8,"end":16,"limit":100},{"start":10,"end":20,"limit":100}]}}]`
 	if err := CheckModelDailyLimitGroups(badStr); err == nil {
 		t.Fatal("overlapping time slots in group should be rejected")
+	}
+}
+
+func TestResolveSharedLimitAcrossUserGroups(t *testing.T) {
+	oldGroups := ModelDailyLimitGroups
+	defer func() { ModelDailyLimitGroups = oldGroups }()
+
+	ModelDailyLimitGroups = []ModelDailyLimitSharedGroup{{
+		Name:   "shared",
+		Models: []string{"gpt-x"},
+		Limits: map[string]int{"default,coding": 500},
+	}}
+
+	defaultWindow := resolveModelLimitWindowLocked("gpt-x", "default", bjTime(10, 0))
+	codingWindow := resolveModelLimitWindowLocked("gpt-x", "coding", bjTime(10, 0))
+	if !defaultWindow.Found || !codingWindow.Found || defaultWindow.Limit != 500 || codingWindow.Limit != 500 {
+		t.Fatalf("shared daily limits not resolved: default=%+v coding=%+v", defaultWindow, codingWindow)
+	}
+	if defaultWindow.CounterName != codingWindow.CounterName || defaultWindow.CounterGroup != "coding,default" || codingWindow.CounterGroup != "coding,default" {
+		t.Fatalf("user groups should share a counter: default=%+v coding=%+v", defaultWindow, codingWindow)
+	}
+	if window := resolveModelLimitWindowLocked("gpt-x", "vip", bjTime(10, 0)); window.Found {
+		t.Fatalf("unconfigured user group should not match: %+v", window)
+	}
+}
+
+func TestResolveSharedTimeSlotAcrossUserGroups(t *testing.T) {
+	oldGroups := ModelDailyLimitGroups
+	defer func() { ModelDailyLimitGroups = oldGroups }()
+
+	ModelDailyLimitGroups = []ModelDailyLimitSharedGroup{{
+		Name:   "shared",
+		Models: []string{"gpt-x"},
+		TimeSlots: map[string][]ModelTimeSlotLimit{
+			"coding,default": {{Start: 8, End: 16, Limit: 100}},
+		},
+	}}
+
+	defaultWindow := resolveModelLimitWindowLocked("gpt-x", "default", bjTime(10, 0))
+	codingWindow := resolveModelLimitWindowLocked("gpt-x", "coding", bjTime(10, 0))
+	if !defaultWindow.InSupply || !codingWindow.InSupply || defaultWindow.Limit != 100 || codingWindow.Limit != 100 {
+		t.Fatalf("shared time slots not resolved: default=%+v coding=%+v", defaultWindow, codingWindow)
+	}
+	if defaultWindow.CounterGroup != "coding,default" || codingWindow.CounterGroup != "coding,default" || !defaultWindow.WindowStart.Equal(codingWindow.WindowStart) {
+		t.Fatalf("user groups should share a time-slot counter: default=%+v coding=%+v", defaultWindow, codingWindow)
+	}
+}
+
+func TestCheckModelDailyLimitGroupsRejectsOverlappingUserGroups(t *testing.T) {
+	valid := `[{"name":"a","models":["m1"],"limits":{"coding,default":500,"vip":100}}]`
+	if err := CheckModelDailyLimitGroups(valid); err != nil {
+		t.Fatalf("valid multi-group limit rejected: %v", err)
+	}
+
+	invalid := []string{
+		`[{"name":"a","models":["m1"],"limits":{"default":100,"coding,default":500}}]`,
+		`[{"name":"a","models":["m1"],"limits":{"coding,default":100,"default,coding":500}}]`,
+		`[{"name":"a","models":["m1"],"limits":{"default,default":500}}]`,
+		`[{"name":"a","models":["m1"],"time_slots":{"default":[{"start":0,"end":8,"limit":100}],"coding,default":[{"start":8,"end":16,"limit":100}]}}]`,
+	}
+	for _, jsonStr := range invalid {
+		if err := CheckModelDailyLimitGroups(jsonStr); err == nil {
+			t.Fatalf("overlapping shared user groups should be rejected: %s", jsonStr)
+		}
 	}
 }
