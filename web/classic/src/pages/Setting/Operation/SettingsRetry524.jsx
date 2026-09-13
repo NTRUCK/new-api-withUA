@@ -22,6 +22,7 @@ import {
   Banner,
   Button,
   Col,
+  Collapse,
   Form,
   Row,
   Spin,
@@ -147,7 +148,8 @@ export default function SettingsRetry524(props) {
     setLoading(true);
     Promise.all(requestQueue)
       .then((res) => {
-        if (res.includes(undefined)) return showError(t('部分保存失败，请重试'));
+        if (res.includes(undefined))
+          return showError(t('部分保存失败，请重试'));
         showSuccess(t('保存成功'));
         props.refresh();
       })
@@ -213,36 +215,41 @@ export default function SettingsRetry524(props) {
           </Row>
           <Row style={{ marginTop: 20 }}>
             <Col span={24}>
-              <Form.Slot label={t('各渠道 524 消耗统计')}>
-                <div style={{ marginBottom: 8 }}>
-                  <Tag color='red' size='large' style={{ marginRight: 8 }}>
-                    {t('触发合计')}：{totals.triggerCount}
-                  </Tag>
-                  <Tag color='orange' size='large' style={{ marginRight: 8 }}>
-                    {t('重试合计')}：{totals.retryCount}
-                  </Tag>
-                  <Tag color='blue' size='large'>
-                    {t('上游请求合计')}：{totals.upstreamCount}
-                  </Tag>
-                </div>
-                <Table
-                  columns={columns}
-                  dataSource={statsRows}
-                  rowKey='channelId'
-                  size='small'
-                  pagination={false}
-                  empty={t('暂无 524 统计数据（开关开启且发生 524 后显示）')}
-                />
-                <Text
-                  type='tertiary'
-                  size='small'
-                  style={{ marginTop: 6, display: 'block' }}
+              <Collapse>
+                <Collapse.Panel
+                  header={t('各渠道 524 消耗统计')}
+                  itemKey='stats'
                 >
-                  {t(
-                    '触发次数=524 报错次数；实际重试次数=因 524 真正向上游重发的次数（额外消耗的按次计费调用）；上游总请求次数用作 524 占比分母。统计持久化保存，可在数据库 options 表中将 RetryOn524Stats 置为 {} 以重置。',
-                  )}
-                </Text>
-              </Form.Slot>
+                  <div style={{ marginBottom: 8 }}>
+                    <Tag color='red' size='large' style={{ marginRight: 8 }}>
+                      {t('触发合计')}：{totals.triggerCount}
+                    </Tag>
+                    <Tag color='orange' size='large' style={{ marginRight: 8 }}>
+                      {t('重试合计')}：{totals.retryCount}
+                    </Tag>
+                    <Tag color='blue' size='large'>
+                      {t('上游请求合计')}：{totals.upstreamCount}
+                    </Tag>
+                  </div>
+                  <Table
+                    columns={columns}
+                    dataSource={statsRows}
+                    rowKey='channelId'
+                    size='small'
+                    pagination={false}
+                    empty={t('暂无 524 统计数据（开关开启且发生 524 后显示）')}
+                  />
+                  <Text
+                    type='tertiary'
+                    size='small'
+                    style={{ marginTop: 6, display: 'block' }}
+                  >
+                    {t(
+                      '触发次数=524 报错次数；实际重试次数=因 524 真正向上游重发的次数（额外消耗的按次计费调用）；上游总请求次数用作 524 占比分母。统计持久化保存，可在数据库 options 表中将 RetryOn524Stats 置为 {} 以重置。',
+                    )}
+                  </Text>
+                </Collapse.Panel>
+              </Collapse>
             </Col>
           </Row>
         </Form.Section>
