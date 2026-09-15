@@ -56,7 +56,7 @@ const COMPONENT_STYLES = {
     fontWeight: '500',
   },
   avatarContainer:
-    'w-16 h-16 rounded-2xl bg-white/90 shadow-md backdrop-blur-sm flex items-center justify-center',
+    'brand-glow-avatar w-16 h-16 rounded-2xl bg-white/90 shadow-md backdrop-blur-sm flex items-center justify-center',
   titleText: { color: 'white' },
   descriptionText: { color: 'rgba(255,255,255,0.9)' },
 };

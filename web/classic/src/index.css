@@ -711,6 +711,150 @@ html.dark .sbg-variant-green {
   --semi-color-primary-light-active: rgba(52, 211, 153, 0.3);
 }
 
+/* ==================== 模型广场筛选按钮发光 ==================== */
+/*
+ * 模型广场的五个筛选器（供应商 violet / 令牌分组 teal / 标签 rose /
+ * 计费类型 amber / 端点类型 green）共用 SelectableButtonGroup，
+ * 每个 variant 容器上都重定义了 --semi-color-primary 及其 light 系列，
+ * 因此这里直接引用变量即可让发光自动跟随各筛选器的主题色，
+ * 明暗模式同理（html.dark 下的 variant 定义已换成亮色版本）。
+ *
+ * 与模型卡片 brand-glow-card 同一套发光语言，复用 --brand-angle /
+ * brand-glow-spin 做 hover 时的边缘流动光环，只是按钮小（32px 高），
+ * 光环厚度从 2px 收窄到 1.5px，并整体调低不透明度避免过亮。
+ *
+ * 按钮发光分四层：
+ *   1. 所有按钮常态：柔和外发光（与模型卡片 brand-glow-card 一致，
+ *      未选中也有常态光）
+ *   2. 激活按钮常态：发光加强一档 + 慢速旋转的流动光环
+ *   3. 激活按钮 hover：发光再加强 + 光环提速
+ *   4. 未激活按钮 hover：发光加强 + 快速流动光环
+ *
+ * 发光色用 color-mix 从 --semi-color-primary 现调，因为 variant 自带的
+ * light 系列透明度太淡（0.08~0.3），直接引用做 box-shadow 会看不出光。
+ *
+ * 光环转速分两档：hover 快（3s/圈），激活常态慢（6s/圈）。
+ * duration 切换瞬间角度会跳一下（elapsed 不变、时长减半导致角度翻倍），
+ * 但光环本来就在转，视觉上察觉不到。
+ */
+.sbg-button {
+  position: relative; /* hover 光环 ::after 的定位基准 */
+  /* 常态柔光：所有按钮都有，透明度低于模型卡片（0.18）避免一屏几十个
+   * 按钮同时亮糊成一片 */
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--semi-color-primary) 22%, transparent);
+  transition: box-shadow 0.2s ease;
+}
+
+/* 激活按钮：常态发光加强 */
+.sbg-button.semi-button-light.semi-button-primary {
+  box-shadow: 0 0 14px 2px color-mix(in srgb, var(--semi-color-primary) 45%, transparent);
+}
+
+/* 激活按钮 hover：发光再加强 */
+.sbg-button.semi-button-light.semi-button-primary:hover {
+  box-shadow: 0 0 18px 3px color-mix(in srgb, var(--semi-color-primary) 60%, transparent);
+}
+
+/* 未激活按钮 hover：发光加强，暗示可点 */
+.sbg-button.semi-button-outline.semi-button-tertiary:hover {
+  box-shadow: 0 0 12px 2px color-mix(in srgb, var(--semi-color-primary) 38%, transparent);
+}
+
+/* ==================== 边缘流动光环 ==================== */
+/* hover：快速流动光环（3s/圈） */
+.sbg-button:hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  opacity: 0.8;
+  background: conic-gradient(
+    from var(--brand-angle),
+    transparent 0deg,
+    var(--semi-color-primary) 40deg,
+    transparent 110deg,
+    transparent 180deg,
+    var(--semi-color-primary) 220deg,
+    transparent 290deg,
+    transparent 360deg
+  );
+  /* 只留 padding 那 1.5px 一圈，中间挖空 */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: brand-glow-spin 3s linear infinite;
+}
+
+/* 激活态常态：慢速流动光环（6s/圈），淡一档做背景层 */
+.sbg-button.semi-button-light.semi-button-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  opacity: 0.5;
+  background: conic-gradient(
+    from var(--brand-angle),
+    transparent 0deg,
+    var(--semi-color-primary) 40deg,
+    transparent 110deg,
+    transparent 180deg,
+    var(--semi-color-primary) 220deg,
+    transparent 290deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: brand-glow-spin 6s linear infinite;
+}
+
+/* 激活态 hover：光环提速回 3s/圈（该选择器特异性 4 类，高于上面两条，
+ * 确保覆盖 6s 慢速规则） */
+.sbg-button.semi-button-light.semi-button-primary:hover::after {
+  animation: brand-glow-spin 3s linear infinite;
+  opacity: 0.8;
+}
+
+/* 跟随系统的减少动效设置，光环停转但保留静态渐变 */
+@media (prefers-reduced-motion: reduce) {
+  .sbg-button:hover::after,
+  .sbg-button.semi-button-light.semi-button-primary::after {
+    animation: none;
+  }
+}
+
+/* ==================== 供应商介绍区头像发光 ==================== */
+/*
+ * 模型广场顶部的供应商介绍区：封面是彩色图片 + 深色遮罩，
+ * 头像容器是白色圆角方块，叠在封面左上。给它加白色柔光，
+ * 与红底顶栏的 logo 发光同一套语言（顶栏 logo 也是白块 + 白光）。
+ */
+.brand-glow-avatar {
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 0 14px 3px rgba(255, 255, 255, 0.45);
+}
+
+.brand-glow-avatar:hover {
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 0 20px 5px rgba(255, 255, 255, 0.65);
+}
+
 /* Tabs组件样式 */
 .semi-tabs-content {
   padding: 0 !important;
