@@ -53,8 +53,8 @@ const CARD_STYLES = {
   container:
     'w-12 h-12 rounded-2xl flex items-center justify-center relative shadow-md',
   icon: 'w-8 h-8 flex items-center justify-center',
-  selected: 'border-blue-500 bg-blue-50',
-  default: 'border-gray-200 hover:border-gray-300',
+  selected: 'brand-glow-card-selected',
+  default: 'border-gray-200',
 };
 
 const formatSlotHour = (hour, start, isEnd = false) =>
@@ -412,7 +412,7 @@ const PricingCardView = ({
           return (
             <Card
               key={modelKey || index}
-              className={`!rounded-2xl transition-all duration-200 hover:shadow-lg border cursor-pointer ${isSelected ? CARD_STYLES.selected : CARD_STYLES.default}`}
+              className={`!rounded-2xl transition-all duration-200 border cursor-pointer brand-glow-card ${isSelected ? CARD_STYLES.selected : CARD_STYLES.default}`}
               bodyStyle={{ height: '100%' }}
               onClick={() => openModelDetail && openModelDetail(model)}
             >

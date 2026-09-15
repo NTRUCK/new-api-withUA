@@ -13,6 +13,270 @@
   @tailwind utilities;
 }
 
+/* ==================== 品牌主色（社区图标红 #E90200）==================== */
+/*
+ * Semi 的语义变量都派生自调色板，例如：
+ *   --semi-color-primary: rgba(var(--semi-blue-5), 1)
+ *   --semi-color-link / --semi-color-focus-border 同样引用 --semi-blue-5
+ *   --semi-color-primary-light-default 亮色引用 --semi-blue-0
+ * 所以只需替换 blue-0..9 这十级调色板，全站主色（含 Tailwind 的
+ * semi-color-* 类、VChart 主题）即可整体变红，无需逐个覆盖语义变量。
+ *
+ * 取值方式：保留 Semi 原生蓝调色板每一级的明度/饱和度（已经过设计校准），
+ * 只把色相换成品牌红的 0.52°。亮色 5 号位锚定图标原色 #E90200；
+ * 暗色不锚定 —— Semi 暗色主色本就比亮色更浅（原 blue-5 l=66%），
+ * 硬塞原色会让 5 号位比 4 号位更暗、破坏梯度。
+ *
+ * 这些规则不写在 @layer 内，因此优先级高于 @layer semi（vite-plugin-semi
+ * 开了 cssLayer），覆盖稳定生效。亮暗两套模式均保留。
+ */
+body {
+  --semi-blue-0: 255, 234, 234; /* #FFEAEA */
+  --semi-blue-1: 254, 203, 203; /* #FECBCB */
+  --semi-blue-2: 253, 153, 152; /* #FD9998 */
+  --semi-blue-3: 252, 102, 101; /* #FC6665 */
+  --semi-blue-4: 251, 52, 50; /* #FB3432 */
+  --semi-blue-5: 233, 2, 0; /* #E90200  主色 = 图标红 */
+  --semi-blue-6: 214, 2, 0; /* #D60200  hover */
+  --semi-blue-7: 179, 2, 0; /* #B30200  active */
+  --semi-blue-8: 143, 1, 0; /* #8F0100 */
+  --semi-blue-9: 107, 1, 0; /* #6B0100 */
+}
+
+body[theme-mode='dark'] {
+  --semi-blue-0: 112, 6, 5; /* #700605 */
+  --semi-blue-1: 148, 11, 10; /* #940B0A */
+  --semi-blue-2: 184, 20, 19; /* #B81413 */
+  --semi-blue-3: 219, 31, 29; /* #DB1F1D */
+  --semi-blue-4: 255, 43, 41; /* #FF2B29 */
+  --semi-blue-5: 255, 85, 84; /* #FF5554  暗色主色 */
+  --semi-blue-6: 255, 128, 127; /* #FF807F  hover */
+  --semi-blue-7: 255, 170, 169; /* #FFAAA9  active */
+  --semi-blue-8: 255, 212, 212; /* #FFD4D4 */
+  --semi-blue-9: 255, 239, 239; /* #FFEFEF */
+}
+
+/* ==================== 品牌顶栏（呼应社区图标的红）==================== */
+/*
+ * 顶栏整条铺红，内容区维持白（body 的 --semi-color-bg-0，无需处理）。
+ * 顶栏红底会和图标自身的红色带糊在一起，所以给 logo 加白环 + 外发光把两者分开。
+ * 标识来自 HeaderBar 上的 data-brand-bar="top" 属性。
+ *
+ * 关键约束：UserArea 的用户下拉用了 getPopupContainer={() => dropdownRef.current}，
+ * 弹层渲染在顶栏内部而非 body 下的 portal。所以"转白"规则会连带扫到弹层内容，
+ * 白字压在白色弹层底上会变成隐形 —— 必须靠后面那条"恢复原生配色"的规则压回来。
+ */
+
+[data-brand-bar='top'] {
+  --brand-bar-red: #c4201d;
+  --brand-bar-fg: #fff;
+  --brand-bar-glow: 0 0 10px rgba(255, 255, 255, 0.5);
+  background-color: var(--brand-bar-red);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* 暗色下用深红，避免整条亮红在暗背景上刺眼 */
+body[theme-mode='dark'] [data-brand-bar='top'] {
+  --brand-bar-red: #7a0100;
+}
+
+/* 条内文字/图标转白（在红色区域可读）。
+ * 弹层内部由后面的"恢复原生配色"规则压回来。 */
+[data-brand-bar='top'] :is(a, span, p, h1, h2, h3, h4, h5, h6, svg),
+[data-brand-bar='top'] :is(.semi-typography, .semi-button-content) {
+  color: var(--brand-bar-fg) !important;
+}
+
+/* 文字：白色 + 白色外发光 */
+[data-brand-bar='top']
+  :is(a, span, p, h1, h2, h3, h4, h5, h6, .semi-typography):not(
+    .semi-dropdown *,
+    .semi-popover *,
+    .semi-portal *,
+    .semi-button-primary *
+  ) {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+/* SVG 图标：白色发光 */
+[data-brand-bar='top']
+  svg:not(
+    .semi-dropdown *,
+    .semi-popover *,
+    .semi-portal *,
+    .semi-button-primary *
+  ) {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.55));
+}
+
+/* 导航 hover：半透明白底 */
+[data-brand-bar='top'] nav a:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+}
+
+/* 图标按钮 hover：半透明白底，排除弹层 */
+[data-brand-bar='top'] :is(.semi-button-borderless, .semi-button-tertiary):not(
+    .semi-dropdown *,
+    .semi-popover *,
+    .semi-portal *
+  ):hover {
+  background-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* 主按钮（如「注册」）反转成白底红字，在红底上不隐形 */
+[data-brand-bar='top'] .semi-button-primary {
+  background-color: #fff !important;
+  box-shadow: none !important;
+}
+[data-brand-bar='top'] .semi-button-primary :is(span, svg),
+[data-brand-bar='top'] .semi-button-primary .semi-button-content {
+  color: rgba(var(--semi-blue-5), 1) !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+[data-brand-bar='top'] .semi-button-primary:hover {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+}
+
+/* 标签（自用模式/演示站点）：白色细描边 + 半透明白底 */
+[data-brand-bar='top'] .semi-tag:not(.semi-dropdown *, .semi-popover *) {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: none !important;
+}
+
+/* 用户下拉弹层：恢复 Semi 原生配色（白底深字） */
+[data-brand-bar='top'] :is(.semi-dropdown, .semi-popover) :is(a, span, p, svg) {
+  color: var(--semi-color-text-0) !important;
+  text-shadow: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+[data-brand-bar='top']
+  :is(.semi-dropdown, .semi-popover)
+  .semi-dropdown-item
+  svg {
+  color: var(--semi-color-text-2) !important;
+}
+
+/* UserArea 触发按钮：所有内部元素强制白色（覆盖任何硬编码类） */
+[data-brand-bar='top'] .semi-button-tertiary *,
+[data-brand-bar='top'] .semi-button-borderless * {
+  color: #fff !important;
+}
+
+/* UserArea 触发按钮：文字元素加发光 */
+[data-brand-bar='top'] .semi-button-tertiary .semi-typography,
+[data-brand-bar='top'] .semi-button-borderless .semi-typography,
+[data-brand-bar='top'] .semi-button-tertiary span,
+[data-brand-bar='top'] .semi-button-borderless span {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5) !important;
+}
+
+/* logo 与红底分离：紧贴的白环 + 柔和外发光 */
+[data-brand-bar='top'] img[alt='logo'] {
+  background-color: #fff;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 14px 4px rgba(255, 255, 255, 0.55);
+}
+
+/* ==================== 模型卡片发光边缘 ==================== */
+/*
+ * 和顶栏 logo 的发光同一套语言，但卡片底色是白的，所以发光色换成品牌红。
+ *
+ * 两层结构：
+ *   1. 常亮的柔和外发光 —— 用 box-shadow。box-shadow 画在 border-box 之外，
+ *      不受元素自身 overflow: hidden 影响，所以能溢出卡片。
+ *   2. hover 时的流动光环 —— 用 ::after + 旋转的 conic-gradient。
+ *      .semi-card 有 overflow: hidden（semi.css:2977），画在外侧会被裁掉，
+ *      所以光环只能画在内侧边缘，靠 mask 挖空中间只留 2px 一圈。
+ *
+ * --brand-angle 用 @property 注册，否则自定义属性无法参与过渡/动画，
+ * conic-gradient 的角度就不会转。不支持 @property 的浏览器会退化成静态渐变环，
+ * 不报错也不错位。
+ */
+@property --brand-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes brand-glow-spin {
+  to {
+    --brand-angle: 360deg;
+  }
+}
+
+.brand-glow-card {
+  --card-glow: rgba(233, 2, 0, 0.18);
+  --card-glow-strong: rgba(233, 2, 0, 0.45);
+  position: relative;
+  /* 常亮：淡一档，一屏十几张卡同时亮才不糊 */
+  box-shadow: 0 0 12px 1px var(--card-glow);
+}
+
+/* hover：外发光加强 */
+.brand-glow-card:hover {
+  border-color: var(--card-glow-strong) !important;
+  box-shadow: 0 0 18px 3px var(--card-glow-strong);
+}
+
+/* hover：内侧边缘的流动光环。
+ * conic-gradient 里放两段亮色，转起来就是两道光在边框上跑。 */
+.brand-glow-card:hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--brand-angle),
+    transparent 0deg,
+    var(--card-glow-strong) 40deg,
+    transparent 110deg,
+    transparent 180deg,
+    var(--card-glow-strong) 220deg,
+    transparent 290deg,
+    transparent 360deg
+  );
+  /* 只留 padding 那 2px 一圈，中间挖空 */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: brand-glow-spin 3s linear infinite;
+}
+
+/* 选中态：常亮且比 hover 更强，不依赖鼠标 */
+.brand-glow-card-selected {
+  border-color: rgba(var(--semi-blue-5), 1) !important;
+  background-color: rgba(233, 2, 0, 0.04) !important;
+  box-shadow:
+    0 0 0 1px rgba(233, 2, 0, 0.5),
+    0 0 22px 4px rgba(233, 2, 0, 0.4);
+}
+
+body[theme-mode='dark'] .brand-glow-card {
+  --card-glow: rgba(255, 85, 84, 0.2);
+  --card-glow-strong: rgba(255, 85, 84, 0.5);
+}
+body[theme-mode='dark'] .brand-glow-card-selected {
+  background-color: rgba(255, 85, 84, 0.08) !important;
+}
+
+/* 跟随系统的减少动效设置，光环停转但保留静态渐变 */
+@media (prefers-reduced-motion: reduce) {
+  .brand-glow-card:hover::after {
+    animation: none;
+  }
+}
+
 /* ==================== 全局基础样式 ==================== */
 :root {
   --sidebar-width: 180px;
@@ -758,8 +1022,8 @@ html.dark .sbg-variant-green {
 }
 
 .blur-ball-indigo {
-  background: #6366f1;
-  /* indigo-500 */
+  background: #e90200;
+  /* 品牌红，呼应图标与顶栏 */
   top: 40px;
   left: 50%;
   transform: translateX(-50%);
@@ -767,8 +1031,8 @@ html.dark .sbg-variant-green {
 }
 
 .blur-ball-teal {
-  background: #14b8a6;
-  /* teal-400 */
+  background: #ff6b5e;
+  /* 浅一档的红，避免两球同色糊成一团 */
   top: 200px;
   left: 30%;
   opacity: 0.4;

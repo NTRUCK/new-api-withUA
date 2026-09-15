@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useHeaderBar } from '../../../hooks/common/useHeaderBar';
 import { useNotifications } from '../../../hooks/common/useNotifications';
 import { useNavigation } from '../../../hooks/common/useNavigation';
@@ -27,7 +27,18 @@ import HeaderLogo from './HeaderLogo';
 import Navigation from './Navigation';
 import ActionButtons from './ActionButtons';
 
+const CUSTOM_THEME_KEY = 'site-theme-custom';
+
 const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
+  useEffect(() => {
+    try {
+      const isCustom = localStorage.getItem(CUSTOM_THEME_KEY) !== 'false';
+      const header = document.querySelector('[data-brand-bar]');
+      if (header) {
+        header.setAttribute('data-brand-bar', isCustom ? 'top' : 'off');
+      }
+    } catch {}
+  }, []);
   const {
     userState,
     statusState,
@@ -70,7 +81,10 @@ const HeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
   );
 
   return (
-    <header className='text-semi-color-text-0 sticky top-0 z-50 transition-colors duration-300 bg-white/75 dark:bg-zinc-900/75 backdrop-blur-lg'>
+    <header
+      data-brand-bar='top'
+      className='sticky top-0 z-50 transition-colors duration-300 backdrop-blur-lg'
+    >
       <NoticeModal
         visible={noticeVisible}
         onClose={handleNoticeClose}

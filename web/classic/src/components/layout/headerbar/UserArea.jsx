@@ -128,14 +128,14 @@ const UserArea = ({
             >
               {userState.user.username[0].toUpperCase()}
             </Avatar>
-            <span className='hidden md:inline'>
+            <span className='hidden'>
               <Typography.Text className='!text-xs !font-medium !text-semi-color-text-1 dark:!text-gray-300 mr-1'>
                 {userState.user.username}
               </Typography.Text>
             </span>
             <ChevronDown
               size={14}
-              className='text-xs text-semi-color-text-2 dark:text-gray-400'
+              className='hidden text-xs text-semi-color-text-2 dark:text-gray-400'
             />
           </Button>
         </Dropdown>

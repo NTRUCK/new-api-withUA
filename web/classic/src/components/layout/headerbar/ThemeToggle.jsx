@@ -17,13 +17,45 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Button, Dropdown } from '@douyinfe/semi-ui';
-import { Sun, Moon, Monitor } from 'lucide-react';
+import { Sun, Moon, Monitor, Palette } from 'lucide-react';
 import { useActualTheme } from '../../../context/Theme';
+
+const CUSTOM_THEME_KEY = 'site-theme-custom';
+
+export const useSiteTheme = () => {
+  const [custom, setCustom] = useState(() => {
+    try {
+      return localStorage.getItem(CUSTOM_THEME_KEY) !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    const header = document.querySelector('[data-brand-bar]');
+    if (header) {
+      header.setAttribute('data-brand-bar', custom ? 'top' : 'off');
+    }
+  }, [custom]);
+
+  const toggle = () => {
+    setCustom((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(CUSTOM_THEME_KEY, String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  return { custom, toggle };
+};
 
 const ThemeToggle = ({ theme, onThemeToggle, t }) => {
   const actualTheme = useActualTheme();
+  const { custom, toggle } = useSiteTheme();
 
   const themeOptions = useMemo(
     () => [
@@ -92,6 +124,20 @@ const ThemeToggle = ({ theme, onThemeToggle, t }) => {
               </div>
             </>
           )}
+
+          <Dropdown.Divider />
+          <Dropdown.Item
+            icon={<Palette size={18} />}
+            onClick={toggle}
+            className={getItemClassName(!custom)}
+          >
+            <div className='flex flex-col'>
+              <span>{custom ? t('切换到默认主题') : t('恢复站点主题')}</span>
+              <span className='text-xs text-semi-color-text-2'>
+                {custom ? t('使用系统默认外观') : t('使用站点自定义外观')}
+              </span>
+            </div>
+          </Dropdown.Item>
         </Dropdown.Menu>
       }
     >
