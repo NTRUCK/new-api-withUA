@@ -447,15 +447,36 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
       title: t('禁用原因'),
       dataIndex: 'reason',
       render: (reason, record) => {
-        if (record.status === 1 || !reason) {
+        if (record.status === 1) {
           return <Text type='quaternary'>-</Text>;
         }
+        const isQuotaExhausted = record.disabled_code === 'quota_exhausted';
         return (
-          <Tooltip content={reason}>
-            <Text style={{ maxWidth: '200px', display: 'block' }} ellipsis>
-              {reason}
-            </Text>
-          </Tooltip>
+          <Space>
+            {isQuotaExhausted && (
+              <Tooltip
+                content={t(
+                  '该密钥被判定为额度不足并已自动禁用，后续轮询不会再选中它',
+                )}
+              >
+                <Tag color='orange' shape='circle' size='small'>
+                  {t('额度不足')}
+                </Tag>
+              </Tooltip>
+            )}
+            {reason ? (
+              <Tooltip content={reason}>
+                <Text
+                  style={{ maxWidth: '200px', display: 'block' }}
+                  ellipsis
+                >
+                  {reason}
+                </Text>
+              </Tooltip>
+            ) : (
+              <Text type='quaternary'>-</Text>
+            )}
+          </Space>
         );
       },
     },

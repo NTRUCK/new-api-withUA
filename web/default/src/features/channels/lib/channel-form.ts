@@ -180,6 +180,8 @@ export const channelFormSchema = z
     thinking_to_content: z.boolean().optional(),
     hide_upstream_info: z.boolean().optional(),
     max_concurrency: z.number().int().min(0).optional(),
+    max_input_tokens: z.number().int().min(0).optional(),
+    max_input_tokens_by_group: z.string().optional(),
     proxy: z.string().optional(),
     pass_through_body_enabled: z.boolean().optional(),
     system_prompt: z.string().optional(),
@@ -261,9 +263,57 @@ export const channelFormSchema = z
         'Vertex AI API Key mode does not support batch creation'
       )
     }
+
+    if (data.max_input_tokens_by_group?.trim()) {
+      try {
+        parseMaxInputTokensByGroup(data.max_input_tokens_by_group)
+      } catch {
+        addRequiredIssue(
+          ctx,
+          'max_input_tokens_by_group',
+          'Invalid format. Use one "group: limit" per line, e.g. default: 200000'
+        )
+      }
+    }
   })
 
 export type ChannelFormValues = z.infer<typeof channelFormSchema>
+
+// ============================================================================
+// 按分组最大输入 Token：文本格式为每行「分组名: 上限」，上限为 0 表示该分组不限制
+// ============================================================================
+
+export function parseMaxInputTokensByGroup(
+  text: string | undefined
+): Record<string, number> {
+  const result: Record<string, number> = {}
+  if (!text?.trim()) return result
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.trim()
+    if (!line) continue
+    const matched = line.match(/^([^:：]+)\s*[:：]\s*(\d+)$/)
+    if (!matched) {
+      throw new Error('invalid max input tokens by group')
+    }
+    const group = matched[1].trim()
+    const limit = Number(matched[2])
+    if (!group || !Number.isFinite(limit) || limit < 0) {
+      throw new Error('invalid max input tokens by group')
+    }
+    result[group] = limit
+  }
+  return result
+}
+
+export function maxInputTokensByGroupToText(
+  raw: Record<string, number> | undefined
+): string {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return ''
+  return Object.entries(raw)
+    .filter(([group, limit]) => group && Number.isFinite(Number(limit)))
+    .map(([group, limit]) => `${group}: ${Number(limit)}`)
+    .join('\n')
+}
 
 // ============================================================================
 // Default Form Values
@@ -300,6 +350,8 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   thinking_to_content: false,
   hide_upstream_info: false,
   max_concurrency: 0,
+  max_input_tokens: 0,
+  max_input_tokens_by_group: '',
   proxy: '',
   pass_through_body_enabled: false,
   system_prompt: '',
@@ -338,6 +390,8 @@ export function transformChannelToFormDefaults(
     thinking_to_content: false,
     hide_upstream_info: false,
     max_concurrency: 0,
+    max_input_tokens: 0,
+    max_input_tokens_by_group: '',
     proxy: '',
     pass_through_body_enabled: false,
     system_prompt: '',
@@ -352,6 +406,10 @@ export function transformChannelToFormDefaults(
         thinking_to_content: parsed.thinking_to_content || false,
         hide_upstream_info: parsed.hide_upstream_info === true,
         max_concurrency: Number(parsed.max_concurrency) || 0,
+        max_input_tokens: Number(parsed.max_input_tokens) || 0,
+        max_input_tokens_by_group: maxInputTokensByGroupToText(
+          parsed.max_input_tokens_by_group
+        ),
         proxy: parsed.proxy || '',
         pass_through_body_enabled: parsed.pass_through_body_enabled || false,
         system_prompt: parsed.system_prompt || '',
@@ -463,6 +521,10 @@ function buildSettingJSON(formData: ChannelFormValues): string {
     thinking_to_content: formData.thinking_to_content || false,
     hide_upstream_info: formData.hide_upstream_info === true,
     max_concurrency: Number(formData.max_concurrency) || 0,
+    max_input_tokens: Number(formData.max_input_tokens) || 0,
+    max_input_tokens_by_group: parseMaxInputTokensByGroup(
+      formData.max_input_tokens_by_group
+    ),
     proxy: formData.proxy || '',
     pass_through_body_enabled: formData.pass_through_body_enabled || false,
     system_prompt: formData.system_prompt || '',

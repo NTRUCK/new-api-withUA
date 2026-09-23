@@ -132,6 +132,41 @@ const PARAM_OVERRIDE_OPERATIONS_TEMPLATE = {
 
 const DEPRECATED_DOUBAO_CODING_PLAN_BASE_URL = 'doubao-coding-plan';
 
+// 按分组最大输入 token：文本格式为每行「分组名: 上限」，上限为 0 表示该分组不限制。
+function parseMaxInputTokensByGroup(text) {
+  const result = {};
+  if (!text || typeof text !== 'string') {
+    return result;
+  }
+  text.split('\n').forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      return;
+    }
+    const matched = line.match(/^([^:：]+)\s*[:：]\s*(\d+)$/);
+    if (!matched) {
+      throw new Error('invalid max input tokens by group');
+    }
+    const group = matched[1].trim();
+    const limit = Number(matched[2]);
+    if (!group || !Number.isFinite(limit) || limit < 0) {
+      throw new Error('invalid max input tokens by group');
+    }
+    result[group] = limit;
+  });
+  return result;
+}
+
+function maxInputTokensByGroupToText(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return '';
+  }
+  return Object.entries(raw)
+    .filter(([group, limit]) => group && Number.isFinite(Number(limit)))
+    .map(([group, limit]) => `${group}: ${Number(limit)}`)
+    .join('\n');
+}
+
 // 支持并且已适配通过接口获取模型列表的渠道类型
 const MODEL_FETCHABLE_TYPES = new Set([
   1, 4, 14, 34, 17, 26, 27, 24, 47, 25, 20, 23, 31, 40, 42, 48, 43,
@@ -177,7 +212,6 @@ const EditChannelModal = (props) => {
     type: 1,
     key: '',
     openai_organization: '',
-    max_input_tokens: 0,
     base_url: '',
     other: '',
     model_mapping: '',
@@ -196,6 +230,8 @@ const EditChannelModal = (props) => {
     thinking_to_content: false,
     hide_upstream_info: false,
     max_concurrency: 0,
+    max_input_tokens: 0,
+    max_input_tokens_by_group: '',
     proxy: '',
     pass_through_body_enabled: false,
     system_prompt: '',
@@ -520,6 +556,8 @@ const EditChannelModal = (props) => {
     thinking_to_content: false,
     hide_upstream_info: false,
     max_concurrency: 0,
+    max_input_tokens: 0,
+    max_input_tokens_by_group: '',
     proxy: '',
     pass_through_body_enabled: false,
     system_prompt: '',
@@ -875,6 +913,11 @@ const EditChannelModal = (props) => {
             parsedSettings.thinking_to_content || false;
           data.hide_upstream_info = parsedSettings.hide_upstream_info === true;
           data.max_concurrency = Number(parsedSettings.max_concurrency) || 0;
+          data.max_input_tokens =
+            Number(parsedSettings.max_input_tokens) || 0;
+          data.max_input_tokens_by_group = maxInputTokensByGroupToText(
+            parsedSettings.max_input_tokens_by_group,
+          );
           data.proxy = parsedSettings.proxy || '';
           data.pass_through_body_enabled =
             parsedSettings.pass_through_body_enabled || false;
@@ -887,6 +930,8 @@ const EditChannelModal = (props) => {
           data.thinking_to_content = false;
           data.hide_upstream_info = false;
           data.max_concurrency = 0;
+          data.max_input_tokens = 0;
+          data.max_input_tokens_by_group = '';
           data.proxy = '';
           data.pass_through_body_enabled = false;
           data.system_prompt = '';
@@ -897,6 +942,8 @@ const EditChannelModal = (props) => {
         data.thinking_to_content = false;
         data.hide_upstream_info = false;
         data.max_concurrency = 0;
+        data.max_input_tokens = 0;
+        data.max_input_tokens_by_group = '';
         data.proxy = '';
         data.pass_through_body_enabled = false;
         data.system_prompt = '';
@@ -1008,6 +1055,8 @@ const EditChannelModal = (props) => {
         thinking_to_content: data.thinking_to_content,
         hide_upstream_info: data.hide_upstream_info,
         max_concurrency: data.max_concurrency,
+        max_input_tokens: data.max_input_tokens,
+        max_input_tokens_by_group: data.max_input_tokens_by_group,
         proxy: data.proxy,
         pass_through_body_enabled: data.pass_through_body_enabled,
         system_prompt: data.system_prompt,
@@ -1432,6 +1481,8 @@ const EditChannelModal = (props) => {
       thinking_to_content: false,
       hide_upstream_info: false,
       max_concurrency: 0,
+      max_input_tokens: 0,
+      max_input_tokens_by_group: '',
       proxy: '',
       pass_through_body_enabled: false,
       system_prompt: '',
@@ -1799,11 +1850,27 @@ const EditChannelModal = (props) => {
     }
 
     // 生成渠道额外设置JSON
+    let maxInputTokensByGroup = {};
+    try {
+      maxInputTokensByGroup = parseMaxInputTokensByGroup(
+        localInputs.max_input_tokens_by_group,
+      );
+    } catch (error) {
+      showError(
+        t(
+          '按分组最大输入 Token 格式无效，请按「分组名: 上限」每行一条填写，例如 default: 200000',
+        ),
+      );
+      return;
+    }
+
     const channelExtraSettings = {
       force_format: localInputs.force_format || false,
       thinking_to_content: localInputs.thinking_to_content || false,
       hide_upstream_info: localInputs.hide_upstream_info === true,
       max_concurrency: Number(localInputs.max_concurrency) || 0,
+      max_input_tokens: Number(localInputs.max_input_tokens) || 0,
+      max_input_tokens_by_group: maxInputTokensByGroup,
       proxy: localInputs.proxy || '',
       pass_through_body_enabled: localInputs.pass_through_body_enabled || false,
       system_prompt: localInputs.system_prompt || '',
@@ -1887,6 +1954,8 @@ const EditChannelModal = (props) => {
     delete localInputs.thinking_to_content;
     delete localInputs.hide_upstream_info;
     delete localInputs.max_concurrency;
+    delete localInputs.max_input_tokens;
+    delete localInputs.max_input_tokens_by_group;
     delete localInputs.proxy;
     delete localInputs.pass_through_body_enabled;
     delete localInputs.system_prompt;
@@ -2598,7 +2667,41 @@ const EditChannelModal = (props) => {
                         style={{ width: '100%' }}
                       />
                     </Col>
+                    <Col span={8}>
+                      <Form.InputNumber
+                        field='max_input_tokens'
+                        label={t('最大输入 Token')}
+                        placeholder={t('最大输入 Token')}
+                        min={0}
+                        onNumberChange={(value) =>
+                          handleChannelSettingsChange('max_input_tokens', value)
+                        }
+                        extraText={t(
+                          '单次请求的输入 Token 上限，超出直接拒绝。0 表示不限制',
+                        )}
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
                   </Row>
+
+                  <Form.TextArea
+                    field='max_input_tokens_by_group'
+                    label={t('按分组最大输入 Token')}
+                    placeholder={t(
+                      '每行一条，例如 default: 200000，写 0 表示该分组不限制',
+                    )}
+                    onChange={(value) =>
+                      handleChannelSettingsChange(
+                        'max_input_tokens_by_group',
+                        value,
+                      )
+                    }
+                    autosize={{ minRows: 2, maxRows: 6 }}
+                    showClear
+                    extraText={t(
+                      '格式为「分组名: 上限」，命中的分组优先于上面的统一上限；未列出的分组使用统一上限',
+                    )}
+                  />
 
                   {inputs.type === 1 && (
                     <>

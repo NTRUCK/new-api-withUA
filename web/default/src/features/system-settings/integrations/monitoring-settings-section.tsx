@@ -61,6 +61,9 @@ const monitoringSchema = z
     AutomaticDisableKeywords: z.string(),
     AutomaticDisableStatusCodes: z.string(),
     AutomaticRetryStatusCodes: z.string(),
+    MultiKeyQuotaDisableEnabled: z.boolean(),
+    MultiKeyQuotaDisableKeywords: z.string(),
+    MultiKeyQuotaDisableStatusCodes: z.string(),
     monitor_setting: z.object({
       auto_test_channel_enabled: z.boolean(),
       auto_test_channel_minutes: z.coerce
@@ -95,6 +98,19 @@ const monitoringSchema = z
         )}`,
       })
     }
+
+    const multiKeyQuotaParsed = parseHttpStatusCodeRules(
+      values.MultiKeyQuotaDisableStatusCodes
+    )
+    if (!multiKeyQuotaParsed.ok) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['MultiKeyQuotaDisableStatusCodes'],
+        message: `Invalid status code rules: ${multiKeyQuotaParsed.invalidTokens.join(
+          ', '
+        )}`,
+      })
+    }
   })
 
 type MonitoringFormValues = z.output<typeof monitoringSchema>
@@ -109,6 +125,9 @@ type MonitoringSettingsSectionProps = {
     AutomaticDisableKeywords: string
     AutomaticDisableStatusCodes: string
     AutomaticRetryStatusCodes: string
+    MultiKeyQuotaDisableEnabled: boolean
+    MultiKeyQuotaDisableKeywords: string
+    MultiKeyQuotaDisableStatusCodes: string
     'monitor_setting.auto_test_channel_enabled': boolean
     'monitor_setting.auto_test_channel_minutes': number
   }
@@ -126,6 +145,9 @@ type NormalizedMonitoringValues = {
   AutomaticDisableKeywords: string
   AutomaticDisableStatusCodes: string
   AutomaticRetryStatusCodes: string
+  MultiKeyQuotaDisableEnabled: boolean
+  MultiKeyQuotaDisableKeywords: string
+  MultiKeyQuotaDisableStatusCodes: string
   'monitor_setting.auto_test_channel_enabled': boolean
   'monitor_setting.auto_test_channel_minutes': number
 }
@@ -142,6 +164,12 @@ const buildFormDefaults = (
   ),
   AutomaticDisableStatusCodes: defaults.AutomaticDisableStatusCodes ?? '',
   AutomaticRetryStatusCodes: defaults.AutomaticRetryStatusCodes ?? '',
+  MultiKeyQuotaDisableEnabled: defaults.MultiKeyQuotaDisableEnabled,
+  MultiKeyQuotaDisableKeywords: normalizeLineEndings(
+    defaults.MultiKeyQuotaDisableKeywords ?? ''
+  ),
+  MultiKeyQuotaDisableStatusCodes:
+    defaults.MultiKeyQuotaDisableStatusCodes ?? '',
   monitor_setting: {
     auto_test_channel_enabled:
       defaults['monitor_setting.auto_test_channel_enabled'],
@@ -166,6 +194,13 @@ const normalizeDefaults = (
   AutomaticRetryStatusCodes: parseHttpStatusCodeRules(
     defaults.AutomaticRetryStatusCodes ?? ''
   ).normalized,
+  MultiKeyQuotaDisableEnabled: defaults.MultiKeyQuotaDisableEnabled,
+  MultiKeyQuotaDisableKeywords: normalizeLineEndings(
+    defaults.MultiKeyQuotaDisableKeywords ?? ''
+  ),
+  MultiKeyQuotaDisableStatusCodes: parseHttpStatusCodeRules(
+    defaults.MultiKeyQuotaDisableStatusCodes ?? ''
+  ).normalized,
   'monitor_setting.auto_test_channel_enabled':
     defaults['monitor_setting.auto_test_channel_enabled'],
   'monitor_setting.auto_test_channel_minutes':
@@ -187,6 +222,13 @@ const normalizeFormValues = (
   ).normalized,
   AutomaticRetryStatusCodes: parseHttpStatusCodeRules(
     values.AutomaticRetryStatusCodes
+  ).normalized,
+  MultiKeyQuotaDisableEnabled: values.MultiKeyQuotaDisableEnabled,
+  MultiKeyQuotaDisableKeywords: normalizeLineEndings(
+    values.MultiKeyQuotaDisableKeywords
+  ),
+  MultiKeyQuotaDisableStatusCodes: parseHttpStatusCodeRules(
+    values.MultiKeyQuotaDisableStatusCodes
   ).normalized,
   'monitor_setting.auto_test_channel_enabled':
     values.monitor_setting.auto_test_channel_enabled,
@@ -224,6 +266,11 @@ export function MonitoringSettingsSection({
   const autoRetryParsed = useMemo(
     () => parseHttpStatusCodeRules(autoRetryStatusCodes),
     [autoRetryStatusCodes]
+  )
+  const multiKeyQuotaStatusCodes = form.watch('MultiKeyQuotaDisableStatusCodes')
+  const multiKeyQuotaParsed = useMemo(
+    () => parseHttpStatusCodeRules(multiKeyQuotaStatusCodes),
+    [multiKeyQuotaStatusCodes]
   )
 
   const onSubmit = async (values: MonitoringFormValues) => {
@@ -475,6 +522,91 @@ export function MonitoringSettingsSection({
                           {t('Normalized:')} {autoRetryParsed.normalized}
                         </span>
                       )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name='MultiKeyQuotaDisableEnabled'
+            render={({ field }) => (
+              <SettingsSwitchItem>
+                <SettingsSwitchContent>
+                  <FormLabel>
+                    {t('Disable single key on insufficient quota')}
+                  </FormLabel>
+                  <FormDescription>
+                    {t(
+                      'For multi-key channels, disable only the reported key so polling skips it later. Other keys in the channel are unaffected.'
+                    )}
+                  </FormDescription>
+                </SettingsSwitchContent>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </SettingsSwitchItem>
+            )}
+          />
+
+          <div className='grid gap-6 md:grid-cols-2'>
+            <FormField
+              control={form.control}
+              name='MultiKeyQuotaDisableStatusCodes'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t('Multi-key insufficient quota status codes')}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t('e.g. 402')}
+                      value={field.value}
+                      onChange={(event) => field.onChange(event.target.value)}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Accepts comma-separated status codes and inclusive ranges. 402 means insufficient quota.'
+                    )}{' '}
+                    {multiKeyQuotaParsed.ok &&
+                      multiKeyQuotaParsed.normalized &&
+                      multiKeyQuotaParsed.normalized !== field.value.trim() && (
+                        <span className='text-muted-foreground'>
+                          {t('Normalized:')} {multiKeyQuotaParsed.normalized}
+                        </span>
+                      )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='MultiKeyQuotaDisableKeywords'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t('Multi-key insufficient quota keywords')}
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={5}
+                      placeholder={t('one keyword per line')}
+                      {...field}
+                      onChange={(event) => field.onChange(event.target.value)}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'When an upstream error contains any of these keywords, only the reported key is disabled as quota exhausted.'
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

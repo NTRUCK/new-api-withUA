@@ -2318,6 +2318,12 @@
     "Maximum 500 characters. Supports Markdown and HTML.": "Tối đa 500 ký tự. Hỗ trợ Markdown và HTML.",
     "Maximum check-in quota": "Hạn ngạch điểm danh tối đa",
     "Maximum input window": "Cửa sổ nhập tối đa",
+    "Max Input Tokens": "Token nhập tối đa",
+    "Max Input Tokens by Group": "Token nhập tối đa theo nhóm",
+    "One per line, e.g. default: 200000. 0 means unlimited for that group.": "Mỗi dòng một mục, ví dụ default: 200000. 0 nghĩa là nhóm đó không giới hạn.",
+    "Format \"group: limit\". Listed groups override the limit above; unlisted groups use it.": "Định dạng «nhóm: giới hạn». Nhóm được liệt kê sẽ ghi đè giới hạn ở trên; nhóm không liệt kê dùng giới hạn đó.",
+    "Invalid format. Use one \"group: limit\" per line, e.g. default: 200000": "Định dạng không hợp lệ. Dùng một «nhóm: giới hạn» mỗi dòng, ví dụ default: 200000",
+    "Requests exceeding this input token limit are rejected. 0 means unlimited.": "Các yêu cầu vượt quá giới hạn token nhập này sẽ bị từ chối. 0 nghĩa là không giới hạn.",
     "Maximum number of tokens in the response": "Số token tối đa trong phản hồi",
     "Maximum quota amount awarded for check-in": "Số lượng hạn ngạch tối đa được trao cho điểm danh",
     "Maximum tokens including hidden reasoning tokens": "Số token tối đa bao gồm token suy luận ẩn",
@@ -4597,6 +4603,16 @@
     "Zero retention": "Không lưu dữ liệu",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Insufficient Quota": "Không đủ hạn ngạch",
+    "Disable single key on insufficient quota": "Vô hiệu hóa một khóa khi hết hạn ngạch",
+    "For multi-key channels, disable only the reported key so polling skips it later. Other keys in the channel are unaffected.": "Với kênh nhiều khóa, chỉ khóa báo lỗi bị vô hiệu hóa để các lần luân chuyển sau bỏ qua nó. Các khóa khác trong kênh không bị ảnh hưởng.",
+    "Multi-key insufficient quota status codes": "Mã trạng thái hết hạn ngạch cho nhiều khóa",
+    "Multi-key insufficient quota keywords": "Từ khóa hết hạn ngạch cho nhiều khóa",
+    "e.g. 402": "ví dụ: 402",
+    "Accepts comma-separated status codes and inclusive ranges. 402 means insufficient quota.": "Chấp nhận mã trạng thái và khoảng bao gồm hai đầu, phân tách bằng dấu phẩy. 402 nghĩa là không đủ hạn ngạch.",
+    "When an upstream error contains any of these keywords, only the reported key is disabled as quota exhausted.": "Khi lỗi từ nhà cung cấp chứa bất kỳ từ khóa nào sau đây, chỉ khóa báo lỗi bị vô hiệu hóa vì hết hạn ngạch.",
+    "This key was auto-disabled for insufficient quota and will be skipped in future polling.": "Khóa này đã bị vô hiệu hóa tự động do hết hạn ngạch và sẽ bị bỏ qua trong các lần luân chuyển sau.",
+    "This key was auto-disabled for insufficient quota": "Khóa này đã bị vô hiệu hóa tự động do hết hạn ngạch"
   }
 }

@@ -27,6 +27,7 @@ export const channelInfoSchema = z.object({
   multi_key_size: z.number().default(0),
   multi_key_status_list: z.record(z.string(), z.number()).optional(),
   multi_key_disabled_reason: z.record(z.string(), z.string()).optional(),
+  multi_key_disabled_code: z.record(z.string(), z.string()).optional(),
   multi_key_disabled_time: z.record(z.string(), z.number()).optional(),
   multi_key_polling_index: z.number().default(0),
   multi_key_mode: z.enum(['random', 'polling']).default('random'),
@@ -84,6 +85,8 @@ export interface ChannelSettings {
   thinking_to_content?: boolean
   hide_upstream_info?: boolean
   max_concurrency?: number
+  max_input_tokens?: number
+  max_input_tokens_by_group?: Record<string, number>
   proxy?: string
   pass_through_body_enabled?: boolean
   system_prompt?: string
@@ -181,6 +184,8 @@ export interface KeyStatus {
   status: number // 1: enabled, 2: manual disabled, 3: auto disabled
   disabled_time?: number
   reason?: string
+  /** 禁用类型标识，如 quota_exhausted 表示该密钥被判定额度不足 */
+  disabled_code?: string
   key_preview?: string
 }
 

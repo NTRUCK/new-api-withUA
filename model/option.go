@@ -196,6 +196,9 @@ func InitOptionMap() {
 	common.OptionMap["UserAgentGroupExemptUserIds"] = operation_setting.UserAgentGroupExemptUserIdsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	common.OptionMap["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
+	common.OptionMap["MultiKeyQuotaDisableEnabled"] = strconv.FormatBool(operation_setting.MultiKeyQuotaDisableEnabled)
+	common.OptionMap["MultiKeyQuotaDisableKeywords"] = operation_setting.MultiKeyQuotaDisableKeywordsToString()
+	common.OptionMap["MultiKeyQuotaDisableStatusCodes"] = operation_setting.MultiKeyQuotaDisableStatusCodesToString()
 	common.OptionMap["RetryOn524Enabled"] = strconv.FormatBool(common.RetryOn524Enabled)
 	common.OptionMap["RetryOn524Stats"] = common.MarshalRetry524Stats()
 	common.OptionMap["ExposeRatioEnabled"] = strconv.FormatBool(ratio_setting.IsExposeRatioEnabled())
@@ -641,6 +644,12 @@ func updateOptionMap(key string, value string) (err error) {
 		operation_setting.UserAgentGroupExemptUserIdsFromString(value)
 	case "AutomaticDisableStatusCodes":
 		err = operation_setting.AutomaticDisableStatusCodesFromString(value)
+	case "MultiKeyQuotaDisableEnabled":
+		operation_setting.MultiKeyQuotaDisableEnabled = value == "true"
+	case "MultiKeyQuotaDisableKeywords":
+		operation_setting.MultiKeyQuotaDisableKeywordsFromString(value)
+	case "MultiKeyQuotaDisableStatusCodes":
+		err = operation_setting.MultiKeyQuotaDisableStatusCodesFromString(value)
 	case "AutomaticRetryStatusCodes":
 		err = operation_setting.AutomaticRetryStatusCodesFromString(value)
 	case "StreamCacheQueueLength":

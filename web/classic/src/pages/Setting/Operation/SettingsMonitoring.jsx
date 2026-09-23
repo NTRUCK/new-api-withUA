@@ -45,6 +45,9 @@ const DEFAULT_INPUTS = {
   UserAgentGroupWhitelist: '',
   UserAgentGroupBanThreshold: '5',
   UserAgentGroupExemptUserIds: '',
+  MultiKeyQuotaDisableEnabled: true,
+  MultiKeyQuotaDisableKeywords: '',
+  MultiKeyQuotaDisableStatusCodes: '402',
   'monitor_setting.auto_test_channel_enabled': false,
   'monitor_setting.auto_test_channel_minutes': 10,
 };
@@ -63,6 +66,9 @@ export default function SettingsMonitoring(props) {
   );
   const parsedAutoRetryStatusCodes = parseHttpStatusCodeRules(
     inputs.AutomaticRetryStatusCodes || '',
+  );
+  const parsedMultiKeyQuotaStatusCodes = parseHttpStatusCodeRules(
+    inputs.MultiKeyQuotaDisableStatusCodes || '',
   );
 
   const searchUsers = (keyword) => {
@@ -111,6 +117,14 @@ export default function SettingsMonitoring(props) {
           : '';
       return showError(`${t('自动重试状态码格式不正确')}${details}`);
     }
+    if (!parsedMultiKeyQuotaStatusCodes.ok) {
+      const details =
+        parsedMultiKeyQuotaStatusCodes.invalidTokens &&
+        parsedMultiKeyQuotaStatusCodes.invalidTokens.length > 0
+          ? `: ${parsedMultiKeyQuotaStatusCodes.invalidTokens.join(', ')}`
+          : '';
+      return showError(`${t('多密钥额度不足状态码格式不正确')}${details}`);
+    }
     const requestQueue = updateArray.map((item) => {
       let value = '';
       if (typeof inputs[item.key] === 'boolean') {
@@ -119,6 +133,8 @@ export default function SettingsMonitoring(props) {
         const normalizedMap = {
           AutomaticDisableStatusCodes: parsedAutoDisableStatusCodes.normalized,
           AutomaticRetryStatusCodes: parsedAutoRetryStatusCodes.normalized,
+          MultiKeyQuotaDisableStatusCodes:
+            parsedMultiKeyQuotaStatusCodes.normalized,
         };
         value = normalizedMap[item.key] ?? inputs[item.key];
       }
@@ -322,6 +338,54 @@ export default function SettingsMonitoring(props) {
                   autosize={{ minRows: 6, maxRows: 12 }}
                   onChange={(value) =>
                     setInputs({ ...inputs, AutomaticDisableKeywords: value })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'MultiKeyQuotaDisableEnabled'}
+                  label={t('多密钥额度不足自动禁用单把密钥')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  extraText={t(
+                    '开启后，多密钥渠道中命中下方规则的密钥会被单独禁用，避免后续轮询继续选中它反复报错；不影响同渠道其它密钥',
+                  )}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, MultiKeyQuotaDisableEnabled: value })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={16}>
+                <HttpStatusCodeRulesInput
+                  label={t('多密钥额度不足状态码')}
+                  placeholder={t('例如：402')}
+                  extraText={t(
+                    '支持填写单个状态码或范围（含首尾），使用逗号分隔；402 为标准的额度/计费不足',
+                  )}
+                  field={'MultiKeyQuotaDisableStatusCodes'}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, MultiKeyQuotaDisableStatusCodes: value })
+                  }
+                  parsed={parsedMultiKeyQuotaStatusCodes}
+                  invalidText={t('多密钥额度不足状态码格式不正确')}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('多密钥额度不足关键词')}
+                  placeholder={t('一行一个，不区分大小写')}
+                  extraText={t(
+                    '上游错误文案包含这些关键词时，判定为该把密钥额度不足并单独禁用',
+                  )}
+                  field={'MultiKeyQuotaDisableKeywords'}
+                  autosize={{ minRows: 5, maxRows: 10 }}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, MultiKeyQuotaDisableKeywords: value })
                   }
                 />
               </Col>

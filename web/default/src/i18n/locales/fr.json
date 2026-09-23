@@ -2318,6 +2318,12 @@
     "Maximum 500 characters. Supports Markdown and HTML.": "Maximum 500 caractères. Prend en charge Markdown et HTML.",
     "Maximum check-in quota": "Quota maximum de connexion",
     "Maximum input window": "Fenêtre d'entrée maximale",
+    "Max Input Tokens": "Tokens d'entrée maximum",
+    "Max Input Tokens by Group": "Tokens d'entrée maximum par groupe",
+    "One per line, e.g. default: 200000. 0 means unlimited for that group.": "Une par ligne, ex. default: 200000. 0 signifie illimité pour ce groupe.",
+    "Format \"group: limit\". Listed groups override the limit above; unlisted groups use it.": "Format « groupe : limite ». Les groupes listés remplacent la limite ci-dessus ; les autres l'utilisent.",
+    "Invalid format. Use one \"group: limit\" per line, e.g. default: 200000": "Format invalide. Utilisez un « groupe : limite » par ligne, ex. default: 200000",
+    "Requests exceeding this input token limit are rejected. 0 means unlimited.": "Les requêtes dépassant cette limite de tokens d'entrée sont rejetées. 0 signifie illimité.",
     "Maximum number of tokens in the response": "Nombre maximum de jetons dans la réponse",
     "Maximum quota amount awarded for check-in": "Montant maximum de quota attribué pour la connexion",
     "Maximum tokens including hidden reasoning tokens": "Jetons maximum, y compris les jetons de raisonnement masqués",
@@ -4597,6 +4603,16 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Insufficient Quota": "Quota insuffisant",
+    "Disable single key on insufficient quota": "Désactiver une seule clé en cas de quota insuffisant",
+    "For multi-key channels, disable only the reported key so polling skips it later. Other keys in the channel are unaffected.": "Pour les canaux multi-clés, seule la clé signalée est désactivée afin que la rotation les ignore par la suite. Les autres clés du canal ne sont pas affectées.",
+    "Multi-key insufficient quota status codes": "Codes de statut de quota insuffisant multi-clés",
+    "Multi-key insufficient quota keywords": "Mots-clés de quota insuffisant multi-clés",
+    "e.g. 402": "ex. 402",
+    "Accepts comma-separated status codes and inclusive ranges. 402 means insufficient quota.": "Accepte des codes de statut et des plages inclusives séparés par des virgules. 402 signifie un quota insuffisant.",
+    "When an upstream error contains any of these keywords, only the reported key is disabled as quota exhausted.": "Si une erreur amont contient un de ces mots-clés, seule la clé signalée est désactivée pour quota épuisé.",
+    "This key was auto-disabled for insufficient quota and will be skipped in future polling.": "Cette clé a été désactivée automatiquement pour quota insuffisant et sera ignorée lors des prochaines rotations.",
+    "This key was auto-disabled for insufficient quota": "Cette clé a été désactivée automatiquement pour quota insuffisant"
   }
 }

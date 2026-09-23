@@ -2318,6 +2318,12 @@
     "Maximum 500 characters. Supports Markdown and HTML.": "最多 500 个字符。支持 Markdown 和 HTML。",
     "Maximum check-in quota": "签到最大额度",
     "Maximum input window": "最大输入窗口",
+    "Max Input Tokens": "最大输入 Token",
+    "Max Input Tokens by Group": "按分组最大输入 Token",
+    "One per line, e.g. default: 200000. 0 means unlimited for that group.": "每行一条，例如 default: 200000。写 0 表示该分组不限制。",
+    "Format \"group: limit\". Listed groups override the limit above; unlisted groups use it.": "格式为「分组名: 上限」。命中的分组优先于上面的统一上限；未列出的分组使用统一上限。",
+    "Invalid format. Use one \"group: limit\" per line, e.g. default: 200000": "格式无效。请按「分组名: 上限」每行一条填写，例如 default: 200000",
+    "Requests exceeding this input token limit are rejected. 0 means unlimited.": "单次请求的输入 Token 上限，超出直接拒绝。0 表示不限制。",
     "Maximum number of tokens in the response": "响应中最大 token 数",
     "Maximum quota amount awarded for check-in": "签到奖励的最大额度",
     "Maximum tokens including hidden reasoning tokens": "最大 token 数（含隐藏的推理 token）",
@@ -4597,6 +4603,16 @@
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Insufficient Quota": "额度不足",
+    "Disable single key on insufficient quota": "额度不足时禁用单把密钥",
+    "For multi-key channels, disable only the reported key so polling skips it later. Other keys in the channel are unaffected.": "多密钥渠道中只禁用报错的那把密钥，后续轮询会自动跳过；同渠道其它密钥不受影响。",
+    "Multi-key insufficient quota status codes": "多密钥额度不足状态码",
+    "Multi-key insufficient quota keywords": "多密钥额度不足关键词",
+    "e.g. 402": "例如：402",
+    "Accepts comma-separated status codes and inclusive ranges. 402 means insufficient quota.": "支持填写单个状态码或范围（含首尾），使用逗号分隔；402 为标准的额度/计费不足。",
+    "When an upstream error contains any of these keywords, only the reported key is disabled as quota exhausted.": "上游错误文案包含这些关键词时，判定为该把密钥额度不足并单独禁用。",
+    "This key was auto-disabled for insufficient quota and will be skipped in future polling.": "该密钥被判定为额度不足并已自动禁用，后续轮询不会再选中它。",
+    "This key was auto-disabled for insufficient quota": "该密钥因额度不足已自动禁用"
   }
 }

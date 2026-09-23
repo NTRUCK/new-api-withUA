@@ -1,14 +1,31 @@
 package dto
 
 type ChannelSettings struct {
-	ForceFormat            bool   `json:"force_format,omitempty"`
-	ThinkingToContent      bool   `json:"thinking_to_content,omitempty"`
-	HideUpstreamInfo       bool   `json:"hide_upstream_info,omitempty"`
-	MaxConcurrency         int    `json:"max_concurrency,omitempty"`
-	Proxy                  string `json:"proxy"`
-	PassThroughBodyEnabled bool   `json:"pass_through_body_enabled,omitempty"`
-	SystemPrompt           string `json:"system_prompt,omitempty"`
-	SystemPromptOverride   bool   `json:"system_prompt_override,omitempty"`
+	ForceFormat            bool           `json:"force_format,omitempty"`
+	ThinkingToContent      bool           `json:"thinking_to_content,omitempty"`
+	HideUpstreamInfo       bool           `json:"hide_upstream_info,omitempty"`
+	MaxConcurrency         int            `json:"max_concurrency,omitempty"`
+	MaxInputTokens         int            `json:"max_input_tokens,omitempty"`          // 单次请求的最大输入 token 数（未在分组表中命中的分组使用），0 表示不限制
+	MaxInputTokensByGroup  map[string]int `json:"max_input_tokens_by_group,omitempty"` // 按分组覆盖最大输入 token 数，键为分组名；命中则优先于 MaxInputTokens，值为 0 表示该分组不限制
+	Proxy                  string         `json:"proxy"`
+	PassThroughBodyEnabled bool           `json:"pass_through_body_enabled,omitempty"`
+	SystemPrompt           string         `json:"system_prompt,omitempty"`
+	SystemPromptOverride   bool           `json:"system_prompt_override,omitempty"`
+}
+
+// GetMaxInputTokens 返回指定分组生效的最大输入 token 上限。
+// 分组表优先：命中分组表则使用其值（0 表示该分组不限制）；
+// 未命中时回退到渠道统一上限 MaxInputTokens（0 表示不限制）。
+func (s *ChannelSettings) GetMaxInputTokens(group string) int {
+	if s == nil {
+		return 0
+	}
+	if len(s.MaxInputTokensByGroup) > 0 && group != "" {
+		if limit, ok := s.MaxInputTokensByGroup[group]; ok {
+			return limit
+		}
+	}
+	return s.MaxInputTokens
 }
 
 type VertexKeyType string

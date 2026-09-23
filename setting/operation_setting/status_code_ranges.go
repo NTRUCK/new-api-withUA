@@ -21,6 +21,29 @@ var AutomaticDisableStatusCodeRanges = []StatusCodeRange{
 	{Start: 403, End: 403},
 }
 
+// 多 Key 渠道中，命中这些状态码的上游错误视为「该把密钥额度/计费异常」，
+// 只禁用报错的单把密钥。402 为标准的额度/计费不足语义。
+var MultiKeyQuotaDisableStatusCodeRanges = []StatusCodeRange{
+	{Start: 402, End: 402},
+}
+
+func MultiKeyQuotaDisableStatusCodesToString() string {
+	return statusCodeRangesToString(MultiKeyQuotaDisableStatusCodeRanges)
+}
+
+func MultiKeyQuotaDisableStatusCodesFromString(s string) error {
+	ranges, err := ParseHTTPStatusCodeRanges(s)
+	if err != nil {
+		return err
+	}
+	MultiKeyQuotaDisableStatusCodeRanges = ranges
+	return nil
+}
+
+func ShouldDisableMultiKeyByStatusCode(code int) bool {
+	return shouldMatchStatusCodeRanges(MultiKeyQuotaDisableStatusCodeRanges, code)
+}
+
 // Default behavior matches legacy hardcoded retry rules in controller/relay.go shouldRetry:
 // retry for 1xx, 3xx, 4xx(except 400/408), 5xx(except 504/524), and no retry for 2xx.
 var AutomaticRetryStatusCodeRanges = []StatusCodeRange{

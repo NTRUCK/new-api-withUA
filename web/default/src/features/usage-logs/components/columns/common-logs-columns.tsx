@@ -316,6 +316,9 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
           const other = parseLogOther(log.other)
           const affinity = other?.admin_info?.channel_affinity
           const useChannel = other?.admin_info?.use_channel
+          const isMultiKey = other?.admin_info?.is_multi_key
+          const multiKeyIndex = other?.admin_info?.multi_key_index
+          const multiKeyDisabled = other?.admin_info?.multi_key_disabled
           const channelChain =
             useChannel && useChannel.length > 0
               ? useChannel.join(' → ')
@@ -370,12 +373,34 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                       {channelName}
                     </span>
                   )}
+                  {isMultiKey && multiKeyIndex !== undefined && (
+                    <span
+                      className={`truncate text-xs ${
+                        multiKeyDisabled
+                          ? 'text-orange-600'
+                          : 'text-muted-foreground/70'
+                      }`}
+                    >
+                      {t('Key')} #{multiKeyIndex + 1}
+                      {multiKeyDisabled ? ` · ${t('Insufficient Quota')}` : ''}
+                    </span>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent>
                   <div className='space-y-1'>
                     <p>
                       {sensitiveVisible ? channelDisplay : channelIdDisplay}
                     </p>
+                    {isMultiKey && multiKeyIndex !== undefined && (
+                      <p className='text-muted-foreground text-xs'>
+                        {t('Key')} #{multiKeyIndex + 1}
+                        {multiKeyDisabled
+                          ? ` · ${t(
+                              'This key was auto-disabled for insufficient quota'
+                            )}`
+                          : ''}
+                      </p>
+                    )}
                     {channelChain && (
                       <p className='text-muted-foreground text-xs'>
                         {t('Chain')}: {channelChain}

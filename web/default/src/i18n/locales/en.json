@@ -2318,6 +2318,12 @@
     "Maximum 500 characters. Supports Markdown and HTML.": "Maximum 500 characters. Supports Markdown and HTML.",
     "Maximum check-in quota": "Maximum check-in quota",
     "Maximum input window": "Maximum input window",
+    "Max Input Tokens": "Max Input Tokens",
+    "Max Input Tokens by Group": "Max Input Tokens by Group",
+    "One per line, e.g. default: 200000. 0 means unlimited for that group.": "One per line, e.g. default: 200000. 0 means unlimited for that group.",
+    "Format \"group: limit\". Listed groups override the limit above; unlisted groups use it.": "Format \"group: limit\". Listed groups override the limit above; unlisted groups use it.",
+    "Invalid format. Use one \"group: limit\" per line, e.g. default: 200000": "Invalid format. Use one \"group: limit\" per line, e.g. default: 200000",
+    "Requests exceeding this input token limit are rejected. 0 means unlimited.": "Requests exceeding this input token limit are rejected. 0 means unlimited.",
     "Maximum number of tokens in the response": "Maximum number of tokens in the response",
     "Maximum quota amount awarded for check-in": "Maximum quota amount awarded for check-in",
     "Maximum tokens including hidden reasoning tokens": "Maximum tokens including hidden reasoning tokens",
@@ -4597,6 +4603,16 @@
     "Zero retention": "Zero retention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Insufficient Quota": "Insufficient Quota",
+    "Disable single key on insufficient quota": "Disable single key on insufficient quota",
+    "For multi-key channels, disable only the reported key so polling skips it later. Other keys in the channel are unaffected.": "For multi-key channels, disable only the reported key so polling skips it later. Other keys in the channel are unaffected.",
+    "Multi-key insufficient quota status codes": "Multi-key insufficient quota status codes",
+    "Multi-key insufficient quota keywords": "Multi-key insufficient quota keywords",
+    "e.g. 402": "e.g. 402",
+    "Accepts comma-separated status codes and inclusive ranges. 402 means insufficient quota.": "Accepts comma-separated status codes and inclusive ranges. 402 means insufficient quota.",
+    "When an upstream error contains any of these keywords, only the reported key is disabled as quota exhausted.": "When an upstream error contains any of these keywords, only the reported key is disabled as quota exhausted.",
+    "This key was auto-disabled for insufficient quota and will be skipped in future polling.": "This key was auto-disabled for insufficient quota and will be skipped in future polling.",
+    "This key was auto-disabled for insufficient quota": "This key was auto-disabled for insufficient quota"
   }
 }

@@ -21,6 +21,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, RefreshCw, Trash2, Power, PowerOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -385,8 +386,19 @@ export function MultiKeyManageDialog({
                             #{key.index + 1}
                           </TableCell>
                           <TableCell>{renderStatusBadge(key.status)}</TableCell>
-                          <TableCell className='max-w-xs truncate text-sm'>
-                            {key.reason || '-'}
+                          <TableCell className='max-w-xs text-sm'>
+                            {key.disabled_code === 'quota_exhausted' && (
+                              <Badge
+                                variant='outline'
+                                className='mr-2 border-orange-300 text-orange-600'
+                                title={t(
+                                  'This key was auto-disabled for insufficient quota and will be skipped in future polling.'
+                                )}
+                              >
+                                {t('Insufficient Quota')}
+                              </Badge>
+                            )}
+                            <span className='truncate'>{key.reason || '-'}</span>
                           </TableCell>
                           <TableCell className='text-muted-foreground text-sm'>
                             {formatKeyTimestamp(key.disabled_time)}

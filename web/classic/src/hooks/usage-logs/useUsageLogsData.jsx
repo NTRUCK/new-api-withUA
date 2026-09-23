@@ -811,6 +811,22 @@ export const useLogsData = () => {
           });
         }
       }
+      if (isAdminUser && other?.admin_info?.is_multi_key) {
+        const adminInfo = other.admin_info;
+        if (
+          adminInfo.multi_key_index !== undefined &&
+          adminInfo.multi_key_index !== null
+        ) {
+          const keyIndex = Number(adminInfo.multi_key_index) + 1;
+          const disabledSuffix = adminInfo.multi_key_disabled
+            ? `（${t('额度不足已自动禁用该密钥')}）`
+            : '';
+          expandDataLocal.push({
+            key: t('使用的密钥'),
+            value: `#${keyIndex}${disabledSuffix}`,
+          });
+        }
+      }
       if (other?.request_path) {
         expandDataLocal.push({
           key: t('请求路径'),

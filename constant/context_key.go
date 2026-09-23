@@ -37,6 +37,7 @@ const (
 	ContextKeyChannelStatusCodeMapping ContextKey = "status_code_mapping"
 	ContextKeyChannelIsMultiKey        ContextKey = "channel_is_multi_key"
 	ContextKeyChannelMultiKeyIndex     ContextKey = "channel_multi_key_index"
+	ContextKeyMultiKeyDisabledIndex    ContextKey = "multi_key_disabled_index"
 	ContextKeyChannelKey               ContextKey = "channel_key"
 	ContextKeyHideUpstreamInfo         ContextKey = "hide_upstream_info"
 	ContextKeyPublicModelName          ContextKey = "public_model_name"

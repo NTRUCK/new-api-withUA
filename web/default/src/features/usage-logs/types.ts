@@ -97,6 +97,9 @@ export interface LogOtherData {
   admin_info?: {
     is_multi_key?: boolean
     multi_key_index?: number
+    multi_key_disabled?: boolean
+    multi_key_disabled_index?: number
+    multi_key_disabled_code?: string
     use_channel?: number[]
     local_count_tokens?: boolean
     channel_affinity?: ChannelAffinityInfo

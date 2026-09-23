@@ -57,6 +57,10 @@ const OPERATIONS_SECTIONS = [
           AutomaticDisableKeywords: settings.AutomaticDisableKeywords,
           AutomaticDisableStatusCodes: settings.AutomaticDisableStatusCodes,
           AutomaticRetryStatusCodes: settings.AutomaticRetryStatusCodes,
+          MultiKeyQuotaDisableEnabled: settings.MultiKeyQuotaDisableEnabled,
+          MultiKeyQuotaDisableKeywords: settings.MultiKeyQuotaDisableKeywords,
+          MultiKeyQuotaDisableStatusCodes:
+            settings.MultiKeyQuotaDisableStatusCodes,
           'monitor_setting.auto_test_channel_enabled':
             settings['monitor_setting.auto_test_channel_enabled'],
           'monitor_setting.auto_test_channel_minutes':

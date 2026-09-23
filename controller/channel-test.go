@@ -846,6 +846,7 @@ func buildSingleKeyTestChannel(channel *model.Channel, keyIndex int) (*model.Cha
 	single.ChannelInfo.IsMultiKey = false
 	single.ChannelInfo.MultiKeyStatusList = nil
 	single.ChannelInfo.MultiKeyDisabledReason = nil
+	single.ChannelInfo.MultiKeyDisabledCode = nil
 	single.ChannelInfo.MultiKeyDisabledTime = nil
 	return &single, nil
 }
@@ -994,7 +995,7 @@ func testAllChannels(notify bool) error {
 
 			// disable channel
 			if isChannelEnabled && shouldBanChannel && channel.GetAutoBan() {
-				processChannelError(result.context, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(result.context, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
+				processChannelError(result.context, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(result.context, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError, false)
 			}
 
 			// enable channel

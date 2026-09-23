@@ -36,6 +36,37 @@ func AutomaticDisableKeywordsFromString(s string) {
 	}
 }
 
+// MultiKeyQuotaDisableEnabled 开启后，多 Key 渠道中报错特征为「额度不足」的那一把密钥会被自动禁用，
+// 避免后续轮询继续选中该密钥反复报错。
+var MultiKeyQuotaDisableEnabled = true
+
+// MultiKeyQuotaDisableKeywords 判定单把密钥额度不足的关键词（小写、子串包含匹配）
+var MultiKeyQuotaDisableKeywords = []string{
+	"insufficient quota",
+	"insufficient_quota",
+	"exceeded your current quota",
+	"credit balance is too low",
+	"余额不足",
+	"额度不足",
+	"额度已用尽",
+	"配额不足",
+	"欠费",
+}
+
+func MultiKeyQuotaDisableKeywordsToString() string {
+	return strings.Join(MultiKeyQuotaDisableKeywords, "\n")
+}
+
+func MultiKeyQuotaDisableKeywordsFromString(s string) {
+	MultiKeyQuotaDisableKeywords = []string{}
+	for _, k := range strings.Split(s, "\n") {
+		k = strings.TrimSpace(strings.ToLower(k))
+		if k != "" {
+			MultiKeyQuotaDisableKeywords = append(MultiKeyQuotaDisableKeywords, k)
+		}
+	}
+}
+
 // UserAgentBanEnabled 开启后，命中关键词的客户端 User-Agent 将被自动封禁并公开上榜
 var UserAgentBanEnabled = false
 

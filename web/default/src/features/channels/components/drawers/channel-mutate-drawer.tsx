@@ -213,6 +213,8 @@ function hasAdvancedSettingsValues(values: ChannelFormValues): boolean {
     values.priority ||
     values.weight ||
     values.max_concurrency ||
+    values.max_input_tokens ||
+    values.max_input_tokens_by_group?.trim() ||
     values.proxy?.trim() ||
     values.system_prompt?.trim() ||
     values.force_format ||
@@ -2567,6 +2569,60 @@ export function ChannelMutateDrawer({
                                 </FormControl>
                                 <FormDescription>
                                   {t('0 means unlimited')}
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name='max_input_tokens'
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('Max Input Tokens')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type='number'
+                                    min={0}
+                                    placeholder='0'
+                                    {...field}
+                                    onChange={(e) =>
+                                      field.onChange(Number(e.target.value))
+                                    }
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  {t(
+                                    'Requests exceeding this input token limit are rejected. 0 means unlimited.',
+                                  )}
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name='max_input_tokens_by_group'
+                            render={({ field }) => (
+                              <FormItem className='sm:col-span-2'>
+                                <FormLabel>
+                                  {t('Max Input Tokens by Group')}
+                                </FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    rows={3}
+                                    placeholder={t(
+                                      'One per line, e.g. default: 200000. 0 means unlimited for that group.',
+                                    )}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  {t(
+                                    'Format "group: limit". Listed groups override the limit above; unlisted groups use it.',
+                                  )}
                                 </FormDescription>
                                 <FormMessage />
                               </FormItem>

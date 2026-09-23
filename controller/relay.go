@@ -226,6 +226,22 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		addUsedChannel(c, channel.Id)
+
+		// 渠道级最大输入 token 限制：分组表优先，未命中的分组回退到渠道统一上限。
+		// 超限直接拒绝，不重试其他渠道、不封禁渠道。
+		channelSetting := channel.GetSetting()
+		if maxInput := channelSetting.GetMaxInputTokens(relayInfo.UsingGroup); maxInput > 0 {
+			if promptTokens := relayInfo.GetEstimatePromptTokens(); promptTokens > maxInput {
+				newAPIError = types.NewErrorWithStatusCode(
+					fmt.Errorf("输入 token 数 %d 超过渠道 #%d 在分组 %s 的最大输入限制 %d", promptTokens, channel.Id, relayInfo.UsingGroup, maxInput),
+					types.ErrorCodeInvalidRequest,
+					http.StatusBadRequest,
+					types.ErrOptionWithSkipRetry(),
+				)
+				break
+			}
+		}
+
 		bodyStorage, bodyErr := common.GetBodyStorage(c)
 		if bodyErr != nil {
 			// Ensure consistent 413 for oversized bodies even when error occurs later (e.g., retry path)
@@ -280,7 +296,25 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
 		relayInfo.LastError = newAPIError
 
-		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
+		// 多 Key 渠道：上游明确表示「这一把密钥额度/计费不足」时，只禁用报错的这一把密钥，
+		// 避免后续轮询继续选中它反复报错（不影响渠道内其它可用密钥）。
+		// 注意：此处 channel 可能来自 context（不含 ChannelInfo），因此用 context key 判断多 Key。
+		multiKeyQuotaDisabled := false
+		if common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey) && service.ShouldDisableMultiKeyByQuota(newAPIError) {
+			keyIndex := common.GetContextKeyInt(c, constant.ContextKeyChannelMultiKeyIndex)
+			usingKey := common.GetContextKeyString(c, constant.ContextKeyChannelKey)
+			disabledReason := fmt.Sprintf(
+				"上游返回额度/计费不足（密钥 #%d）：%s",
+				keyIndex+1,
+				common.LocalLogPreview(newAPIError.ErrorWithStatusCode()),
+			)
+			if service.DisableMultiKeyByQuota(channel, keyIndex, usingKey, disabledReason) {
+				common.SetContextKey(c, constant.ContextKeyMultiKeyDisabledIndex, keyIndex)
+				multiKeyQuotaDisabled = true
+			}
+		}
+
+		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError, multiKeyQuotaDisabled)
 
 		// 524（Cloudflare 源站超时）触发统计：无论后续是否重试，只要开启开关就累计该渠道的触发次数。
 		is524 := newAPIError.StatusCode == 524 && common.RetryOn524Enabled
@@ -440,11 +474,13 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	return operation_setting.ShouldRetryByStatusCode(code)
 }
 
-func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
+func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError, multiKeyQuotaDisabled bool) {
 	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
-	if service.ShouldDisableChannel(err) && channelError.AutoBan {
+	// 多 Key 渠道额度不足时，relay 主循环已按索引单独禁用报错的密钥并写入禁用类型标识，
+	// 此处跳过通用的整渠道禁用，避免禁用原因与类型标识被覆盖。
+	if !multiKeyQuotaDisabled && service.ShouldDisableChannel(err) && channelError.AutoBan {
 		gopool.Go(func() {
 			service.DisableChannel(channelError, err.ErrorWithStatusCode())
 		})
@@ -474,6 +510,12 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		if isMultiKey {
 			adminInfo["is_multi_key"] = true
 			adminInfo["multi_key_index"] = common.GetContextKeyInt(c, constant.ContextKeyChannelMultiKeyIndex)
+		}
+		// 仅在本轮确实因额度不足禁用了单把密钥时标注，避免同一请求后续重试轮次被误标。
+		if multiKeyQuotaDisabled {
+			adminInfo["multi_key_disabled"] = true
+			adminInfo["multi_key_disabled_index"] = common.GetContextKeyInt(c, constant.ContextKeyMultiKeyDisabledIndex)
+			adminInfo["multi_key_disabled_code"] = model.MultiKeyDisabledCodeQuotaExhausted
 		}
 		service.AppendChannelAffinityAdminInfo(c, adminInfo)
 		other["admin_info"] = adminInfo
@@ -658,7 +700,7 @@ func RelayTask(c *gin.Context) {
 			processChannelError(c,
 				*types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey,
 					common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()),
-				types.NewOpenAIError(taskErr.Error, types.ErrorCodeBadResponseStatusCode, taskErr.StatusCode))
+				types.NewOpenAIError(taskErr.Error, types.ErrorCodeBadResponseStatusCode, taskErr.StatusCode), false)
 		}
 
 		if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {

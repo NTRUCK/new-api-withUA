@@ -2318,6 +2318,12 @@
     "Maximum 500 characters. Supports Markdown and HTML.": "Максимум 500 символов. Поддерживает Markdown и HTML.",
     "Maximum check-in quota": "Максимальная квота регистрации",
     "Maximum input window": "Максимальное окно ввода",
+    "Max Input Tokens": "Максимум входных токенов",
+    "Max Input Tokens by Group": "Максимум входных токенов по группам",
+    "One per line, e.g. default: 200000. 0 means unlimited for that group.": "По одному в строке, напр. default: 200000. 0 означает отсутствие ограничений для этой группы.",
+    "Format \"group: limit\". Listed groups override the limit above; unlisted groups use it.": "Формат «группа: лимит». Указанные группы переопределяют лимит выше; остальные используют его.",
+    "Invalid format. Use one \"group: limit\" per line, e.g. default: 200000": "Неверный формат. Используйте по одной строке «группа: лимит», напр. default: 200000",
+    "Requests exceeding this input token limit are rejected. 0 means unlimited.": "Запросы, превышающие этот лимит входных токенов, отклоняются. 0 означает отсутствие ограничений.",
     "Maximum number of tokens in the response": "Максимальное число токенов в ответе",
     "Maximum quota amount awarded for check-in": "Максимальная сумма квоты, присуждаемая за регистрацию",
     "Maximum tokens including hidden reasoning tokens": "Максимум токенов с учётом скрытых reasoning-токенов",
@@ -4597,6 +4603,16 @@
     "Zero retention": "Без хранения данных",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Insufficient Quota": "Недостаточно квоты",
+    "Disable single key on insufficient quota": "Отключать один ключ при нехватке квоты",
+    "For multi-key channels, disable only the reported key so polling skips it later. Other keys in the channel are unaffected.": "Для многоключевых каналов отключается только сообщивший об ошибке ключ, чтобы ротация его пропускала. Остальные ключи канала не затрагиваются.",
+    "Multi-key insufficient quota status codes": "Коды статуса нехватки квоты для нескольких ключей",
+    "Multi-key insufficient quota keywords": "Ключевые слова нехватки квоты для нескольких ключей",
+    "e.g. 402": "напр. 402",
+    "Accepts comma-separated status codes and inclusive ranges. 402 means insufficient quota.": "Принимает коды статуса и диапазоны включительно, разделённые запятыми. 402 означает нехватку квоты.",
+    "When an upstream error contains any of these keywords, only the reported key is disabled as quota exhausted.": "Если ошибка вышестоящего сервиса содержит любое из этих ключевых слов, отключается только сообщивший об ошибке ключ как исчерпанный.",
+    "This key was auto-disabled for insufficient quota and will be skipped in future polling.": "Этот ключ был автоматически отключён из-за нехватки квоты и будет пропускаться при дальнейшей ротации.",
+    "This key was auto-disabled for insufficient quota": "Этот ключ был автоматически отключён из-за нехватки квоты"
   }
 }
