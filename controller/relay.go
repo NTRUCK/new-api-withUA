@@ -486,6 +486,20 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		})
 	}
 
+	// 记录本次上游报错到渠道的报错历史（所有渠道均记录，供管理端按时间排查）。
+	// 多 Key 渠道用当前轮询到的真实 key 索引；单 Key 渠道统一记到索引 0。
+	if channelError.ChannelId > 0 {
+		errKeyIndex := 0
+		if common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey) {
+			errKeyIndex = common.GetContextKeyInt(c, constant.ContextKeyChannelMultiKeyIndex)
+		}
+		errStatusCode := err.StatusCode
+		errPreview := common.LocalLogPreview(err.MaskSensitiveError())
+		gopool.Go(func() {
+			model.RecordChannelKeyError(channelError.ChannelId, errKeyIndex, errStatusCode, errPreview)
+		})
+	}
+
 	if constant.ErrorLogEnabled && types.IsRecordErrorLog(err) {
 		// 保存错误日志到mysql中
 		userId := c.GetInt("id")

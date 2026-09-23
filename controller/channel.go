@@ -67,6 +67,7 @@ func clearChannelInfo(channel *model.Channel) {
 		channel.ChannelInfo.MultiKeyDisabledReason = nil
 		channel.ChannelInfo.MultiKeyDisabledCode = nil
 		channel.ChannelInfo.MultiKeyDisabledTime = nil
+		channel.ChannelInfo.MultiKeyErrorLog = nil
 	}
 }
 
@@ -1347,12 +1348,13 @@ type MultiKeyStatusResponse struct {
 }
 
 type KeyStatus struct {
-	Index        int    `json:"index"`
-	Status       int    `json:"status"` // 1: enabled, 2: disabled
-	DisabledTime int64  `json:"disabled_time,omitempty"`
-	Reason       string `json:"reason,omitempty"`
-	DisabledCode string `json:"disabled_code,omitempty"` // 禁用类型标识，如 quota_exhausted
-	KeyPreview   string `json:"key_preview"`             // first 10 chars of key for identification
+	Index        int                 `json:"index"`
+	Status       int                 `json:"status"` // 1: enabled, 2: disabled
+	DisabledTime int64               `json:"disabled_time,omitempty"`
+	Reason       string              `json:"reason,omitempty"`
+	DisabledCode string              `json:"disabled_code,omitempty"` // 禁用类型标识，如 quota_exhausted
+	ErrorLog     []model.KeyErrorLog `json:"error_log,omitempty"`     // 该密钥最近的报错历史（前端按时间倒序展示）
+	KeyPreview   string              `json:"key_preview"`             // first 10 chars of key for identification
 }
 
 // ManageMultiKeys handles multi-key management operations
@@ -1409,6 +1411,7 @@ func ManageMultiKeys(c *gin.Context) {
 			var disabledTime int64
 			var reason string
 			var disabledCode string
+			var errorLog []model.KeyErrorLog
 
 			if channel.ChannelInfo.MultiKeyStatusList != nil {
 				if s, exists := channel.ChannelInfo.MultiKeyStatusList[i]; exists {
@@ -1437,6 +1440,10 @@ func ManageMultiKeys(c *gin.Context) {
 					disabledCode = channel.ChannelInfo.MultiKeyDisabledCode[i]
 				}
 			}
+			// 报错历史与启用状态无关：即使 key 仍启用，也展示其历史报错供排查。
+			if channel.ChannelInfo.MultiKeyErrorLog != nil {
+				errorLog = channel.ChannelInfo.MultiKeyErrorLog[i]
+			}
 
 			// Create key preview (first 10 chars)
 			keyPreview := key
@@ -1450,6 +1457,7 @@ func ManageMultiKeys(c *gin.Context) {
 				DisabledTime: disabledTime,
 				Reason:       reason,
 				DisabledCode: disabledCode,
+				ErrorLog:     errorLog,
 				KeyPreview:   keyPreview,
 			})
 		}
@@ -1694,6 +1702,7 @@ func ManageMultiKeys(c *gin.Context) {
 		var newDisabledTime = make(map[int]int64)
 		var newDisabledReason = make(map[int]string)
 		var newDisabledCode = make(map[int]string)
+		var newErrorLog = make(map[int][]model.KeyErrorLog)
 
 		newIndex := 0
 		for i, key := range keys {
@@ -1725,6 +1734,11 @@ func ManageMultiKeys(c *gin.Context) {
 					newDisabledCode[newIndex] = code
 				}
 			}
+			if channel.ChannelInfo.MultiKeyErrorLog != nil {
+				if logs, exists := channel.ChannelInfo.MultiKeyErrorLog[i]; exists {
+					newErrorLog[newIndex] = logs
+				}
+			}
 			newIndex++
 		}
 
@@ -1743,6 +1757,7 @@ func ManageMultiKeys(c *gin.Context) {
 		channel.ChannelInfo.MultiKeyDisabledTime = newDisabledTime
 		channel.ChannelInfo.MultiKeyDisabledReason = newDisabledReason
 		channel.ChannelInfo.MultiKeyDisabledCode = newDisabledCode
+		channel.ChannelInfo.MultiKeyErrorLog = newErrorLog
 
 		err = channel.Update()
 		if err != nil {
@@ -1765,6 +1780,7 @@ func ManageMultiKeys(c *gin.Context) {
 		var newDisabledTime = make(map[int]int64)
 		var newDisabledReason = make(map[int]string)
 		var newDisabledCode = make(map[int]string)
+		var newErrorLog = make(map[int][]model.KeyErrorLog)
 
 		newIndex := 0
 		for i, key := range keys {
@@ -1799,6 +1815,12 @@ func ManageMultiKeys(c *gin.Context) {
 						}
 					}
 				}
+				// 报错历史与启用状态无关，保留仍存在的 key 的历史
+				if channel.ChannelInfo.MultiKeyErrorLog != nil {
+					if logs, exists := channel.ChannelInfo.MultiKeyErrorLog[i]; exists {
+						newErrorLog[newIndex] = logs
+					}
+				}
 				newIndex++
 			}
 		}
@@ -1818,6 +1840,7 @@ func ManageMultiKeys(c *gin.Context) {
 		channel.ChannelInfo.MultiKeyDisabledTime = newDisabledTime
 		channel.ChannelInfo.MultiKeyDisabledReason = newDisabledReason
 		channel.ChannelInfo.MultiKeyDisabledCode = newDisabledCode
+		channel.ChannelInfo.MultiKeyErrorLog = newErrorLog
 
 		err = channel.Update()
 		if err != nil {

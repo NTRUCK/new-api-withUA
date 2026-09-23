@@ -16,9 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Loader2, RefreshCw, Trash2, Power, PowerOff } from 'lucide-react'
+import {
+  Loader2,
+  RefreshCw,
+  Trash2,
+  Power,
+  PowerOff,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -100,6 +108,12 @@ export function MultiKeyManageDialog({
   const [confirmAction, setConfirmAction] =
     useState<MultiKeyConfirmAction | null>(null)
   const [isPerformingAction, setIsPerformingAction] = useState(false)
+  // 记录哪些行展开了报错历史（key: index）
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
+
+  const toggleRowExpanded = (index: number) => {
+    setExpandedRows((prev) => ({ ...prev, [index]: !prev[index] }))
+  }
 
   // Reset and load data when dialog opens
   useEffect(() => {
@@ -374,44 +388,125 @@ export function MultiKeyManageDialog({
                         <TableHead className='w-44'>
                           {t('Disabled Time')}
                         </TableHead>
+                        <TableHead className='w-32'>
+                          {t('Error History')}
+                        </TableHead>
                         <TableHead className='w-44 text-right'>
                           {t('Actions')}
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {keys.map((key) => (
-                        <TableRow key={key.index}>
-                          <TableCell className='font-mono text-sm'>
-                            #{key.index + 1}
-                          </TableCell>
-                          <TableCell>{renderStatusBadge(key.status)}</TableCell>
-                          <TableCell className='max-w-xs text-sm'>
-                            {key.disabled_code === 'quota_exhausted' && (
-                              <Badge
-                                variant='outline'
-                                className='mr-2 border-orange-300 text-orange-600'
-                                title={t(
-                                  'This key was auto-disabled for insufficient quota and will be skipped in future polling.'
+                      {keys.map((key) => {
+                        const errorLog = key.error_log ?? []
+                        const hasErrors = errorLog.length > 0
+                        const isExpanded = !!expandedRows[key.index]
+                        // 按时间倒序展示（最新在前）
+                        const sortedLog = hasErrors
+                          ? [...errorLog].sort((a, b) => b.time - a.time)
+                          : []
+                        return (
+                          <Fragment key={key.index}>
+                            <TableRow key={key.index}>
+                              <TableCell className='font-mono text-sm'>
+                                #{key.index + 1}
+                              </TableCell>
+                              <TableCell>
+                                {renderStatusBadge(key.status)}
+                              </TableCell>
+                              <TableCell className='max-w-xs text-sm'>
+                                {key.disabled_code === 'quota_exhausted' && (
+                                  <Badge
+                                    variant='outline'
+                                    className='mr-2 border-orange-300 text-orange-600'
+                                    title={t(
+                                      'This key was auto-disabled for insufficient quota and will be skipped in future polling.'
+                                    )}
+                                  >
+                                    {t('Insufficient Quota')}
+                                  </Badge>
                                 )}
+                                <span className='truncate'>
+                                  {key.reason || '-'}
+                                </span>
+                              </TableCell>
+                              <TableCell className='text-muted-foreground text-sm'>
+                                {formatKeyTimestamp(key.disabled_time)}
+                              </TableCell>
+                              <TableCell>
+                                {hasErrors ? (
+                                  <Button
+                                    variant='ghost'
+                                    size='sm'
+                                    className='h-7 px-2'
+                                    onClick={() => toggleRowExpanded(key.index)}
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronDown className='mr-1 h-4 w-4' />
+                                    ) : (
+                                      <ChevronRight className='mr-1 h-4 w-4' />
+                                    )}
+                                    {t('{{count}} records', {
+                                      count: sortedLog.length,
+                                    })}
+                                  </Button>
+                                ) : (
+                                  <span className='text-muted-foreground text-sm'>
+                                    -
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <MultiKeyTableRowActions
+                                  keyIndex={key.index}
+                                  status={key.status}
+                                  onAction={setConfirmAction}
+                                />
+                              </TableCell>
+                            </TableRow>
+                            {isExpanded && hasErrors && (
+                              <TableRow
+                                key={`${key.index}-errors`}
+                                className='bg-muted/30 hover:bg-muted/30'
                               >
-                                {t('Insufficient Quota')}
-                              </Badge>
+                                <TableCell colSpan={6} className='p-0'>
+                                  <div className='space-y-1 px-6 py-3'>
+                                    {sortedLog.map((log, idx) => (
+                                      <div
+                                        key={idx}
+                                        className='flex items-start gap-3 text-sm'
+                                      >
+                                        <span className='text-muted-foreground w-40 shrink-0 font-mono text-xs'>
+                                          {formatKeyTimestamp(log.time)}
+                                        </span>
+                                        <Badge
+                                          variant='outline'
+                                          className='shrink-0 border-red-300 text-red-600'
+                                        >
+                                          {log.status_code}
+                                        </Badge>
+                                        <span className='min-w-0 flex-1 break-all'>
+                                          {log.message}
+                                        </span>
+                                        {log.count > 1 && (
+                                          <Badge
+                                            variant='secondary'
+                                            className='shrink-0'
+                                          >
+                                            {t('{{count}} times', {
+                                              count: log.count,
+                                            })}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
                             )}
-                            <span className='truncate'>{key.reason || '-'}</span>
-                          </TableCell>
-                          <TableCell className='text-muted-foreground text-sm'>
-                            {formatKeyTimestamp(key.disabled_time)}
-                          </TableCell>
-                          <TableCell>
-                            <MultiKeyTableRowActions
-                              keyIndex={key.index}
-                              status={key.status}
-                              onAction={setConfirmAction}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                          </Fragment>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>

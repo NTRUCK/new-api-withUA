@@ -444,6 +444,21 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
       render: (status) => renderStatusTag(status),
     },
     {
+      title: t('报错历史'),
+      dataIndex: 'error_log',
+      render: (errorLog) => {
+        const count = Array.isArray(errorLog) ? errorLog.length : 0;
+        if (count === 0) {
+          return <Text type='quaternary'>-</Text>;
+        }
+        return (
+          <Tag color='red' shape='circle' size='small'>
+            {t('{{count}} 条报错', { count })}
+          </Tag>
+        );
+      },
+    },
+    {
       title: t('禁用原因'),
       dataIndex: 'reason',
       render: (reason, record) => {
@@ -830,6 +845,51 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
                 )}
                 columns={columns}
                 dataSource={keyStatusList}
+                expandedRowRender={(record) => {
+                  const errorLog = Array.isArray(record?.error_log)
+                    ? record.error_log
+                    : [];
+                  if (errorLog.length === 0) {
+                    return (
+                      <Text type='quaternary'>{t('暂无报错历史')}</Text>
+                    );
+                  }
+                  const sorted = [...errorLog].sort((a, b) => b.time - a.time);
+                  return (
+                    <Space vertical align='start' style={{ width: '100%' }}>
+                      {sorted.map((log, idx) => (
+                        <div
+                          key={idx}
+                          className='flex items-start gap-2'
+                          style={{ width: '100%', fontSize: 12 }}
+                        >
+                          <Text
+                            type='tertiary'
+                            style={{ minWidth: 150, fontSize: 12 }}
+                          >
+                            {timestamp2string(log.time)}
+                          </Text>
+                          <Tag color='red' shape='circle' size='small'>
+                            {log.status_code}
+                          </Tag>
+                          <Text style={{ flex: 1, wordBreak: 'break-all' }}>
+                            {log.message}
+                          </Text>
+                          {log.count > 1 && (
+                            <Tag color='grey' shape='circle' size='small'>
+                              {t('共 {{count}} 次', { count: log.count })}
+                            </Tag>
+                          )}
+                        </div>
+                      ))}
+                    </Space>
+                  );
+                }}
+                expandRowByClick={false}
+                rowExpandable={(record) =>
+                  Array.isArray(record?.error_log) &&
+                  record.error_log.length > 0
+                }
                 pagination={{
                   currentPage: currentPage,
                   pageSize: pageSize,

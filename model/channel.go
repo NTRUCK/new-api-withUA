@@ -66,9 +66,21 @@ type ChannelInfo struct {
 	MultiKeyDisabledReason map[int]string        `json:"multi_key_disabled_reason,omitempty"` // key禁用原因列表，key index -> reason
 	MultiKeyDisabledCode   map[int]string        `json:"multi_key_disabled_code,omitempty"`   // key禁用类型列表，key index -> code（如 quota_exhausted）
 	MultiKeyDisabledTime   map[int]int64         `json:"multi_key_disabled_time,omitempty"`   // key禁用时间列表，key index -> time
+	MultiKeyErrorLog       map[int][]KeyErrorLog `json:"multi_key_error_log,omitempty"`       // key报错历史，key index -> 最近若干条报错（时间倒序展示由前端处理）
 	MultiKeyPollingIndex   int                   `json:"multi_key_polling_index"`             // 多Key模式下轮询的key索引
 	MultiKeyMode           constant.MultiKeyMode `json:"multi_key_mode"`
 }
+
+// KeyErrorLog 记录单把密钥的一条上游报错，用于前端按时间排序展示。
+type KeyErrorLog struct {
+	Time       int64  `json:"time"`        // 记录时间戳（秒）
+	StatusCode int    `json:"status_code"` // 上游返回的状态码
+	Message    string `json:"message"`     // 报错摘要（已脱敏预览）
+	Count      int    `json:"count"`       // 相同报错在时间窗口内的合并计数
+}
+
+// MaxKeyErrorLogEntries 每把密钥最多保留的报错历史条数（超出丢弃最旧的）。
+const MaxKeyErrorLogEntries = 10
 
 // 单把密钥被禁用的类型标识，供前端标注展示
 const (
@@ -828,6 +840,70 @@ func applyMultiKeyIndexUpdate(channel *Channel, keyIndex int, usingKey string, s
 		info["status_reason"] = fmt.Sprintf("All keys are disabled (last disabled key index: %d)", keyIndex+1)
 		info["status_time"] = common.GetTimestamp()
 		channel.SetOtherInfo(info)
+	}
+}
+
+// appendKeyErrorLogLocked 在已持有渠道轮询锁的前提下，为指定 key 追加一条报错历史。
+// 若最新一条与本次状态码+摘要相同，则仅累加计数并刷新时间（避免重复刷屏）；
+// 否则追加新条目并裁剪到 MaxKeyErrorLogEntries 上限（丢弃最旧）。
+func appendKeyErrorLogLocked(channel *Channel, keyIndex int, statusCode int, message string) {
+	if keyIndex < 0 {
+		keyIndex = 0
+	}
+	if channel.ChannelInfo.MultiKeyErrorLog == nil {
+		channel.ChannelInfo.MultiKeyErrorLog = make(map[int][]KeyErrorLog)
+	}
+	logs := channel.ChannelInfo.MultiKeyErrorLog[keyIndex]
+	now := common.GetTimestamp()
+	if n := len(logs); n > 0 {
+		last := logs[n-1]
+		if last.StatusCode == statusCode && last.Message == message {
+			logs[n-1].Count++
+			logs[n-1].Time = now
+			channel.ChannelInfo.MultiKeyErrorLog[keyIndex] = logs
+			return
+		}
+	}
+	logs = append(logs, KeyErrorLog{
+		Time:       now,
+		StatusCode: statusCode,
+		Message:    message,
+		Count:      1,
+	})
+	if len(logs) > MaxKeyErrorLogEntries {
+		logs = logs[len(logs)-MaxKeyErrorLogEntries:]
+	}
+	channel.ChannelInfo.MultiKeyErrorLog[keyIndex] = logs
+}
+
+// RecordChannelKeyError 记录一次渠道（含多 Key）上游报错到 channel_info，供管理端按时间排序查看。
+// 单 Key 渠道统一记到索引 0。写入受渠道轮询锁保护，并同步内存缓存与数据库。
+func RecordChannelKeyError(channelId int, keyIndex int, statusCode int, message string) {
+	if channelId <= 0 {
+		return
+	}
+	if common.MemoryCacheEnabled {
+		channelStatusLock.Lock()
+		channelCache, _ := CacheGetChannel(channelId)
+		if channelCache != nil {
+			pollingLock := GetChannelPollingLock(channelId)
+			pollingLock.Lock()
+			appendKeyErrorLogLocked(channelCache, keyIndex, statusCode, message)
+			pollingLock.Unlock()
+		}
+		channelStatusLock.Unlock()
+	}
+
+	channel, err := GetChannelById(channelId, true)
+	if err != nil {
+		return
+	}
+	pollingLock := GetChannelPollingLock(channelId)
+	pollingLock.Lock()
+	appendKeyErrorLogLocked(channel, keyIndex, statusCode, message)
+	pollingLock.Unlock()
+	if err = channel.SaveWithoutKey(); err != nil {
+		common.SysLog(fmt.Sprintf("failed to record channel key error: channel_id=%d, key_index=%d, error=%v", channelId, keyIndex, err))
 	}
 }
 

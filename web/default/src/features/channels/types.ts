@@ -179,6 +179,14 @@ export interface CopyChannelResponse {
 // Multi-Key Management Types
 // ============================================================================
 
+/** 单把密钥的一条上游报错历史 */
+export interface KeyErrorLog {
+  time: number
+  status_code: number
+  message: string
+  count: number
+}
+
 export interface KeyStatus {
   index: number
   status: number // 1: enabled, 2: manual disabled, 3: auto disabled
@@ -187,6 +195,8 @@ export interface KeyStatus {
   /** 禁用类型标识，如 quota_exhausted 表示该密钥被判定额度不足 */
   disabled_code?: string
   key_preview?: string
+  /** 该密钥最近的报错历史（后端最多保留 10 条，前端按时间倒序展示） */
+  error_log?: KeyErrorLog[]
 }
 
 export type MultiKeyConfirmAction = {
