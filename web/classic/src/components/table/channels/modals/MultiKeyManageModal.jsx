@@ -429,15 +429,25 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
       dataIndex: 'index',
       render: (text) => `#${Number(text) + 1}`,
     },
-    // {
-    //   title: t('密钥预览'),
-    //   dataIndex: 'key_preview',
-    //   render: (text) => (
-    //     <Text code style={{ fontSize: '12px' }}>
-    //       {text}
-    //     </Text>
-    //   ),
-    // },
+    {
+      title: t('密钥'),
+      dataIndex: 'key',
+      render: (key) => {
+        if (!key) {
+          return <Text type='quaternary'>-</Text>;
+        }
+        return (
+          <Text
+            code
+            copyable={{ content: key }}
+            ellipsis={{ showTooltip: true }}
+            style={{ fontSize: '12px', maxWidth: 220 }}
+          >
+            {key}
+          </Text>
+        );
+      },
+    },
     {
       title: t('状态'),
       dataIndex: 'status',

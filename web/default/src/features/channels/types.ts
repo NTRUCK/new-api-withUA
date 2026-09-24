@@ -195,6 +195,8 @@ export interface KeyStatus {
   /** 禁用类型标识，如 quota_exhausted 表示该密钥被判定额度不足 */
   disabled_code?: string
   key_preview?: string
+  /** 完整密钥内容，供管理员比对密钥库、排除失效密钥 */
+  key?: string
   /** 该密钥最近的报错历史（后端最多保留 10 条，前端按时间倒序展示） */
   error_log?: KeyErrorLog[]
 }

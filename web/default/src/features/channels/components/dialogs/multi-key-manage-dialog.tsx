@@ -381,6 +381,9 @@ export function MultiKeyManageDialog({
                     <TableHeader>
                       <TableRow>
                         <TableHead className='w-20'>{t('Index')}</TableHead>
+                        <TableHead className='min-w-[200px]'>
+                          {t('Key')}
+                        </TableHead>
                         <TableHead className='w-32'>{t('Status')}</TableHead>
                         <TableHead className='min-w-[200px]'>
                           {t('Disabled Reason')}
@@ -410,6 +413,29 @@ export function MultiKeyManageDialog({
                             <TableRow key={key.index}>
                               <TableCell className='font-mono text-sm'>
                                 #{key.index + 1}
+                              </TableCell>
+                              <TableCell className='max-w-[240px] text-sm'>
+                                {key.key ? (
+                                  <button
+                                    type='button'
+                                    className='hover:text-primary block w-full truncate text-left font-mono text-xs'
+                                    title={t('Click to copy')}
+                                    onClick={() => {
+                                      navigator.clipboard
+                                        ?.writeText(key.key as string)
+                                        .then(() =>
+                                          toast.success(t('Copied'))
+                                        )
+                                        .catch(() => {})
+                                    }}
+                                  >
+                                    {key.key}
+                                  </button>
+                                ) : (
+                                  <span className='text-muted-foreground'>
+                                    -
+                                  </span>
+                                )}
                               </TableCell>
                               <TableCell>
                                 {renderStatusBadge(key.status)}
@@ -469,7 +495,7 @@ export function MultiKeyManageDialog({
                                 key={`${key.index}-errors`}
                                 className='bg-muted/30 hover:bg-muted/30'
                               >
-                                <TableCell colSpan={6} className='p-0'>
+                                <TableCell colSpan={7} className='p-0'>
                                   <div className='space-y-1 px-6 py-3'>
                                     {sortedLog.map((log, idx) => (
                                       <div

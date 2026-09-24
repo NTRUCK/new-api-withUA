@@ -1354,6 +1354,7 @@ type KeyStatus struct {
 	Reason       string              `json:"reason,omitempty"`
 	DisabledCode string              `json:"disabled_code,omitempty"` // 禁用类型标识，如 quota_exhausted
 	ErrorLog     []model.KeyErrorLog `json:"error_log,omitempty"`     // 该密钥最近的报错历史（前端按时间倒序展示）
+	Key          string              `json:"key,omitempty"`           // 完整密钥内容，供管理员比对密钥库、排除失效密钥（管理员专用接口）
 	KeyPreview   string              `json:"key_preview"`             // first 10 chars of key for identification
 }
 
@@ -1458,6 +1459,7 @@ func ManageMultiKeys(c *gin.Context) {
 				Reason:       reason,
 				DisabledCode: disabledCode,
 				ErrorLog:     errorLog,
+				Key:          key,
 				KeyPreview:   keyPreview,
 			})
 		}
