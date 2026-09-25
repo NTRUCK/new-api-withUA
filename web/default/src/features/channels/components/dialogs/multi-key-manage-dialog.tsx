@@ -26,11 +26,15 @@ import {
   PowerOff,
   ChevronDown,
   ChevronRight,
+  Check,
+  X,
+  Pencil,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -65,6 +69,7 @@ import {
   enableAllMultiKeys,
   disableAllMultiKeys,
   deleteDisabledMultiKeys,
+  setMultiKeyProxy,
 } from '../../api'
 import { MULTI_KEY_FILTER_OPTIONS } from '../../constants'
 import {
@@ -111,8 +116,47 @@ export function MultiKeyManageDialog({
   // 记录哪些行展开了报错历史（key: index）
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
 
+  // 每 key 代理编辑状态：正在编辑的 index、输入框值、保存中标志
+  const [editingProxyIndex, setEditingProxyIndex] = useState<number | null>(
+    null
+  )
+  const [proxyDraft, setProxyDraft] = useState('')
+  const [savingProxy, setSavingProxy] = useState(false)
+
   const toggleRowExpanded = (index: number) => {
     setExpandedRows((prev) => ({ ...prev, [index]: !prev[index] }))
+  }
+
+  const startEditProxy = (index: number, current: string) => {
+    setEditingProxyIndex(index)
+    setProxyDraft(current)
+  }
+
+  const cancelEditProxy = () => {
+    setEditingProxyIndex(null)
+    setProxyDraft('')
+  }
+
+  const saveProxy = async (index: number) => {
+    if (!currentRow) return
+    setSavingProxy(true)
+    try {
+      const res = await setMultiKeyProxy(currentRow.id, index, proxyDraft.trim())
+      if (res?.success) {
+        toast.success(res.message || t('Operation successful'))
+        setEditingProxyIndex(null)
+        setProxyDraft('')
+        loadKeyStatus(currentPage, pageSize)
+      } else {
+        toast.error(res?.message || t('Operation failed'))
+      }
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : t('Operation failed')
+      )
+    } finally {
+      setSavingProxy(false)
+    }
   }
 
   // Reset and load data when dialog opens
@@ -385,6 +429,9 @@ export function MultiKeyManageDialog({
                           {t('Key')}
                         </TableHead>
                         <TableHead className='w-32'>{t('Status')}</TableHead>
+                        <TableHead className='min-w-[220px]'>
+                          {t('Proxy')}
+                        </TableHead>
                         <TableHead className='min-w-[200px]'>
                           {t('Disabled Reason')}
                         </TableHead>
@@ -439,6 +486,65 @@ export function MultiKeyManageDialog({
                               </TableCell>
                               <TableCell>
                                 {renderStatusBadge(key.status)}
+                              </TableCell>
+                              <TableCell className='text-sm'>
+                                {editingProxyIndex === key.index ? (
+                                  <div className='flex items-center gap-1'>
+                                    <Input
+                                      value={proxyDraft}
+                                      onChange={(e) =>
+                                        setProxyDraft(e.target.value)
+                                      }
+                                      placeholder='http://127.0.0.1:7801'
+                                      className='h-7 font-mono text-xs'
+                                      disabled={savingProxy}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') saveProxy(key.index)
+                                        if (e.key === 'Escape') cancelEditProxy()
+                                      }}
+                                    />
+                                    <Button
+                                      variant='ghost'
+                                      size='sm'
+                                      className='h-7 w-7 p-0'
+                                      disabled={savingProxy}
+                                      onClick={() => saveProxy(key.index)}
+                                    >
+                                      {savingProxy ? (
+                                        <Loader2 className='h-4 w-4 animate-spin' />
+                                      ) : (
+                                        <Check className='h-4 w-4 text-green-600' />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant='ghost'
+                                      size='sm'
+                                      className='h-7 w-7 p-0'
+                                      disabled={savingProxy}
+                                      onClick={cancelEditProxy}
+                                    >
+                                      <X className='h-4 w-4' />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type='button'
+                                    className='hover:text-primary group flex w-full items-center gap-1 text-left font-mono text-xs'
+                                    title={t('Click to edit')}
+                                    onClick={() =>
+                                      startEditProxy(key.index, key.proxy || '')
+                                    }
+                                  >
+                                    <span className='truncate'>
+                                      {key.proxy || (
+                                        <span className='text-muted-foreground'>
+                                          {t('Channel default')}
+                                        </span>
+                                      )}
+                                    </span>
+                                    <Pencil className='h-3 w-3 shrink-0 opacity-0 group-hover:opacity-60' />
+                                  </button>
+                                )}
                               </TableCell>
                               <TableCell className='max-w-xs text-sm'>
                                 {key.disabled_code === 'quota_exhausted' && (
@@ -495,7 +601,7 @@ export function MultiKeyManageDialog({
                                 key={`${key.index}-errors`}
                                 className='bg-muted/30 hover:bg-muted/30'
                               >
-                                <TableCell colSpan={7} className='p-0'>
+                                <TableCell colSpan={8} className='p-0'>
                                   <div className='space-y-1 px-6 py-3'>
                                     {sortedLog.map((log, idx) => (
                                       <div

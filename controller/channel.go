@@ -1327,11 +1327,12 @@ func CopyChannel(c *gin.Context) {
 // MultiKeyManageRequest represents the request for multi-key management operations
 type MultiKeyManageRequest struct {
 	ChannelId int    `json:"channel_id"`
-	Action    string `json:"action"`              // "disable_key", "enable_key", "delete_key", "delete_disabled_keys", "get_key_status"
-	KeyIndex  *int   `json:"key_index,omitempty"` // for disable_key, enable_key, and delete_key actions
+	Action    string `json:"action"`              // "disable_key", "enable_key", "delete_key", "delete_disabled_keys", "get_key_status", "set_key_proxy"
+	KeyIndex  *int   `json:"key_index,omitempty"` // for disable_key, enable_key, delete_key, set_key_proxy actions
 	Page      int    `json:"page,omitempty"`      // for get_key_status pagination
 	PageSize  int    `json:"page_size,omitempty"` // for get_key_status pagination
 	Status    *int   `json:"status,omitempty"`    // for get_key_status filtering: 1=enabled, 2=manual_disabled, 3=auto_disabled, nil=all
+	Proxy     string `json:"proxy,omitempty"`     // for set_key_proxy: 该 key 专属代理地址，空字符串表示清除（回退渠道级代理）
 }
 
 // MultiKeyStatusResponse represents the response for key status query
@@ -1355,6 +1356,7 @@ type KeyStatus struct {
 	DisabledCode string              `json:"disabled_code,omitempty"` // 禁用类型标识，如 quota_exhausted
 	ErrorLog     []model.KeyErrorLog `json:"error_log,omitempty"`     // 该密钥最近的报错历史（前端按时间倒序展示）
 	Key          string              `json:"key,omitempty"`           // 完整密钥内容，供管理员比对密钥库、排除失效密钥（管理员专用接口）
+	Proxy        string              `json:"proxy,omitempty"`         // 该密钥专属代理地址（每 key 独立出口 IP）
 	KeyPreview   string              `json:"key_preview"`             // first 10 chars of key for identification
 }
 
@@ -1405,6 +1407,9 @@ func ManageMultiKeys(c *gin.Context) {
 		// Statistics for all keys (unchanged by filtering)
 		var enabledCount, manualDisabledCount, autoDisabledCount int
 
+		// 一次性解析渠道设置，供后续读取每 key 专属代理
+		channelSetting := channel.GetSetting()
+
 		// Build all key status data first
 		var allKeyStatusList []KeyStatus
 		for i, key := range keys {
@@ -1452,6 +1457,12 @@ func ManageMultiKeys(c *gin.Context) {
 				keyPreview = key[:10] + "..."
 			}
 
+			// 该 key 专属代理（若配置）
+			var keyProxy string
+			if channelSetting.KeyProxies != nil {
+				keyProxy = channelSetting.KeyProxies[i]
+			}
+
 			allKeyStatusList = append(allKeyStatusList, KeyStatus{
 				Index:        i,
 				Status:       status,
@@ -1460,6 +1471,7 @@ func ManageMultiKeys(c *gin.Context) {
 				DisabledCode: disabledCode,
 				ErrorLog:     errorLog,
 				Key:          key,
+				Proxy:        keyProxy,
 				KeyPreview:   keyPreview,
 			})
 		}
@@ -1605,6 +1617,56 @@ func ManageMultiKeys(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "密钥已启用",
+		})
+		return
+
+	case "set_key_proxy":
+		if request.KeyIndex == nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "未指定要设置代理的密钥索引",
+			})
+			return
+		}
+
+		keyIndex := *request.KeyIndex
+		if keyIndex < 0 || keyIndex >= channel.ChannelInfo.MultiKeySize {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "密钥索引超出范围",
+			})
+			return
+		}
+
+		setting := channel.GetSetting()
+		proxyVal := strings.TrimSpace(request.Proxy)
+		if proxyVal == "" {
+			// 清除该 key 专属代理，回退到渠道级代理
+			if setting.KeyProxies != nil {
+				delete(setting.KeyProxies, keyIndex)
+			}
+		} else {
+			if setting.KeyProxies == nil {
+				setting.KeyProxies = make(map[int]string)
+			}
+			setting.KeyProxies[keyIndex] = proxyVal
+		}
+		channel.SetSetting(setting)
+
+		err = channel.Update()
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+
+		model.InitChannelCache()
+		msg := "密钥代理已更新"
+		if proxyVal == "" {
+			msg = "密钥代理已清除"
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": msg,
 		})
 		return
 

@@ -197,6 +197,8 @@ export interface KeyStatus {
   key_preview?: string
   /** 完整密钥内容，供管理员比对密钥库、排除失效密钥 */
   key?: string
+  /** 该密钥专属代理地址（每 key 独立出口 IP，空表示使用渠道级代理） */
+  proxy?: string
   /** 该密钥最近的报错历史（后端最多保留 10 条，前端按时间倒序展示） */
   error_log?: KeyErrorLog[]
 }
@@ -286,10 +288,12 @@ export interface MultiKeyManageParams {
     | 'disable_all_keys'
     | 'delete_key'
     | 'delete_disabled_keys'
+    | 'set_key_proxy'
   key_index?: number
   page?: number
   page_size?: number
   status?: number // 1=enabled, 2=manual_disabled, 3=auto_disabled
+  proxy?: string // for set_key_proxy
 }
 
 export interface BatchDeleteParams {

@@ -493,8 +493,9 @@ func DoRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
 	var client *http.Client
 	var err error
-	if info.ChannelSetting.Proxy != "" {
-		client, err = service.NewProxyHttpClient(info.ChannelSetting.Proxy)
+	proxy := info.ChannelSetting.GetEffectiveProxy(info.ChannelMultiKeyIndex, info.ChannelIsMultiKey)
+	if proxy != "" {
+		client, err = service.NewProxyHttpClient(proxy)
 		if err != nil {
 			return nil, fmt.Errorf("new proxy http client failed: %w", err)
 		}

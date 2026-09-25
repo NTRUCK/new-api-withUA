@@ -113,8 +113,9 @@ func exchangeJwtForAccessToken(signedJWT string, info *relaycommon.RelayInfo) (s
 
 	var client *http.Client
 	var err error
-	if info.ChannelSetting.Proxy != "" {
-		client, err = service.NewProxyHttpClient(info.ChannelSetting.Proxy)
+	proxy := info.ChannelSetting.GetEffectiveProxy(info.ChannelMultiKeyIndex, info.ChannelIsMultiKey)
+	if proxy != "" {
+		client, err = service.NewProxyHttpClient(proxy)
 		if err != nil {
 			return "", fmt.Errorf("new proxy http client failed: %w", err)
 		}

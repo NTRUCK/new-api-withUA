@@ -441,6 +441,23 @@ export async function deleteDisabledMultiKeys(
   }) as Promise<{ success: boolean; message?: string; data?: number }>
 }
 
+/**
+ * Set (or clear) a per-key proxy in multi-key channel.
+ * Pass empty string to clear and fall back to the channel-level proxy.
+ */
+export async function setMultiKeyProxy(
+  channelId: number,
+  keyIndex: number,
+  proxy: string
+): Promise<{ success: boolean; message?: string }> {
+  return manageMultiKeys({
+    channel_id: channelId,
+    action: 'set_key_proxy',
+    key_index: keyIndex,
+    proxy,
+  }) as Promise<{ success: boolean; message?: string }>
+}
+
 // ============================================================================
 // Tag Operations
 // ============================================================================

@@ -36,6 +36,7 @@ import {
   Badge,
   Progress,
   Card,
+  Input,
 } from '@douyinfe/semi-ui';
 import {
   IllustrationNoResult,
@@ -75,6 +76,46 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
   const [testResults, setTestResults] = useState({});
   const [batchTesting, setBatchTesting] = useState(false);
   const stopBatchTestRef = useRef(false);
+
+  // 每 key 代理编辑状态
+  const [editingProxyIndex, setEditingProxyIndex] = useState(null);
+  const [proxyDraft, setProxyDraft] = useState('');
+  const [savingProxy, setSavingProxy] = useState(false);
+
+  const startEditProxy = (index, current) => {
+    setEditingProxyIndex(index);
+    setProxyDraft(current || '');
+  };
+
+  const cancelEditProxy = () => {
+    setEditingProxyIndex(null);
+    setProxyDraft('');
+  };
+
+  const saveProxy = async (keyIndex) => {
+    setSavingProxy(true);
+    try {
+      const res = await API.post('/api/channel/multi_key/manage', {
+        channel_id: channel.id,
+        action: 'set_key_proxy',
+        key_index: keyIndex,
+        proxy: (proxyDraft || '').trim(),
+      });
+      if (res.data.success) {
+        showSuccess(res.data.message || t('密钥代理已更新'));
+        setEditingProxyIndex(null);
+        setProxyDraft('');
+        await loadKeyStatus(currentPage, pageSize);
+        onRefresh && onRefresh();
+      } else {
+        showError(res.data.message);
+      }
+    } catch (error) {
+      showError(t('设置密钥代理失败'));
+    } finally {
+      setSavingProxy(false);
+    }
+  };
 
   // Load key status data
   const loadKeyStatus = async (
@@ -452,6 +493,68 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
       title: t('状态'),
       dataIndex: 'status',
       render: (status) => renderStatusTag(status),
+    },
+    {
+      title: t('代理'),
+      dataIndex: 'proxy',
+      render: (proxy, record) => {
+        if (editingProxyIndex === record.index) {
+          return (
+            <Space>
+              <Input
+                value={proxyDraft}
+                onChange={(v) => setProxyDraft(v)}
+                placeholder='http://127.0.0.1:7801'
+                size='small'
+                style={{ width: 180, fontSize: 12 }}
+                disabled={savingProxy}
+                onEnterPress={() => saveProxy(record.index)}
+              />
+              <Button
+                size='small'
+                type='primary'
+                theme='solid'
+                loading={savingProxy}
+                onClick={() => saveProxy(record.index)}
+              >
+                {t('保存')}
+              </Button>
+              <Button
+                size='small'
+                type='tertiary'
+                disabled={savingProxy}
+                onClick={cancelEditProxy}
+              >
+                {t('取消')}
+              </Button>
+            </Space>
+          );
+        }
+        return (
+          <Space>
+            {proxy ? (
+              <Tooltip content={proxy}>
+                <Text
+                  code
+                  style={{ maxWidth: 160, fontSize: 12 }}
+                  ellipsis={{ showTooltip: true }}
+                >
+                  {proxy}
+                </Text>
+              </Tooltip>
+            ) : (
+              <Text type='quaternary'>{t('渠道默认')}</Text>
+            )}
+            <Button
+              size='small'
+              type='tertiary'
+              onClick={() => startEditProxy(record.index, proxy)}
+            >
+              {t('编辑')}
+            </Button>
+          </Space>
+        );
+      },
     },
     {
       title: t('报错历史'),

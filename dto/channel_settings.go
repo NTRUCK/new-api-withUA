@@ -1,5 +1,7 @@
 package dto
 
+import "strings"
+
 type ChannelSettings struct {
 	ForceFormat            bool           `json:"force_format,omitempty"`
 	ThinkingToContent      bool           `json:"thinking_to_content,omitempty"`
@@ -8,9 +10,27 @@ type ChannelSettings struct {
 	MaxInputTokens         int            `json:"max_input_tokens,omitempty"`          // 单次请求的最大输入 token 数（未在分组表中命中的分组使用），0 表示不限制
 	MaxInputTokensByGroup  map[string]int `json:"max_input_tokens_by_group,omitempty"` // 按分组覆盖最大输入 token 数，键为分组名；命中则优先于 MaxInputTokens，值为 0 表示该分组不限制
 	Proxy                  string         `json:"proxy"`
+	KeyProxies             map[int]string `json:"key_proxies,omitempty"` // 多密钥渠道下按 key 索引单独指定代理；命中则覆盖渠道级 Proxy，用于让每把 key 走不同出口 IP
 	PassThroughBodyEnabled bool           `json:"pass_through_body_enabled,omitempty"`
 	SystemPrompt           string         `json:"system_prompt,omitempty"`
 	SystemPromptOverride   bool           `json:"system_prompt_override,omitempty"`
+}
+
+// GetEffectiveProxy 返回指定 key 索引实际生效的代理地址。
+// 多密钥渠道下若 KeyProxies 命中该索引且非空，则优先使用 key 专属代理，
+// 否则回退到渠道级 Proxy。isMultiKey 为 false 时始终使用渠道级 Proxy。
+func (s *ChannelSettings) GetEffectiveProxy(keyIndex int, isMultiKey bool) string {
+	if s == nil {
+		return ""
+	}
+	if isMultiKey && len(s.KeyProxies) > 0 {
+		if p, ok := s.KeyProxies[keyIndex]; ok {
+			if trimmed := strings.TrimSpace(p); trimmed != "" {
+				return trimmed
+			}
+		}
+	}
+	return s.Proxy
 }
 
 // GetMaxInputTokens 返回指定分组生效的最大输入 token 上限。
