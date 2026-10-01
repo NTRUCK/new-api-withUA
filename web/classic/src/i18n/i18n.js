@@ -22,6 +22,7 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 import enTranslation from './locales/en.json';
+import esTranslation from './locales/es.json';
 import frTranslation from './locales/fr.json';
 import zhCNTranslation from './locales/zh-CN.json';
 import zhTWTranslation from './locales/zh-TW.json';
@@ -38,6 +39,7 @@ i18n
     supportedLngs: supportedLanguages,
     resources: {
       en: enTranslation,
+      es: esTranslation,
       'zh-CN': zhCNTranslation,
       'zh-TW': zhTWTranslation,
       fr: frTranslation,
