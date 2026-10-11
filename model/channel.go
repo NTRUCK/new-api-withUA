@@ -1152,6 +1152,9 @@ func (channel *Channel) ValidateSettings() error {
 	if channelParams.MaxConcurrency < 0 {
 		return errors.New("max_concurrency cannot be negative")
 	}
+	if channelParams.MaxRpm < 0 {
+		return errors.New("max_rpm cannot be negative")
+	}
 	if channelParams.MaxInputTokens < 0 {
 		return errors.New("max_input_tokens cannot be negative")
 	}

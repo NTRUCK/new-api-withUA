@@ -257,6 +257,8 @@
     "表单引用错误，请刷新页面重试": "Form reference error, please refresh the page and try again",
     "表格视图": "Table view",
     "并发上限": "",
+    "RPM 限制": "RPM Limit",
+    "每分钟最多请求数，0 表示不限制": "Maximum requests per minute. 0 means unlimited.",
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "驳回": "Reject",
     "驳回申请": "Reject Application",

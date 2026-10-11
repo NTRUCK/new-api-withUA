@@ -7,6 +7,7 @@ type ChannelSettings struct {
 	ThinkingToContent      bool           `json:"thinking_to_content,omitempty"`
 	HideUpstreamInfo       bool           `json:"hide_upstream_info,omitempty"`
 	MaxConcurrency         int            `json:"max_concurrency,omitempty"`
+	MaxRpm                 int            `json:"max_rpm,omitempty"`                   // 渠道级每分钟请求上限（滑动窗口），0 表示不限制
 	MaxInputTokens         int            `json:"max_input_tokens,omitempty"`          // 单次请求的最大输入 token 数（未在分组表中命中的分组使用），0 表示不限制
 	MaxInputTokensByGroup  map[string]int `json:"max_input_tokens_by_group,omitempty"` // 按分组覆盖最大输入 token 数，键为分组名；命中则优先于 MaxInputTokens，值为 0 表示该分组不限制
 	Proxy                  string         `json:"proxy"`

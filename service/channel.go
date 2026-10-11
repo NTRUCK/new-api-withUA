@@ -52,6 +52,9 @@ func ShouldDisableChannel(err *types.NewAPIError) bool {
 	if err.GetErrorCode() == types.ErrorCodeConcurrencyLimitExceeded {
 		return false
 	}
+	if err.GetErrorCode() == types.ErrorCodeChannelRateLimitExceeded {
+		return false
+	}
 	if types.IsChannelError(err) {
 		return true
 	}

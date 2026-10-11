@@ -268,6 +268,8 @@
     "表单引用错误，请刷新页面重试": "Lỗi tham chiếu biểu mẫu, vui lòng làm mới trang và thử lại",
     "表格视图": "Chế độ xem bảng",
     "并发上限": "",
+    "RPM 限制": "Giới hạn RPM",
+    "每分钟最多请求数，0 表示不限制": "Số yêu cầu tối đa mỗi phút. 0 nghĩa là không giới hạn.",
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "驳回": "",
     "驳回申请": "",

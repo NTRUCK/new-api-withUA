@@ -89,6 +89,7 @@ const (
 	// rate limit error
 	ErrorCodeModelDailyLimitExceeded  ErrorCode = "model_daily_limit_exceeded"
 	ErrorCodeConcurrencyLimitExceeded ErrorCode = "concurrency_limit_exceeded"
+	ErrorCodeChannelRateLimitExceeded ErrorCode = "channel_rate_limit_exceeded"
 )
 
 type NewAPIError struct {

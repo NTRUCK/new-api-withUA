@@ -268,6 +268,21 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			continue
 		}
 
+		// 渠道级 RPM 限制：拿到并发 lease 后再判定，避免因并发满未发出的请求消耗 RPM 配额。
+		// 超限直接 429、跳过重试（不换渠道）。
+		if rpmOK, rpmErr := service.CheckChannelRpmLimit(channel); rpmErr != nil {
+			lease.Release()
+			newAPIError = types.NewErrorWithStatusCode(rpmErr, types.ErrorCodeChannelRateLimitExceeded, http.StatusInternalServerError, types.ErrOptionWithSkipRetry())
+			break
+		} else if !rpmOK {
+			lease.Release()
+			newAPIError = types.NewErrorWithStatusCode(
+				fmt.Errorf("渠道 #%d 超过 RPM 限制（%d 次/分钟），请稍后再试", channel.Id, channel.GetSetting().MaxRpm),
+				types.ErrorCodeChannelRateLimitExceeded, http.StatusTooManyRequests, types.ErrOptionWithSkipRetry())
+			relayInfo.LastError = newAPIError
+			break
+		}
+
 		// 开启 524 重试统计时，累计该渠道向上游发起的总请求次数（作为 524 占比的分母）。
 		if common.RetryOn524Enabled {
 			common.IncrUpstreamRequest(channel.Id)
@@ -700,6 +715,20 @@ func RelayTask(c *gin.Context) {
 				break
 			}
 			continue
+		}
+
+		// 渠道级 RPM 限制：拿到并发 lease 后再判定；超限直接失败，不重试
+		// （注意 shouldRetryTaskRelay 对 429 会返回 true，因此这里必须直接 break）。
+		if rpmOK, rpmErr := service.CheckChannelRpmLimit(channel); rpmErr != nil {
+			lease.Release()
+			taskErr = service.TaskErrorWrapperLocal(rpmErr, string(types.ErrorCodeChannelRateLimitExceeded), http.StatusInternalServerError)
+			break
+		} else if !rpmOK {
+			lease.Release()
+			taskErr = service.TaskErrorWrapperLocal(
+				fmt.Errorf("渠道 #%d 超过 RPM 限制（%d 次/分钟），请稍后再试", channel.Id, channel.GetSetting().MaxRpm),
+				string(types.ErrorCodeChannelRateLimitExceeded), http.StatusTooManyRequests)
+			break
 		}
 
 		result, taskErr = func() (*relay.TaskSubmitResult, *dto.TaskError) {

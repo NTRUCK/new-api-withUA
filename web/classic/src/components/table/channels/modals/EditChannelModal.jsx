@@ -230,6 +230,7 @@ const EditChannelModal = (props) => {
     thinking_to_content: false,
     hide_upstream_info: false,
     max_concurrency: 0,
+    max_rpm: 0,
     max_input_tokens: 0,
     max_input_tokens_by_group: '',
     proxy: '',
@@ -556,6 +557,7 @@ const EditChannelModal = (props) => {
     thinking_to_content: false,
     hide_upstream_info: false,
     max_concurrency: 0,
+    max_rpm: 0,
     max_input_tokens: 0,
     max_input_tokens_by_group: '',
     proxy: '',
@@ -913,6 +915,7 @@ const EditChannelModal = (props) => {
             parsedSettings.thinking_to_content || false;
           data.hide_upstream_info = parsedSettings.hide_upstream_info === true;
           data.max_concurrency = Number(parsedSettings.max_concurrency) || 0;
+          data.max_rpm = Number(parsedSettings.max_rpm) || 0;
           data.max_input_tokens =
             Number(parsedSettings.max_input_tokens) || 0;
           data.max_input_tokens_by_group = maxInputTokensByGroupToText(
@@ -930,6 +933,7 @@ const EditChannelModal = (props) => {
           data.thinking_to_content = false;
           data.hide_upstream_info = false;
           data.max_concurrency = 0;
+          data.max_rpm = 0;
           data.max_input_tokens = 0;
           data.max_input_tokens_by_group = '';
           data.proxy = '';
@@ -942,6 +946,7 @@ const EditChannelModal = (props) => {
         data.thinking_to_content = false;
         data.hide_upstream_info = false;
         data.max_concurrency = 0;
+        data.max_rpm = 0;
         data.max_input_tokens = 0;
         data.max_input_tokens_by_group = '';
         data.proxy = '';
@@ -1055,6 +1060,7 @@ const EditChannelModal = (props) => {
         thinking_to_content: data.thinking_to_content,
         hide_upstream_info: data.hide_upstream_info,
         max_concurrency: data.max_concurrency,
+        max_rpm: data.max_rpm,
         max_input_tokens: data.max_input_tokens,
         max_input_tokens_by_group: data.max_input_tokens_by_group,
         proxy: data.proxy,
@@ -1481,6 +1487,7 @@ const EditChannelModal = (props) => {
       thinking_to_content: false,
       hide_upstream_info: false,
       max_concurrency: 0,
+      max_rpm: 0,
       max_input_tokens: 0,
       max_input_tokens_by_group: '',
       proxy: '',
@@ -1869,6 +1876,7 @@ const EditChannelModal = (props) => {
       thinking_to_content: localInputs.thinking_to_content || false,
       hide_upstream_info: localInputs.hide_upstream_info === true,
       max_concurrency: Number(localInputs.max_concurrency) || 0,
+      max_rpm: Number(localInputs.max_rpm) || 0,
       max_input_tokens: Number(localInputs.max_input_tokens) || 0,
       max_input_tokens_by_group: maxInputTokensByGroup,
       proxy: localInputs.proxy || '',
@@ -1954,6 +1962,7 @@ const EditChannelModal = (props) => {
     delete localInputs.thinking_to_content;
     delete localInputs.hide_upstream_info;
     delete localInputs.max_concurrency;
+    delete localInputs.max_rpm;
     delete localInputs.max_input_tokens;
     delete localInputs.max_input_tokens_by_group;
     delete localInputs.proxy;
@@ -2664,6 +2673,19 @@ const EditChannelModal = (props) => {
                           handleChannelSettingsChange('max_concurrency', value)
                         }
                         extraText={t('0 表示不限制')}
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                    <Col span={8}>
+                      <Form.InputNumber
+                        field='max_rpm'
+                        label={t('RPM 限制')}
+                        placeholder={t('RPM 限制')}
+                        min={0}
+                        onNumberChange={(value) =>
+                          handleChannelSettingsChange('max_rpm', value)
+                        }
+                        extraText={t('每分钟最多请求数，0 表示不限制')}
                         style={{ width: '100%' }}
                       />
                     </Col>

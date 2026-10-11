@@ -254,6 +254,8 @@
     "表单引用错误，请刷新页面重试": "Erreur de référence de formulaire, veuillez actualiser la page et réessayer",
     "表格视图": "Vue tableau",
     "并发上限": "",
+    "RPM 限制": "Limite RPM",
+    "每分钟最多请求数，0 表示不限制": "Nombre maximal de requêtes par minute. 0 signifie illimité.",
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "驳回": "",
     "驳回申请": "",
