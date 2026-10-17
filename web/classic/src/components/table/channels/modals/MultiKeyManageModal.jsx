@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Modal,
@@ -76,6 +76,17 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
   const [testResults, setTestResults] = useState({});
   const [batchTesting, setBatchTesting] = useState(false);
   const stopBatchTestRef = useRef(false);
+
+  // 测试模型选择（空 = 渠道默认模型）
+  const [testModel, setTestModel] = useState('');
+  const modelOptions = useMemo(() => {
+    const key = channel?.models || '';
+    return key
+      .split(',')
+      .map((m) => m.trim())
+      .filter(Boolean)
+      .map((m) => ({ label: m, value: m }));
+  }, [channel?.models]);
 
   // 每 key 代理编辑状态
   const [editingProxyIndex, setEditingProxyIndex] = useState(null);
@@ -326,8 +337,11 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
     setOperationLoading((prev) => ({ ...prev, [operationId]: true }));
 
     try {
+      const modelParam = testModel
+        ? `&model=${encodeURIComponent(testModel)}`
+        : '';
       const res = await API.get(
-        `/api/channel/test/${channel.id}?key_index=${keyIndex}`,
+        `/api/channel/test/${channel.id}?key_index=${keyIndex}${modelParam}`,
       );
       const { success, message, time } = res.data;
       setTestResults((prev) => ({
@@ -419,6 +433,7 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
       setAutoDisabledCount(0);
       setStatusFilter(null); // Reset filter
       setTestResults({});
+      setTestModel('');
       stopBatchTestRef.current = true;
     }
   }, [visible]);
@@ -729,7 +744,12 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
       }
       visible={visible}
       onCancel={onCancel}
-      width={900}
+      width={Math.min(1500, Math.max(1000, window.innerWidth - 120))}
+      bodyStyle={{
+        maxHeight: 'calc(100vh - 160px)',
+        overflowY: 'auto',
+        paddingRight: 8,
+      }}
       footer={null}
     >
       <div className='flex flex-col mb-5'>
@@ -854,7 +874,7 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
               <Table
                 title={() => (
                   <Row gutter={12} style={{ width: '100%' }}>
-                    <Col span={14}>
+                    <Col span={16}>
                       <Row gutter={12} style={{ alignItems: 'center' }}>
                         <Col>
                           <Select
@@ -877,10 +897,22 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
                             </Select.Option>
                           </Select>
                         </Col>
+                        <Col>
+                          <Select
+                            value={testModel || undefined}
+                            onChange={(v) => setTestModel(v || '')}
+                            optionList={modelOptions}
+                            filter
+                            size='small'
+                            showClear
+                            style={{ minWidth: 200, maxWidth: 280 }}
+                            placeholder={t('测试模型（默认为渠道默认模型）')}
+                          />
+                        </Col>
                       </Row>
                     </Col>
                     <Col
-                      span={10}
+                      span={8}
                       style={{ display: 'flex', justifyContent: 'flex-end' }}
                     >
                       <Space>
