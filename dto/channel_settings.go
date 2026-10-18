@@ -15,8 +15,11 @@ type ChannelSettings struct {
 	PassThroughBodyEnabled bool           `json:"pass_through_body_enabled,omitempty"`
 	SystemPrompt           string         `json:"system_prompt,omitempty"`
 	SystemPromptOverride   bool           `json:"system_prompt_override,omitempty"`
-	KiroCreditSim          bool           `json:"kiro_credit_sim,omitempty"`        // Kiro 额度模拟：按官方 credits 规则估算每个请求的额度消耗并记录到日志 other（仅观测，不影响计费）
-	KiroTokensPerCredit    int            `json:"kiro_tokens_per_credit,omitempty"` // 模拟基线：Auto(1.0x) 每 1 credit 对应的 token 总数；0 使用默认值 50000
+	KiroCreditSim          bool           `json:"kiro_credit_sim,omitempty"`               // Kiro 额度模拟：按官方 credits 规则估算每个请求的额度消耗（写入日志 other），并按 KiroCreditLimit 做月度额度熔断
+	KiroTokensPerCredit    int            `json:"kiro_tokens_per_credit,omitempty"`        // 模拟基线：Auto(1.0x) 每 1 credit 对应的 token 总数；0 使用默认值 50000
+	KiroCreditLimit        int            `json:"kiro_credit_limit,omitempty"`             // 模拟的 Kiro 月度 credits 总额（档位 credits × 数量）；按自然月重置，耗尽后该渠道返回 503 所有账号已用尽；0 表示不熔断仅记录
+	KiroPlanTemplate       string         `json:"kiro_plan_template,omitempty"`            // 套餐档位模板：pro(1000)/pro_plus(2000)/pro_max(5000)/power(10000)/custom，便于按档位×数量快速计算额度
+	KiroPlanCount          int            `json:"kiro_plan_count,omitempty"`               // 套餐档位数量
 }
 
 // GetEffectiveProxy 返回指定 key 索引实际生效的代理地址。

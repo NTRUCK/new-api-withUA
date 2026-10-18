@@ -239,6 +239,9 @@ const EditChannelModal = (props) => {
     system_prompt_override: false,
     kiro_credit_sim: false,
     kiro_tokens_per_credit: 0,
+    kiro_credit_limit: 0,
+    kiro_plan_template: '',
+    kiro_plan_count: 0,
     settings: '',
     // 仅 Vertex: 密钥格式（存入 settings.vertex_key_type）
     vertex_key_type: 'json',
@@ -567,6 +570,9 @@ const EditChannelModal = (props) => {
     system_prompt: '',
     kiro_credit_sim: false,
     kiro_tokens_per_credit: 0,
+    kiro_credit_limit: 0,
+    kiro_plan_template: '',
+    kiro_plan_count: 0,
   });
   const showApiConfigCard = true; // 控制是否显示 API 配置卡片
   const getInitValues = () => ({ ...originInputs });
@@ -588,6 +594,48 @@ const EditChannelModal = (props) => {
     const newSettings = { ...channelSettings, [key]: value };
     const settingsJson = JSON.stringify(newSettings);
     handleInputChange('setting', settingsJson);
+  };
+
+  // ===== Kiro 额度模拟：套餐档位联动 =====
+  const kiroPlanCreditsMap = {
+    pro: 1000,
+    pro_plus: 2000,
+    pro_max: 5000,
+    power: 10000,
+  };
+
+  // 批量更新多个 Kiro 设置字段（handleChannelSettingsChange 只支持单字段，连续调用会互相覆盖 setting JSON）
+  const applyKiroSettingsPatch = (patch) => {
+    const merged = { ...channelSettings, ...patch };
+    setChannelSettings(merged);
+    Object.keys(patch).forEach((k) => {
+      if (formApiRef.current) {
+        formApiRef.current.setValue(k, patch[k]);
+      }
+    });
+    setInputs((prev) => ({ ...prev, ...patch }));
+    handleInputChange('setting', JSON.stringify(merged));
+  };
+
+  const handleKiroPlanTemplateChange = (value) => {
+    const tpl = value || '';
+    const patch = { kiro_plan_template: tpl };
+    if (tpl && kiroPlanCreditsMap[tpl]) {
+      const count = Math.max(Number(inputs.kiro_plan_count) || 1, 1);
+      patch.kiro_plan_count = count;
+      patch.kiro_credit_limit = kiroPlanCreditsMap[tpl] * count;
+    }
+    applyKiroSettingsPatch(patch);
+  };
+
+  const handleKiroPlanCountChange = (value) => {
+    const count = Math.max(Number(value) || 0, 0);
+    const tpl = inputs.kiro_plan_template;
+    const patch = { kiro_plan_count: count };
+    if (tpl && kiroPlanCreditsMap[tpl] && count > 0) {
+      patch.kiro_credit_limit = kiroPlanCreditsMap[tpl] * count;
+    }
+    applyKiroSettingsPatch(patch);
   };
 
   const handleChannelOtherSettingsChange = (key, value) => {
@@ -934,6 +982,11 @@ const EditChannelModal = (props) => {
           data.kiro_credit_sim = parsedSettings.kiro_credit_sim || false;
           data.kiro_tokens_per_credit =
             Number(parsedSettings.kiro_tokens_per_credit) || 0;
+          data.kiro_credit_limit =
+            Number(parsedSettings.kiro_credit_limit) || 0;
+          data.kiro_plan_template = parsedSettings.kiro_plan_template || '';
+          data.kiro_plan_count =
+            Number(parsedSettings.kiro_plan_count) || 0;
         } catch (error) {
           console.error('解析渠道设置失败:', error);
           data.force_format = false;
@@ -949,6 +1002,9 @@ const EditChannelModal = (props) => {
           data.system_prompt_override = false;
           data.kiro_credit_sim = false;
           data.kiro_tokens_per_credit = 0;
+          data.kiro_credit_limit = 0;
+          data.kiro_plan_template = '';
+          data.kiro_plan_count = 0;
         }
       } else {
         data.force_format = false;
@@ -964,6 +1020,9 @@ const EditChannelModal = (props) => {
         data.system_prompt_override = false;
         data.kiro_credit_sim = false;
         data.kiro_tokens_per_credit = 0;
+        data.kiro_credit_limit = 0;
+        data.kiro_plan_template = '';
+        data.kiro_plan_count = 0;
       }
 
       if (data.settings) {
@@ -1122,7 +1181,8 @@ const EditChannelModal = (props) => {
         data.force_format ||
         data.claude_beta_query ||
         data.system_prompt_override ||
-        data.kiro_credit_sim;
+        data.kiro_credit_sim ||
+        (Number(data.kiro_credit_limit) || 0) > 0;
       if (hasAdvancedValues) {
         setAdvancedSettingsOpen(true);
       }
@@ -1508,6 +1568,9 @@ const EditChannelModal = (props) => {
       system_prompt_override: false,
       kiro_credit_sim: false,
       kiro_tokens_per_credit: 0,
+      kiro_credit_limit: 0,
+      kiro_plan_template: '',
+      kiro_plan_count: 0,
     });
     // 重置密钥模式状态
     setKeyMode('append');
@@ -1899,6 +1962,9 @@ const EditChannelModal = (props) => {
       system_prompt_override: localInputs.system_prompt_override || false,
       kiro_credit_sim: localInputs.kiro_credit_sim || false,
       kiro_tokens_per_credit: Number(localInputs.kiro_tokens_per_credit) || 0,
+      kiro_credit_limit: Number(localInputs.kiro_credit_limit) || 0,
+      kiro_plan_template: localInputs.kiro_plan_template || '',
+      kiro_plan_count: Number(localInputs.kiro_plan_count) || 0,
     };
     localInputs.setting = JSON.stringify(channelExtraSettings);
 
@@ -1987,6 +2053,9 @@ const EditChannelModal = (props) => {
     delete localInputs.system_prompt_override;
     delete localInputs.kiro_credit_sim;
     delete localInputs.kiro_tokens_per_credit;
+    delete localInputs.kiro_credit_limit;
+    delete localInputs.kiro_plan_template;
+    delete localInputs.kiro_plan_count;
     delete localInputs.is_enterprise_account;
     // 顶层的 vertex_key_type 不应发送给后端
     delete localInputs.vertex_key_type;
@@ -2936,7 +3005,7 @@ const EditChannelModal = (props) => {
                       handleChannelSettingsChange('kiro_credit_sim', value)
                     }
                     extraText={t(
-                      '按 Kiro 官方 credits 规则估算本渠道每个请求的额度消耗并记入使用日志（other 中 kiro_credits），仅观测统计，不影响用户计费。credits = token总量 / 基线 × 模型倍率（Opus 5.5=2.0x，其余 Opus=2.2x，Sonnet=1.3x，Haiku=0.4x，Fable=6x，Auto=1.0x）。跑一段时间后用日志汇总 credits，对比套餐（Pro $20/1000、Pro+ $40/2000、Pro Max $100/5000、Power $200/10000、加购 $0.04/credit）即可决策是否值得开官方 Kiro 套餐',
+                      '按 Kiro 官方 credits 规则估算本渠道每个请求的额度消耗（credits = token总量 / 基线 × 模型倍率：Opus 5.5=2.0x，其余 Opus=2.2x，Sonnet=1.3x，Haiku=0.4x，Fable=6x，Auto=1.0x），写入使用日志明细；并按下方「月度总额」熔断，额度耗尽即返回 503、次月自动恢复。适合把付费中转站的 Kiro 渠道当成已知额度的套餐池消费，看它实际烧掉多少 credits，再决定是否开官方套餐（Pro $20/1000、Pro+ $40/2000、Pro Max $100/5000、Power $200/10000）',
                     )}
                   />
                   {inputs.kiro_credit_sim && (
@@ -2954,6 +3023,53 @@ const EditChannelModal = (props) => {
                       }
                       extraText={t(
                         'Kiro 官方未公开 token 与 credit 的换算基线，此值按你观察到的实际用量校准；0 表示使用内置默认值 50000',
+                      )}
+                    />
+                  )}
+                  {inputs.kiro_credit_sim && (
+                    <Form.Select
+                      field='kiro_plan_template'
+                      label={t('Kiro 套餐档位')}
+                      placeholder={t('选择档位后按数量自动计算月度总额')}
+                      optionList={[
+                        { label: t('自定义（直接填月度总额）'), value: '' },
+                        { label: 'Pro — $20 / 1,000 credits', value: 'pro' },
+                        { label: 'Pro+ — $40 / 2,000 credits', value: 'pro_plus' },
+                        { label: 'Pro Max — $100 / 5,000 credits', value: 'pro_max' },
+                        { label: 'Power — $200 / 10,000 credits', value: 'power' },
+                      ]}
+                      showClear
+                      onChange={handleKiroPlanTemplateChange}
+                      extraText={t(
+                        '模拟的 Kiro 订阅套餐档位；混合档位（如 1×Pro + 2×Pro+）请选自定义后直接填总额',
+                      )}
+                    />
+                  )}
+                  {inputs.kiro_credit_sim && (
+                    <Form.InputNumber
+                      field='kiro_plan_count'
+                      label={t('该档位账号数量')}
+                      placeholder={t('如 2 表示同档位 2 个账号')}
+                      min={0}
+                      step={1}
+                      onChange={handleKiroPlanCountChange}
+                      extraText={t(
+                        '月度总额 = 档位 credits × 数量；如 2 个 Pro 即 2000 credits',
+                      )}
+                    />
+                  )}
+                  {inputs.kiro_credit_sim && (
+                    <Form.InputNumber
+                      field='kiro_credit_limit'
+                      label={t('Kiro 月度 credits 总额度')}
+                      placeholder={t('如 2000（2×Pro）、5000（1×Pro Max）')}
+                      min={0}
+                      step={500}
+                      onChange={(value) =>
+                        handleChannelSettingsChange('kiro_credit_limit', value)
+                      }
+                      extraText={t(
+                        '0 表示仅记录不熔断；大于 0 时当月累计消耗达到总额即熔断该渠道，请求返回 503「所有账号已用尽」，每月 1 日自动重置。渠道状态保持启用，明细见日志 other.kiro_credits',
                       )}
                     />
                   )}

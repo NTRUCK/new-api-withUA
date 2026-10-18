@@ -149,6 +149,8 @@ func AppendKiroCreditSimInfo(relayInfo *relaycommon.RelayInfo, promptTokens, com
 	other["kiro_credits"] = float64(int(credits*1000+0.5)) / 1000
 	other["kiro_mult"] = mult
 	other["kiro_base"] = int64(base)
+	// 记入内存月度计数，供分发层熔断判断使用
+	AddKiroCreditUsage(relayInfo.ChannelId, credits)
 }
 
 func appendStreamStatus(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {

@@ -150,7 +150,11 @@ func Distribute() func(c *gin.Context) {
 			}
 		}
 		common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Now())
-		SetupContextForSelectedChannel(c, channel, modelRequest.Model)
+		if setupErr := SetupContextForSelectedChannel(c, channel, modelRequest.Model); setupErr != nil {
+			// 渠道设置失败（含 Kiro 额度熔断：所有账号已用尽），返回 503 中止请求
+			abortWithOpenAiMessage(c, http.StatusServiceUnavailable, setupErr.Error(), setupErr.GetErrorCode())
+			return
+		}
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
 			service.RecordChannelAffinity(c, channel.Id)
@@ -448,6 +452,15 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 		c.Set("api_version", channel.Other)
 	case constant.ChannelTypeCoze:
 		c.Set("bot_id", channel.Other)
+	}
+
+	// Kiro 额度模拟：当月模拟 credits 耗尽则熔断该渠道，返回 503 所有账号已用尽
+	if _, ok := service.CheckKiroCreditLimit(channel.GetSetting(), channel.Id); !ok {
+		return types.NewError(
+			errors.New("所有账号已用尽（Kiro 月度额度已耗尽）"),
+			types.ErrorCodeChannelNoAvailableKey,
+			types.ErrOptionWithSkipRetry(),
+		)
 	}
 	return nil
 }
