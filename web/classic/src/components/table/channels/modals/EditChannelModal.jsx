@@ -3012,8 +3012,8 @@ const EditChannelModal = (props) => {
                     <Form.InputNumber
                       field='kiro_tokens_per_credit'
                       label={t('Kiro 基线：每 1 credit 对应 token 数（Auto 1.0x）')}
-                      placeholder={t('默认 50000')}
-                      min={1000}
+                      placeholder={t('填 0 使用默认 50000')}
+                      min={0}
                       step={5000}
                       onChange={(value) =>
                         handleChannelSettingsChange(
@@ -3022,7 +3022,7 @@ const EditChannelModal = (props) => {
                         )
                       }
                       extraText={t(
-                        'Kiro 官方未公开 token 与 credit 的换算基线，此值按你观察到的实际用量校准；0 表示使用内置默认值 50000',
+                        'Kiro 官方未公开 token 与 credit 的换算基线，此值按你观察到的实际用量校准；0 = 使用内置默认值 50000（不要填 1000 这类小值，否则消耗会被放大数十倍）',
                       )}
                     />
                   )}
