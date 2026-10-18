@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strconv"
 	"sync"
 	"time"
 
@@ -49,7 +50,7 @@ func syncKiroCreditFromLog(channelId int) float64 {
 			channelId, model.LogTypeConsume, kiroMonthStartUnix()).
 		Scan(&sum).Error; err != nil {
 		common.SysError("kiro credit sim: failed to sum credits for channel " +
-			common.IntToString(channelId) + ": " + err.Error())
+			strconv.Itoa(channelId) + ": " + err.Error())
 		return 0
 	}
 	return sum
@@ -106,5 +107,3 @@ func AddKiroCreditUsage(channelId int, credits float64) {
 	b.credits += credits
 	b.lastSync = time.Now()
 }
-
-var _ = errors.New // 占位避免误删 import
