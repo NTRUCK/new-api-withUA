@@ -237,6 +237,8 @@ const EditChannelModal = (props) => {
     pass_through_body_enabled: false,
     system_prompt: '',
     system_prompt_override: false,
+    kiro_credit_sim: false,
+    kiro_tokens_per_credit: 0,
     settings: '',
     // 仅 Vertex: 密钥格式（存入 settings.vertex_key_type）
     vertex_key_type: 'json',
@@ -563,6 +565,8 @@ const EditChannelModal = (props) => {
     proxy: '',
     pass_through_body_enabled: false,
     system_prompt: '',
+    kiro_credit_sim: false,
+    kiro_tokens_per_credit: 0,
   });
   const showApiConfigCard = true; // 控制是否显示 API 配置卡片
   const getInitValues = () => ({ ...originInputs });
@@ -927,6 +931,9 @@ const EditChannelModal = (props) => {
           data.system_prompt = parsedSettings.system_prompt || '';
           data.system_prompt_override =
             parsedSettings.system_prompt_override || false;
+          data.kiro_credit_sim = parsedSettings.kiro_credit_sim || false;
+          data.kiro_tokens_per_credit =
+            Number(parsedSettings.kiro_tokens_per_credit) || 0;
         } catch (error) {
           console.error('解析渠道设置失败:', error);
           data.force_format = false;
@@ -940,6 +947,8 @@ const EditChannelModal = (props) => {
           data.pass_through_body_enabled = false;
           data.system_prompt = '';
           data.system_prompt_override = false;
+          data.kiro_credit_sim = false;
+          data.kiro_tokens_per_credit = 0;
         }
       } else {
         data.force_format = false;
@@ -953,6 +962,8 @@ const EditChannelModal = (props) => {
         data.pass_through_body_enabled = false;
         data.system_prompt = '';
         data.system_prompt_override = false;
+        data.kiro_credit_sim = false;
+        data.kiro_tokens_per_credit = 0;
       }
 
       if (data.settings) {
@@ -1110,7 +1121,8 @@ const EditChannelModal = (props) => {
         data.pass_through_body_enabled ||
         data.force_format ||
         data.claude_beta_query ||
-        data.system_prompt_override;
+        data.system_prompt_override ||
+        data.kiro_credit_sim;
       if (hasAdvancedValues) {
         setAdvancedSettingsOpen(true);
       }
@@ -1494,6 +1506,8 @@ const EditChannelModal = (props) => {
       pass_through_body_enabled: false,
       system_prompt: '',
       system_prompt_override: false,
+      kiro_credit_sim: false,
+      kiro_tokens_per_credit: 0,
     });
     // 重置密钥模式状态
     setKeyMode('append');
@@ -1883,6 +1897,8 @@ const EditChannelModal = (props) => {
       pass_through_body_enabled: localInputs.pass_through_body_enabled || false,
       system_prompt: localInputs.system_prompt || '',
       system_prompt_override: localInputs.system_prompt_override || false,
+      kiro_credit_sim: localInputs.kiro_credit_sim || false,
+      kiro_tokens_per_credit: Number(localInputs.kiro_tokens_per_credit) || 0,
     };
     localInputs.setting = JSON.stringify(channelExtraSettings);
 
@@ -1969,6 +1985,8 @@ const EditChannelModal = (props) => {
     delete localInputs.pass_through_body_enabled;
     delete localInputs.system_prompt;
     delete localInputs.system_prompt_override;
+    delete localInputs.kiro_credit_sim;
+    delete localInputs.kiro_tokens_per_credit;
     delete localInputs.is_enterprise_account;
     // 顶层的 vertex_key_type 不应发送给后端
     delete localInputs.vertex_key_type;
@@ -2909,6 +2927,36 @@ const EditChannelModal = (props) => {
                       '将响应中的上游模型名替换为用户请求的公开模型名，并移除可识别上游的元数据',
                     )}
                   />
+                  <Form.Switch
+                    field='kiro_credit_sim'
+                    label={t('Kiro 额度模拟')}
+                    checkedText={t('开')}
+                    uncheckedText={t('关')}
+                    onChange={(value) =>
+                      handleChannelSettingsChange('kiro_credit_sim', value)
+                    }
+                    extraText={t(
+                      '按 Kiro 官方 credits 规则估算本渠道每个请求的额度消耗并记入使用日志（other 中 kiro_credits），仅观测统计，不影响用户计费。credits = token总量 / 基线 × 模型倍率（Opus 5.5=2.0x，其余 Opus=2.2x，Sonnet=1.3x，Haiku=0.4x，Fable=6x，Auto=1.0x）。跑一段时间后用日志汇总 credits，对比套餐（Pro $20/1000、Pro+ $40/2000、Pro Max $100/5000、Power $200/10000、加购 $0.04/credit）即可决策是否值得开官方 Kiro 套餐',
+                    )}
+                  />
+                  {inputs.kiro_credit_sim && (
+                    <Form.InputNumber
+                      field='kiro_tokens_per_credit'
+                      label={t('Kiro 基线：每 1 credit 对应 token 数（Auto 1.0x）')}
+                      placeholder={t('默认 50000')}
+                      min={1000}
+                      step={5000}
+                      onChange={(value) =>
+                        handleChannelSettingsChange(
+                          'kiro_tokens_per_credit',
+                          value,
+                        )
+                      }
+                      extraText={t(
+                        'Kiro 官方未公开 token 与 credit 的换算基线，此值按你观察到的实际用量校准；0 表示使用内置默认值 50000',
+                      )}
+                    />
+                  )}
                   <Form.Switch
                     field='pass_through_body_enabled'
                     label={t('透传请求体')}

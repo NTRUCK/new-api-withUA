@@ -418,6 +418,10 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	} else {
 		other = GenerateTextOtherInfo(ctx, relayInfo, summary.ModelRatio, summary.GroupRatio, summary.CompletionRatio, summary.CacheTokens, summary.CacheRatio, summary.ModelPrice, relayInfo.PriceData.GroupRatioInfo.GroupSpecialRatio)
 	}
+	// Kiro 额度模拟：按官方 credits 规则估算消耗并记录（仅观测，不影响计费）
+	if usage != nil {
+		AppendKiroCreditSimInfo(relayInfo, usage.PromptTokens, usage.CompletionTokens, other)
+	}
 	if adminRejectReason != "" {
 		other["reject_reason"] = adminRejectReason
 	}

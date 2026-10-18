@@ -89,6 +89,68 @@ func appendParamOverrideInfo(relayInfo *relaycommon.RelayInfo, other map[string]
 	other["po"] = relayInfo.ParamOverrideAudit
 }
 
+// defaultKiroTokensPerCredit Kiro 额度模拟的默认基线：Auto(1.0x) 每 1 credit 对应的 token 总数。
+// Kiro 官方仅按 credits 计费且未公开 token 换算基线，此值为经验估算，可在渠道设置中覆盖。
+const defaultKiroTokensPerCredit = 50000.0
+
+// kiroCreditMultiplier 返回模型在 Kiro 下的 credit 倍率（相对 Auto=1.0x）。
+// 依据 Kiro 官方 models 文档（2026-10）：
+// Fable 6.0x / Opus 5.5 2.0x / 其余 Opus 2.2x / Sonnet 1.3x / Haiku 0.4x /
+// GPT-5.6 Sol 4.4x / Terra 2.2x / Luna 0.6x / 未知模型按 Auto 1.0x。
+func kiroCreditMultiplier(modelName string) float64 {
+	m := strings.ToLower(strings.TrimSpace(modelName))
+	m = strings.TrimPrefix(m, "[kiro]")
+	switch {
+	case strings.Contains(m, "fable"):
+		return 6.0
+	case strings.Contains(m, "opus-5-5"), strings.Contains(m, "opus-5.5"), strings.Contains(m, "opus 5.5"):
+		return 2.0
+	case strings.Contains(m, "gpt-5-6"), strings.Contains(m, "gpt-5.6"):
+		switch {
+		case strings.Contains(m, "sol"):
+			return 4.4
+		case strings.Contains(m, "terra"):
+			return 2.2
+		case strings.Contains(m, "luna"):
+			return 0.6
+		default:
+			return 1.0
+		}
+	case strings.Contains(m, "opus"):
+		return 2.2
+	case strings.Contains(m, "sonnet"):
+		return 1.3
+	case strings.Contains(m, "haiku"):
+		return 0.4
+	default:
+		return 1.0
+	}
+}
+
+// AppendKiroCreditSimInfo 在开启「Kiro 额度模拟」的渠道上，按 Kiro 官方 credits 规则
+// 估算本次请求的额度消耗（credits = token总量 / 基线 × 模型倍率），仅写入日志 other
+// 供观测统计，不影响用户计费。token 总量按上游回传的完整输入（含缓存重发）+ 输出计。
+func AppendKiroCreditSimInfo(relayInfo *relaycommon.RelayInfo, promptTokens, completionTokens int, other map[string]interface{}) {
+	if relayInfo == nil || other == nil || !relayInfo.ChannelSetting.KiroCreditSim {
+		return
+	}
+	if promptTokens < 0 || completionTokens < 0 {
+		return
+	}
+	if promptTokens == 0 && completionTokens == 0 {
+		return
+	}
+	base := defaultKiroTokensPerCredit
+	if relayInfo.ChannelSetting.KiroTokensPerCredit > 0 {
+		base = float64(relayInfo.ChannelSetting.KiroTokensPerCredit)
+	}
+	mult := kiroCreditMultiplier(relayInfo.OriginModelName)
+	credits := float64(promptTokens+completionTokens) / base * mult
+	other["kiro_credits"] = float64(int(credits*1000+0.5)) / 1000
+	other["kiro_mult"] = mult
+	other["kiro_base"] = int64(base)
+}
+
 func appendStreamStatus(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
 	if relayInfo == nil || other == nil || !relayInfo.IsStream || relayInfo.StreamStatus == nil {
 		return

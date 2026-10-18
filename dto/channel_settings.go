@@ -15,6 +15,8 @@ type ChannelSettings struct {
 	PassThroughBodyEnabled bool           `json:"pass_through_body_enabled,omitempty"`
 	SystemPrompt           string         `json:"system_prompt,omitempty"`
 	SystemPromptOverride   bool           `json:"system_prompt_override,omitempty"`
+	KiroCreditSim          bool           `json:"kiro_credit_sim,omitempty"`        // Kiro 额度模拟：按官方 credits 规则估算每个请求的额度消耗并记录到日志 other（仅观测，不影响计费）
+	KiroTokensPerCredit    int            `json:"kiro_tokens_per_credit,omitempty"` // 模拟基线：Auto(1.0x) 每 1 credit 对应的 token 总数；0 使用默认值 50000
 }
 
 // GetEffectiveProxy 返回指定 key 索引实际生效的代理地址。
