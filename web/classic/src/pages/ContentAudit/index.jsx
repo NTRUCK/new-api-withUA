@@ -186,7 +186,8 @@ const ContentAudit = () => {
     setCurrentUser(user);
     setCurrentSession(null);
     setLogs([]);
-    setActiveTab('sessions');
+    // 会话列表与用户列表同处「按用户」标签页，无需切换 tab
+    setActiveTab('users');
     setLoadingSessions(true);
     try {
       const res = await auditGet(
