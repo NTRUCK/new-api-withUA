@@ -14,6 +14,7 @@ import (
 
 func SetRouter(router *gin.Engine, assets ThemeAssets) {
 	SetMonitorRouter(router)
+	SetContentAuditRouter(router)
 	SetApiRouter(router)
 	SetDashboardRouter(router)
 	SetRelayRouter(router)

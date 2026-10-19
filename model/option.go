@@ -53,6 +53,11 @@ func InitOptionMap() {
 	common.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(common.AutomaticDisableChannelEnabled)
 	common.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(common.AutomaticEnableChannelEnabled)
 	common.OptionMap["LogConsumeEnabled"] = strconv.FormatBool(common.LogConsumeEnabled)
+	common.OptionMap["ContentAuditEnabled"] = strconv.FormatBool(operation_setting.ContentAuditEnabled)
+	common.OptionMap["ContentAuditUserIds"] = operation_setting.ContentAuditUserIdsCsv
+	common.OptionMap["ContentAuditGroups"] = operation_setting.ContentAuditGroupsCsv
+	common.OptionMap["ContentAuditMaxBodyBytes"] = strconv.Itoa(operation_setting.ContentAuditMaxBodyBytes)
+	common.OptionMap["ContentAuditKeepDays"] = strconv.Itoa(operation_setting.ContentAuditKeepDays)
 	common.OptionMap["UpstreamErrorObfuscationEnabled"] = strconv.FormatBool(common.UpstreamErrorObfuscationEnabled)
 	common.OptionMap["UpstreamErrorObfuscationMode"] = common.UpstreamErrorObfuscationMode
 	common.OptionMap["DisplayInCurrencyEnabled"] = strconv.FormatBool(common.DisplayInCurrencyEnabled)
@@ -339,6 +344,8 @@ func updateOptionMap(key string, value string) (err error) {
 			common.AutomaticEnableChannelEnabled = boolValue
 		case "LogConsumeEnabled":
 			common.LogConsumeEnabled = boolValue
+		case "ContentAuditEnabled":
+			operation_setting.ContentAuditEnabled = boolValue
 		case "UpstreamErrorObfuscationEnabled":
 			common.UpstreamErrorObfuscationEnabled = boolValue
 		case "DisplayInCurrencyEnabled":
@@ -404,6 +411,17 @@ func updateOptionMap(key string, value string) (err error) {
 	switch key {
 	case "EmailDomainWhitelist":
 		common.EmailDomainWhitelist = strings.Split(value, ",")
+	case "ContentAuditUserIds":
+		operation_setting.ContentAuditUserIdsCsv = value
+		operation_setting.RefreshContentAuditMatcher()
+	case "ContentAuditGroups":
+		operation_setting.ContentAuditGroupsCsv = value
+		operation_setting.RefreshContentAuditMatcher()
+	case "ContentAuditMaxBodyBytes":
+		operation_setting.ContentAuditMaxBodyBytes, _ = strconv.Atoi(value)
+	case "ContentAuditKeepDays":
+		operation_setting.ContentAuditKeepDays, _ = strconv.Atoi(value)
+		CleanupBodyLogsIfNeeded(false)
 	case "UpstreamErrorObfuscationMode":
 		common.UpstreamErrorObfuscationMode = value
 	case "SMTPServer":

@@ -301,6 +301,11 @@ func InitResources() error {
 		return err
 	}
 
+	// 内容审计表：失败仅告警，不阻塞主流程
+	if err := model.InitBodyLogTable(); err != nil {
+		common.SysError("failed to initialize body_log table: " + err.Error())
+	}
+
 	// Initialize Redis
 	err = common.InitRedisClient()
 	if err != nil {
