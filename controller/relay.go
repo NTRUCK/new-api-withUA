@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -148,10 +147,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	// 内容审计初始化：仅命中白名单的请求包裹响应捕获器，其余零开销
 	auditUserId = c.GetInt("id")
-	if operation_setting.ContentAuditMatches(auditUserId, modelDailyLimitGroup(relayInfo)) {
-		auditRec = newAuditResponseRecorder(c.Writer, operation_setting.GetContentAuditMaxBodyBytes())
-		c.Writer = auditRec
-	}
+	auditRec = initContentAuditRecorder(c, relayInfo)
 
 	// 模型每日/分时段调用次数限制（按 模型+分组 统计，仅计成功调用）
 	dailyLimitGroup := modelDailyLimitGroup(relayInfo)
@@ -616,102 +612,6 @@ func RelayMidjourney(c *gin.Context) {
 		channelId := c.GetInt("channel_id")
 		logger.LogError(c, fmt.Sprintf("relay error (channel #%d, status code %d): %s", channelId, statusCode, fmt.Sprintf("%s %s", mjErr.Description, mjErr.Result)))
 	}
-}
-
-// ===== 内容审计：响应捕获与落库 =====
-
-// auditResponseRecorder 包装 gin.ResponseWriter，把写出的响应体（明文，
-// 位于 gzip writer 之前）截断缓存到内存上限，供内容审计记录。
-type auditResponseRecorder struct {
-	gin.ResponseWriter
-	buf       *bytes.Buffer
-	limit     int
-	truncated bool
-}
-
-func newAuditResponseRecorder(w gin.ResponseWriter, limit int) *auditResponseRecorder {
-	if limit <= 0 {
-		limit = 4096
-	}
-	return &auditResponseRecorder{ResponseWriter: w, buf: &bytes.Buffer{}, limit: limit}
-}
-
-func (w *auditResponseRecorder) writeChunk(b []byte) (int, error) {
-	if !w.truncated {
-		free := w.limit - w.buf.Len()
-		if free <= 0 {
-			w.truncated = true
-		} else {
-			if len(b) > free {
-				w.buf.Write(b[:free])
-				w.truncated = true
-			} else {
-				w.buf.Write(b)
-			}
-		}
-	}
-	// 始终报告完整写入，保证上层（gin/压缩器）的 Size 计数不受截断影响
-	return len(b), nil
-}
-
-func (w *auditResponseRecorder) Write(b []byte) (int, error) {
-	return w.writeChunk(b)
-}
-
-func (w *auditResponseRecorder) WriteString(s string) (int, error) {
-	return w.writeChunk([]byte(s))
-}
-
-func (w *auditResponseRecorder) snapshot() string {
-	if w.buf == nil {
-		return ""
-	}
-	return w.buf.String()
-}
-
-// recordContentAudit 命中审计白名单时，异步落库完整请求体与捕获的响应体。
-// 在 relay 结束（成功或失败）时调用，BodyStorage 仍可用（外层中间件尚未清理）。
-func recordContentAudit(c *gin.Context, relayInfo *relaycommon.RelayInfo, rec *auditResponseRecorder, userId int, relayErr *types.NewAPIError) {
-	if rec == nil || relayInfo == nil {
-		return
-	}
-	// 读取缓存的请求体（仅取内存中已有数据，不触发额外读取）
-	reqBody := ""
-	if storage, err := common.GetBodyStorage(c); err == nil && storage != nil {
-		if b, berr := storage.Bytes(); berr == nil {
-			reqBody = string(b)
-		}
-	}
-	errPreview := ""
-	if relayErr != nil {
-		errPreview = common.LocalLogPreview(relayErr.Error())
-	}
-	entry := &model.BodyLog{
-		CreatedAt:    common.GetTimestamp(),
-		UserId:       userId,
-		Username:     c.GetString("username"),
-		TokenId:      relayInfo.TokenId,
-		TokenName:    c.GetString("token_name"),
-		GroupName:    modelDailyLimitGroup(relayInfo),
-		ModelName:    relayInfo.OriginModelName,
-		ChannelId:    c.GetInt("channel_id"),
-		RequestBody:  reqBody,
-		ResponseBody: rec.snapshot(),
-		StatusCode:   c.Writer.Status(),
-		ErrorPreview: errPreview,
-	}
-	gopool.Go(func() {
-		defer func() {
-			if r := recover(); r != nil {
-				common.SysError("content audit insert panic: " + fmt.Sprint(r))
-			}
-		}()
-		if err := model.InsertBodyLog(entry); err != nil {
-			common.SysError("content audit insert failed: " + err.Error())
-			return
-		}
-		model.CleanupBodyLogsIfNeeded(false)
-	})
 }
 
 func RelayNotImplemented(c *gin.Context) {

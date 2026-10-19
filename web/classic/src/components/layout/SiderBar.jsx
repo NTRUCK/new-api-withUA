@@ -50,6 +50,7 @@ const routerMap = {
   playground: '/console/playground',
   personal: '/console/personal',
   feedback: '/console/feedback',
+  content_audit: '/content-audit',
   dice_game: '/console/dice-game',
   dice_welfare: '/console/dice-welfare',
   quota_query: '/console/quota-query',
@@ -218,6 +219,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('模型反馈'),
         itemKey: 'feedback',
         to: '/feedback',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('内容审计'),
+        itemKey: 'content_audit',
+        to: '/content-audit',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

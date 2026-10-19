@@ -54,6 +54,7 @@ import Setup from './pages/Setup';
 import SetupCheck from './components/layout/SetupCheck';
 import Violations from './pages/Violations';
 import ModelHealth from './pages/ModelHealth';
+import ContentAudit from './pages/ContentAudit';
 import QuotaQuery from './pages/QuotaQuery';
 
 const Home = lazy(() => import('./pages/Home'));
@@ -403,6 +404,8 @@ function App() {
           }
         />
         <Route path='/model-health' element={<ModelHealth />} />
+        {/* 内容审计面板：独立密码鉴权，故不套 AdminRoute */}
+        <Route path='/content-audit' element={<ContentAudit />} />
         <Route
           path='/privacy-policy'
           element={

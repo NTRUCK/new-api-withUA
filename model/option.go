@@ -54,10 +54,14 @@ func InitOptionMap() {
 	common.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(common.AutomaticEnableChannelEnabled)
 	common.OptionMap["LogConsumeEnabled"] = strconv.FormatBool(common.LogConsumeEnabled)
 	common.OptionMap["ContentAuditEnabled"] = strconv.FormatBool(operation_setting.ContentAuditEnabled)
+	common.OptionMap["ContentAuditMode"] = operation_setting.ContentAuditMode
 	common.OptionMap["ContentAuditUserIds"] = operation_setting.ContentAuditUserIdsCsv
 	common.OptionMap["ContentAuditGroups"] = operation_setting.ContentAuditGroupsCsv
 	common.OptionMap["ContentAuditMaxBodyBytes"] = strconv.Itoa(operation_setting.ContentAuditMaxBodyBytes)
 	common.OptionMap["ContentAuditKeepDays"] = strconv.Itoa(operation_setting.ContentAuditKeepDays)
+	common.OptionMap["ContentAuditSessionGapMinutes"] = strconv.Itoa(operation_setting.ContentAuditSessionGapMinutes)
+	common.OptionMap["ContentAuditMaxTableMB"] = strconv.Itoa(operation_setting.ContentAuditMaxTableMB)
+	common.OptionMap["ContentAuditPanelPasswordHash"] = operation_setting.ContentAuditPanelPasswordHash
 	common.OptionMap["UpstreamErrorObfuscationEnabled"] = strconv.FormatBool(common.UpstreamErrorObfuscationEnabled)
 	common.OptionMap["UpstreamErrorObfuscationMode"] = common.UpstreamErrorObfuscationMode
 	common.OptionMap["DisplayInCurrencyEnabled"] = strconv.FormatBool(common.DisplayInCurrencyEnabled)
@@ -417,11 +421,24 @@ func updateOptionMap(key string, value string) (err error) {
 	case "ContentAuditGroups":
 		operation_setting.ContentAuditGroupsCsv = value
 		operation_setting.RefreshContentAuditMatcher()
+	case "ContentAuditMode":
+		if value == operation_setting.ContentAuditModeAll {
+			operation_setting.ContentAuditMode = operation_setting.ContentAuditModeAll
+		} else {
+			operation_setting.ContentAuditMode = operation_setting.ContentAuditModeWhitelist
+		}
 	case "ContentAuditMaxBodyBytes":
 		operation_setting.ContentAuditMaxBodyBytes, _ = strconv.Atoi(value)
 	case "ContentAuditKeepDays":
 		operation_setting.ContentAuditKeepDays, _ = strconv.Atoi(value)
 		CleanupBodyLogsIfNeeded(false)
+	case "ContentAuditSessionGapMinutes":
+		operation_setting.ContentAuditSessionGapMinutes, _ = strconv.Atoi(value)
+	case "ContentAuditMaxTableMB":
+		operation_setting.ContentAuditMaxTableMB, _ = strconv.Atoi(value)
+		CheckAuditCapacity(true)
+	case "ContentAuditPanelPasswordHash":
+		operation_setting.ContentAuditPanelPasswordHash = value
 	case "UpstreamErrorObfuscationMode":
 		common.UpstreamErrorObfuscationMode = value
 	case "SMTPServer":
