@@ -187,6 +187,12 @@ func asString(v interface{}) string {
 // recordContentAudit 命中审计白名单时，异步落库完整请求体、原始响应体与可读回复文本。
 // 在 relay 结束（成功或失败）时调用，BodyStorage 仍可用（外层中间件尚未清理）。
 func recordContentAudit(c *gin.Context, relayInfo *relaycommon.RelayInfo, rec *auditResponseRecorder, userId int, relayErr *types.NewAPIError) {
+	if operation_setting.IsContentAuditOverCapacity() {
+		// 熔断期间仍定期清理过期数据并复检容量，否则停止写入后永远无法恢复
+		model.CleanupBodyLogsIfNeeded(false)
+		model.CheckAuditCapacity(false)
+		return
+	}
 	if rec == nil || relayInfo == nil {
 		return
 	}
