@@ -289,9 +289,13 @@ func CheckAuditCapacity(force bool) {
 	}
 }
 
-// GetAuditTableSizeMB 面板展示当前占用（MB）。
+// GetAuditTableSizeMB 面板展示当前占用（MB，向上取整）。
 func GetAuditTableSizeMB() int64 {
-	return auditTableBytes() / 1024 / 1024
+	size := auditTableBytes()
+	if size <= 0 {
+		return 0
+	}
+	return (size + 1024*1024 - 1) / 1024 / 1024
 }
 
 // ===== 清理 =====
@@ -380,7 +384,7 @@ func GetAuditSessions(userId int, limit int) ([]AuditSessionStat, error) {
 			"MAX(user_agent) AS user_agent, MAX(model_name) AS model_name, "+
 			"MIN(created_at) AS start_at, MAX(created_at) AS end_at, COUNT(*) AS reqs, "+
 			"COALESCE(SUM(prompt_tokens + completion_tokens),0) AS total_tokens").
-		Where("user_id = ?", userId).
+		Where("user_id = ? AND session_id <> ''", userId).
 		Group("session_id").
 		Order("end_at DESC").
 		Limit(limit).
