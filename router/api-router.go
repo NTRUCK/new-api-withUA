@@ -53,16 +53,6 @@ func SetApiRouter(router *gin.Engine) {
 			modelFeedbackRoute.GET("", middleware.AdminAuth(), controller.GetModelFeedbacks)
 			modelFeedbackRoute.POST("/:id/handle", middleware.AdminAuth(), controller.HandleModelFeedback)
 		}
-		// 注册审核：申请人（尚无账号）匿名查询进度，审核员白名单或管理员查看与审批
-		userReviewRoute := apiRouter.Group("/user_review")
-		{
-			userReviewRoute.GET("/status", middleware.CriticalRateLimit(), controller.GetUserReviewStatus)
-			userReviewRoute.GET("/summary", middleware.UserAuth(), controller.GetUserReviewSummary)
-			userReviewRoute.GET("", middleware.UserAuth(), controller.GetUserReviews)
-			userReviewRoute.GET("/:id/discord", middleware.UserAuth(), controller.GetUserReviewDiscord)
-			userReviewRoute.POST("/:id/approve", middleware.UserAuth(), middleware.CriticalRateLimit(), controller.ApproveUserReview)
-			userReviewRoute.POST("/:id/reject", middleware.UserAuth(), middleware.CriticalRateLimit(), controller.RejectUserReview)
-		}
 		apiRouter.GET("/verification", middleware.EmailVerificationRateLimit(), middleware.TurnstileCheck(), controller.SendEmailVerification)
 		apiRouter.GET("/reset_password", middleware.CriticalRateLimit(), middleware.TurnstileCheck(), controller.SendPasswordResetEmail)
 		apiRouter.POST("/user/reset", middleware.CriticalRateLimit(), controller.ResetPassword)
