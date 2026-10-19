@@ -240,6 +240,7 @@ const EditChannelModal = (props) => {
     kiro_credit_sim: false,
     kiro_tokens_per_credit: 0,
     kiro_credit_limit: 0,
+    kiro_credit_used_initial: 0,
     kiro_plan_template: '',
     kiro_plan_count: 0,
     settings: '',
@@ -571,6 +572,7 @@ const EditChannelModal = (props) => {
     kiro_credit_sim: false,
     kiro_tokens_per_credit: 0,
     kiro_credit_limit: 0,
+    kiro_credit_used_initial: 0,
     kiro_plan_template: '',
     kiro_plan_count: 0,
   });
@@ -987,6 +989,8 @@ const EditChannelModal = (props) => {
           data.kiro_plan_template = parsedSettings.kiro_plan_template || '';
           data.kiro_plan_count =
             Number(parsedSettings.kiro_plan_count) || 0;
+          data.kiro_credit_used_initial =
+            Number(parsedSettings.kiro_credit_used_initial) || 0;
         } catch (error) {
           console.error('解析渠道设置失败:', error);
           data.force_format = false;
@@ -1005,6 +1009,7 @@ const EditChannelModal = (props) => {
           data.kiro_credit_limit = 0;
           data.kiro_plan_template = '';
           data.kiro_plan_count = 0;
+          data.kiro_credit_used_initial = 0;
         }
       } else {
         data.force_format = false;
@@ -1023,6 +1028,7 @@ const EditChannelModal = (props) => {
         data.kiro_credit_limit = 0;
         data.kiro_plan_template = '';
         data.kiro_plan_count = 0;
+        data.kiro_credit_used_initial = 0;
       }
 
       if (data.settings) {
@@ -1569,6 +1575,7 @@ const EditChannelModal = (props) => {
       kiro_credit_sim: false,
       kiro_tokens_per_credit: 0,
       kiro_credit_limit: 0,
+      kiro_credit_used_initial: 0,
       kiro_plan_template: '',
       kiro_plan_count: 0,
     });
@@ -1965,6 +1972,8 @@ const EditChannelModal = (props) => {
       kiro_credit_limit: Number(localInputs.kiro_credit_limit) || 0,
       kiro_plan_template: localInputs.kiro_plan_template || '',
       kiro_plan_count: Number(localInputs.kiro_plan_count) || 0,
+      kiro_credit_used_initial:
+        Number(localInputs.kiro_credit_used_initial) || 0,
     };
     localInputs.setting = JSON.stringify(channelExtraSettings);
 
@@ -2056,6 +2065,7 @@ const EditChannelModal = (props) => {
     delete localInputs.kiro_credit_limit;
     delete localInputs.kiro_plan_template;
     delete localInputs.kiro_plan_count;
+    delete localInputs.kiro_credit_used_initial;
     delete localInputs.is_enterprise_account;
     // 顶层的 vertex_key_type 不应发送给后端
     delete localInputs.vertex_key_type;
@@ -3070,6 +3080,24 @@ const EditChannelModal = (props) => {
                       }
                       extraText={t(
                         '0 表示仅记录不熔断；大于 0 时当月累计消耗达到总额即熔断该渠道，请求返回 503「所有账号已用尽」，每月 1 日自动重置。渠道状态保持启用，明细见日志 other.kiro_credits',
+                      )}
+                    />
+                  )}
+                  {inputs.kiro_credit_sim && (
+                    <Form.InputNumber
+                      field='kiro_credit_used_initial'
+                      label={t('期初已用 credits（号池校准）')}
+                      placeholder={t('模拟号池开始时已消耗的额度，如 1500')}
+                      min={0}
+                      step={100}
+                      onChange={(value) =>
+                        handleChannelSettingsChange(
+                          'kiro_credit_used_initial',
+                          value,
+                        )
+                      }
+                      extraText={t(
+                        '判定口径：当月日志累计 + 期初已用（≥ 月度总额）时熔断；期初值长期生效，可在渠道列表的「号池数据」面板随时校准；管理员请求不受熔断限制',
                       )}
                     />
                   )}

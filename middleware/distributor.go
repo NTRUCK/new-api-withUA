@@ -455,12 +455,15 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	}
 
 	// Kiro 额度模拟：当月模拟 credits 耗尽则熔断该渠道，返回 503 所有账号已用尽
-	if _, ok := service.CheckKiroCreditLimit(channel.GetSetting(), channel.Id); !ok {
-		return types.NewError(
-			errors.New("所有账号已用尽（Kiro 月度额度已耗尽）"),
-			types.ErrorCodeChannelNoAvailableKey,
-			types.ErrOptionWithSkipRetry(),
-		)
+	// （管理员豁免：便于管理员继续测试渠道与观察行为）
+	if userId := c.GetInt(string(constant.ContextKeyUserId)); !model.IsAdmin(userId) {
+		if _, ok := service.CheckKiroCreditLimit(channel.GetSetting(), channel.Id); !ok {
+			return types.NewError(
+				errors.New("kiroNTRapi: 所有账号已用尽"),
+				types.ErrorCodeChannelNoAvailableKey,
+				types.ErrOptionWithSkipRetry(),
+			)
+		}
 	}
 	return nil
 }

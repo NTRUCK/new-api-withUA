@@ -331,6 +331,8 @@ export const getChannelsColumns = ({
   checkOllamaVersion,
   setShowMultiKeyManageModal,
   setCurrentMultiKeyChannel,
+  setShowKiroPoolModal,
+  setCurrentKiroChannel,
   openUpstreamUpdateModal,
   detectChannelUpstreamUpdates,
 }) => {
@@ -776,6 +778,28 @@ export const getChannelsColumns = ({
               name: t('测活'),
               type: 'tertiary',
               onClick: () => checkOllamaVersion(record),
+            });
+          }
+
+          // 开启了 Kiro 额度模拟的渠道：提供号池数据入口
+          let kiroSimEnabled = false;
+          try {
+            if (record.setting) {
+              const parsed = JSON.parse(record.setting);
+              kiroSimEnabled = parsed && parsed.kiro_credit_sim === true;
+            }
+          } catch (e) {
+            kiroSimEnabled = false;
+          }
+          if (kiroSimEnabled) {
+            moreMenuItems.unshift({
+              node: 'item',
+              name: t('号池数据'),
+              type: 'tertiary',
+              onClick: () => {
+                setCurrentKiroChannel(record);
+                setShowKiroPoolModal(true);
+              },
             });
           }
 

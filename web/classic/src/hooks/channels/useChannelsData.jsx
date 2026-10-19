@@ -118,6 +118,10 @@ export const useChannelsData = () => {
   const [showMultiKeyManageModal, setShowMultiKeyManageModal] = useState(false);
   const [currentMultiKeyChannel, setCurrentMultiKeyChannel] = useState(null);
 
+  // Kiro pool states
+  const [showKiroPoolModal, setShowKiroPoolModal] = useState(false);
+  const [currentKiroChannel, setCurrentKiroChannel] = useState(null);
+
   // Refs
   const requestCounter = useRef(0);
   const allSelectingRef = useRef(false);
@@ -1203,6 +1207,12 @@ export const useChannelsData = () => {
     setShowMultiKeyManageModal,
     currentMultiKeyChannel,
     setCurrentMultiKeyChannel,
+
+    // Kiro pool states
+    showKiroPoolModal,
+    setShowKiroPoolModal,
+    currentKiroChannel,
+    setCurrentKiroChannel,
     ...upstreamUpdates,
 
     // Form

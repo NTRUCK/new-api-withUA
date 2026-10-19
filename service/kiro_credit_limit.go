@@ -73,7 +73,8 @@ func loadKiroCreditBucket(channelId int, force bool) *kiroCreditBucket {
 }
 
 // CheckKiroCreditLimit 检查渠道当月模拟 credits 是否已超限。
-// 返回 (当月已用 credits, 是否放行)。
+// 判定口径：当月日志累计 + 期初已用（KiroCreditUsedInitial）。
+// 返回 (当前已用 credits, 是否放行)。
 func CheckKiroCreditLimit(setting dto.ChannelSettings, channelId int) (float64, bool) {
 	if !setting.KiroCreditSim || setting.KiroCreditLimit <= 0 {
 		return 0, true
@@ -82,6 +83,7 @@ func CheckKiroCreditLimit(setting dto.ChannelSettings, channelId int) (float64, 
 	b.mu.Lock()
 	used := b.credits
 	b.mu.Unlock()
+	used += float64(setting.KiroCreditUsedInitial)
 	return used, used < float64(setting.KiroCreditLimit)
 }
 
@@ -106,4 +108,98 @@ func AddKiroCreditUsage(channelId int, credits float64) {
 	}
 	b.credits += credits
 	b.lastSync = time.Now()
+}
+
+// KiroDayStat 按日 credits 聚合（自然月内，服务器时区口径）。
+type KiroDayStat struct {
+	Date    string  `json:"date"`
+	Reqs    int64   `json:"reqs"`
+	Credits float64 `json:"credits"`
+}
+
+// KiroLogItem 渠道消费日志明细（others 中含 kiro_credits 的消费记录）。
+type KiroLogItem struct {
+	CreatedAt        int64   `json:"created_at"`
+	ModelName        string  `json:"model_name"`
+	PromptTokens     int     `json:"prompt_tokens"`
+	CompletionTokens int     `json:"completion_tokens"`
+	Credits          float64 `json:"credits"`
+	Mult             float64 `json:"mult"`
+}
+
+// GetKiroCreditStats 返回渠道当月（自然月）credits 总量与按日聚合。
+func GetKiroCreditStats(channelId int) (float64, []KiroDayStat, error) {
+	if model.DB == nil {
+		return 0, nil, nil
+	}
+	total := syncKiroCreditFromLog(channelId)
+	var dayExpr, creditsExpr string
+	if common.UsingPostgreSQL {
+		dayExpr = "to_char(to_timestamp(created_at) AT TIME ZONE 'Asia/Shanghai','MM-DD')"
+		creditsExpr = "COALESCE(SUM((other::jsonb->>'kiro_credits')::float8), 0)"
+	} else {
+		if common.UsingSQLite {
+			dayExpr = "strftime('%m-%d', created_at, 'unixepoch', 'localtime')"
+		} else {
+			dayExpr = "DATE_FORMAT(FROM_UNIXTIME(created_at), '%m-%d')"
+		}
+		creditsExpr = "COALESCE(SUM(CAST(json_extract(other, '$.kiro_credits') AS REAL)), 0)"
+	}
+	var daily []KiroDayStat
+	err := model.DB.Table("logs").
+		Select(dayExpr+" AS date, COUNT(*) AS reqs, "+creditsExpr+" AS credits").
+		Where("channel_id = ? AND type = ? AND created_at >= ?",
+			channelId, model.LogTypeConsume, kiroMonthStartUnix()).
+		Group("date").
+		Order("date ASC").
+		Scan(&daily).Error
+	if err != nil {
+		return total, nil, err
+	}
+	return total, daily, nil
+}
+
+// GetKiroCreditRecentLogs 返回渠道最近 consumption 日志的 credits 估算明细。
+func GetKiroCreditRecentLogs(channelId int, limit int) ([]KiroLogItem, error) {
+	if model.DB == nil {
+		return nil, nil
+	}
+	var rows []struct {
+		CreatedAt        int64
+		ModelName        string
+		PromptTokens     int
+		CompletionTokens int
+		Other            string
+	}
+	err := model.DB.Table("logs").
+		Select("created_at, model_name, prompt_tokens, completion_tokens, other").
+		Where("channel_id = ? AND type = ?", channelId, model.LogTypeConsume).
+		Order("created_at DESC").
+		Limit(limit).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	items := make([]KiroLogItem, 0, len(rows))
+	for _, r := range rows {
+		item := KiroLogItem{
+			CreatedAt:        r.CreatedAt,
+			ModelName:        r.ModelName,
+			PromptTokens:     r.PromptTokens,
+			CompletionTokens: r.CompletionTokens,
+		}
+		if r.Other != "" {
+			var other map[string]interface{}
+			if err := common.Unmarshal([]byte(r.Other), &other); err == nil {
+				if v, ok := other["kiro_credits"].(float64); ok {
+					item.Credits = v
+				}
+				if v, ok := other["kiro_mult"].(float64); ok {
+					item.Mult = v
+				}
+			}
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
