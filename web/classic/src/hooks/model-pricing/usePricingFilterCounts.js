@@ -37,6 +37,7 @@ export const usePricingFilterCounts = ({
   filterEndpointType = 'all',
   filterVendor = 'all',
   filterTag = 'all',
+  filterActivity = 'all',
   searchValue = '',
 }) => {
   // 均使用同一份模型列表，避免创建新引用
@@ -84,6 +85,12 @@ export const usePricingFilterCounts = ({
       if (!tagsArr.includes(filterTag.toLowerCase())) return false;
     }
 
+    // 调用状态
+    if (!ignore.includes('activity') && filterActivity !== 'all') {
+      const active = !!model.perf && Number.isFinite(model.perf.success_rate);
+      if (filterActivity === 'active' ? !active : active) return false;
+    }
+
     // 搜索
     if (!ignore.includes('search') && searchValue) {
       const term = searchValue.toLowerCase();
@@ -112,6 +119,7 @@ export const usePricingFilterCounts = ({
       filterEndpointType,
       filterVendor,
       filterTag,
+      filterActivity,
       searchValue,
     ],
   );
@@ -124,6 +132,7 @@ export const usePricingFilterCounts = ({
       filterQuotaType,
       filterVendor,
       filterTag,
+      filterActivity,
       searchValue,
     ],
   );
@@ -136,6 +145,7 @@ export const usePricingFilterCounts = ({
       filterQuotaType,
       filterEndpointType,
       filterTag,
+      filterActivity,
       searchValue,
     ],
   );
@@ -148,6 +158,20 @@ export const usePricingFilterCounts = ({
       filterQuotaType,
       filterEndpointType,
       filterVendor,
+      filterActivity,
+      searchValue,
+    ],
+  );
+
+  const activityModels = useMemo(
+    () => allModels.filter((m) => matchesFilters(m, ['activity'])),
+    [
+      allModels,
+      filterGroup,
+      filterQuotaType,
+      filterEndpointType,
+      filterVendor,
+      filterTag,
       searchValue,
     ],
   );
@@ -160,6 +184,7 @@ export const usePricingFilterCounts = ({
       filterEndpointType,
       filterVendor,
       filterTag,
+      filterActivity,
       searchValue,
     ],
   );
@@ -170,5 +195,6 @@ export const usePricingFilterCounts = ({
     vendorModels,
     groupCountModels,
     tagModels,
+    activityModels,
   };
 };

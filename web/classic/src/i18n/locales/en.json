@@ -2,6 +2,9 @@
   "translation": {
     "近 1 小时成功率": "Success rate over the last hour",
     "近期无调用": "No recent calls",
+    "调用状态": "Call status",
+    "近期有调用": "Recently called",
+    "全部状态": "All statuses",
     "延迟": "Latency",
     "吞吐": "Throughput",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + Image generation call {{symbol}}{{price}} / 1 time * {{ratioType}} {{ratio}}",

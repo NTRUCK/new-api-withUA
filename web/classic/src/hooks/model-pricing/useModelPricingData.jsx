@@ -39,6 +39,7 @@ export const useModelPricingData = () => {
   const [filterEndpointType, setFilterEndpointType] = useState('all'); // 端点类型筛选: 'all' | string
   const [filterVendor, setFilterVendor] = useState('all'); // 供应商筛选: 'all' | 'unknown' | string
   const [filterTag, setFilterTag] = useState('all'); // 模型标签筛选: 'all' | string
+  const [filterActivity, setFilterActivity] = useState('all'); // 调用状态筛选: 'all' | 'active' | 'inactive'
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [currency, setCurrency] = useState('USD');
@@ -142,6 +143,15 @@ export const useModelPricingData = () => {
       });
     }
 
+    // 调用状态筛选：是否有近期调用的性能摘要
+    if (filterActivity !== 'all') {
+      result = result.filter((model) => {
+        const active =
+          !!model.perf && Number.isFinite(model.perf.success_rate);
+        return filterActivity === 'active' ? active : !active;
+      });
+    }
+
     // 搜索筛选
     if (searchValue.length > 0) {
       const searchTerm = searchValue.toLowerCase();
@@ -166,6 +176,7 @@ export const useModelPricingData = () => {
     filterEndpointType,
     filterVendor,
     filterTag,
+    filterActivity,
   ]);
 
   const rowSelection = useMemo(
@@ -259,7 +270,7 @@ export const useModelPricingData = () => {
       // 拉取模型性能概览（成功率等），失败不影响定价展示
       let perfMap = {};
       try {
-        const perfRes = await API.get('/api/perf-metrics/summary?hours=1');
+        const perfRes = await API.get('/api/perf-metrics/summary?hours=24');
         if (perfRes.data?.success) {
           const perfModels = perfRes.data.data?.models || [];
           perfModels.forEach((pm) => {
@@ -344,6 +355,7 @@ export const useModelPricingData = () => {
     filterEndpointType,
     filterVendor,
     filterTag,
+    filterActivity,
     searchValue,
   ]);
 
@@ -373,6 +385,8 @@ export const useModelPricingData = () => {
     setFilterVendor,
     filterTag,
     setFilterTag,
+    filterActivity,
+    setFilterActivity,
     pageSize,
     setPageSize,
     currentPage,

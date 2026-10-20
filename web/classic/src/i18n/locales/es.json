@@ -2,6 +2,9 @@
   "translation": {
     "近 1 小时成功率": "Tasa de éxito en la última hora",
     "近期无调用": "Sin llamadas recientes",
+    "调用状态": "Estado de llamadas",
+    "近期有调用": "Con llamadas recientes",
+    "全部状态": "Todos los estados",
     "延迟": "Latencia",
     "吞吐": "Rendimiento",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": "+ Llamar a generación de imagen {{symbol}}{{price}} / por solicitud * {{ratioType}} {{ratio}}",

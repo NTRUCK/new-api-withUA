@@ -24,6 +24,7 @@ import PricingQuotaTypes from '../../filter/PricingQuotaTypes';
 import PricingEndpointTypes from '../../filter/PricingEndpointTypes';
 import PricingVendors from '../../filter/PricingVendors';
 import PricingTags from '../../filter/PricingTags';
+import PricingActivities from '../../filter/PricingActivities';
 import { usePricingFilterCounts } from '../../../../../hooks/model-pricing/usePricingFilterCounts';
 
 const FilterModalContent = ({ sidebarProps, t }) => {
@@ -49,6 +50,8 @@ const FilterModalContent = ({ sidebarProps, t }) => {
     setFilterVendor,
     filterTag,
     setFilterTag,
+    filterActivity,
+    setFilterActivity,
     tokenUnit,
     setTokenUnit,
     loading,
@@ -61,6 +64,7 @@ const FilterModalContent = ({ sidebarProps, t }) => {
     vendorModels,
     tagModels,
     groupCountModels,
+    activityModels,
   } = usePricingFilterCounts({
     models: categoryProps.models,
     filterGroup,
@@ -68,6 +72,7 @@ const FilterModalContent = ({ sidebarProps, t }) => {
     filterEndpointType,
     filterVendor,
     filterTag,
+    filterActivity,
     searchValue: sidebarProps.searchValue,
   });
 
@@ -121,6 +126,14 @@ const FilterModalContent = ({ sidebarProps, t }) => {
         setFilterTag={setFilterTag}
         models={tagModels}
         allModels={categoryProps.models}
+        loading={loading}
+        t={t}
+      />
+
+      <PricingActivities
+        filterActivity={filterActivity}
+        setFilterActivity={setFilterActivity}
+        models={activityModels}
         loading={loading}
         t={t}
       />
