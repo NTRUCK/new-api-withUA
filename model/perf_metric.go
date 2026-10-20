@@ -115,22 +115,22 @@ func GetPerfMetricsSummaryBucketsAll(startTs int64, endTs int64, groups []string
 	return summaries, err
 }
 
-// GetRecentPerfMetricSuccessBuckets 读取历史窗口内最近 limit 个有流量的整点小时，
-// 用于模型广场卡片的状态 sparkline（与 summary 的统计窗口相互独立）。
-func GetRecentPerfMetricSuccessBuckets(modelName string, startTs int64, endTs int64, groups []string, limit int) ([]PerfMetricSummaryBucket, error) {
-	if modelName == "" || limit <= 0 || (groups != nil && len(groups) == 0) {
+// GetRecentPerfMetricSuccessBucketsByModels 一次性读取多个模型的历史整点成功率，
+// 供卡片 sparkline 使用；调用方负责按模型截取最近若干个点。
+func GetRecentPerfMetricSuccessBucketsByModels(modelNames []string, startTs int64, endTs int64, groups []string) ([]PerfMetricSummaryBucket, error) {
+	if len(modelNames) == 0 || (groups != nil && len(groups) == 0) {
 		return nil, nil
 	}
 	const hourBucket = "bucket_ts - (bucket_ts % 3600)"
 	query := DB.Model(&PerfMetric{}).
 		Select("model_name, "+hourBucket+" AS bucket_ts, SUM(request_count) AS request_count, SUM(success_count) AS success_count").
-		Where("model_name = ? AND bucket_ts >= ? AND bucket_ts <= ? AND request_count > 0", modelName, startTs, endTs)
+		Where("model_name IN ? AND bucket_ts >= ? AND bucket_ts <= ? AND request_count > 0", modelNames, startTs, endTs)
 	if groups != nil {
 		query = query.Where(commonGroupCol+" IN ?", groups)
 	}
 	var buckets []PerfMetricSummaryBucket
 	err := query.Group("model_name, " + hourBucket).
-		Order("bucket_ts DESC").Limit(limit).Find(&buckets).Error
+		Order("model_name ASC, bucket_ts ASC").Find(&buckets).Error
 	return buckets, err
 }
 

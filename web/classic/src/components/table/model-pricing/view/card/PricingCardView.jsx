@@ -196,7 +196,7 @@ const formatThroughputText = (tps) => {
   return `${tps.toFixed(tps < 10 ? 2 : 1)}t/s`;
 };
 
-// 渲染模型性能摘要：状态（近 24 小时成功率 + 逐小时色条）、延迟、吞吐
+// 渲染模型性能摘要：状态（近 1 小时成功率 + 逐小时色条）、延迟、吞吐
 const renderPerfMetrics = (model, t) => {
   const perf = model.perf;
   if (!perf) return null;
@@ -221,11 +221,7 @@ const renderPerfMetrics = (model, t) => {
       style={{ borderTop: '1px solid var(--semi-color-border)' }}
     >
       <div className='flex items-start gap-4 text-xs'>
-        <Tooltip
-          content={t(
-            '近 24 小时成功率，已排除业务拒绝与用户主动取消，按请求数加权',
-          )}
-        >
+        <Tooltip content={t('近 1 小时成功率')}>
           <div style={{ width: 96 }}>
             <div
               className='flex items-center justify-between text-[11px] leading-4'

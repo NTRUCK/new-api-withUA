@@ -2,7 +2,6 @@ package perfmetrics
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -21,9 +20,7 @@ var hotBuckets sync.Map
 // hiding fields or making response-only privacy hardening changes.
 const seriesSchema = "dbcd0a3c01b55203"
 
-// MaxRecentModels 限制单次 summary 请求额外做的历史查询数量。
-const MaxRecentModels = 50
-
+// 状态 sparkline 取最近 7 天内最多 24 个有流量的整点小时。
 const recentSuccessSampleLimit = 24
 const recentSuccessHistoryHours = 7 * 24
 
@@ -145,36 +142,11 @@ func Query(params QueryParams) (QueryResult, error) {
 	return buildQueryResult(params.Model, merged), nil
 }
 
-func QuerySummaryAll(hours int, groups []string, recentModels ...string) (SummaryAllResult, error) {
-	if len(recentModels) > MaxRecentModels {
-		return SummaryAllResult{}, errors.New("too many recent models")
-	}
+func QuerySummaryAll(hours int, groups []string) (SummaryAllResult, error) {
 	now := time.Now()
 	startTs, endTs := queryWindow(now, hours)
 	recentStartTs, _ := queryWindow(now, recentSuccessHistoryHours)
 	allowedGroups := allowedGroupSet(groups)
-
-	// 被显式请求的模型额外读取最近 7 天的成功率序列，用于卡片状态 sparkline。
-	recentBuckets := make(map[string]map[int64]counters, len(recentModels))
-	for _, name := range recentModels {
-		if name == "" {
-			continue
-		}
-		if _, exists := recentBuckets[name]; exists {
-			continue
-		}
-		recentBuckets[name] = map[int64]counters{}
-		buckets, err := model.GetRecentPerfMetricSuccessBuckets(name, recentStartTs, endTs, groups, recentSuccessSampleLimit)
-		if err != nil {
-			return SummaryAllResult{}, err
-		}
-		for _, bucket := range buckets {
-			mergeModelBucket(recentBuckets, name, bucket.BucketTs, counters{
-				requestCount: bucket.RequestCount,
-				successCount: bucket.SuccessCount,
-			})
-		}
-	}
 
 	rows, err := model.GetPerfMetricsSummaryBucketsAll(startTs, endTs, groups)
 	if err != nil {
@@ -203,16 +175,52 @@ func QuerySummaryAll(hours int, groups []string, recentModels ...string) (Summar
 			}
 		}
 		snap := value.(*atomicBucket).snapshot()
-		if snap.requestCount == 0 {
-			return true
-		}
-		if _, requested := recentBuckets[k.model]; requested && k.bucketTs >= recentStartTs {
-			mergeModelBucket(recentBuckets, k.model, k.bucketTs, snap)
-		}
-		if k.bucketTs < startTs {
+		if snap.requestCount == 0 || k.bucketTs < startTs {
 			return true
 		}
 		mergeModelBucket(modelBuckets, k.model, k.bucketTs, snap)
+		return true
+	})
+
+	// 状态 sparkline：对统计窗口内有流量的模型，额外取最近 7 天内最多 24 个整点小时，
+	// 这样即使窗口只有 1 小时也能画出趋势条。
+	modelNames := make([]string, 0, len(modelBuckets))
+	for name := range modelBuckets {
+		modelNames = append(modelNames, name)
+	}
+	sort.Strings(modelNames)
+
+	recentBuckets := make(map[string]map[int64]counters, len(modelNames))
+	historyRows, err := model.GetRecentPerfMetricSuccessBucketsByModels(modelNames, recentStartTs, endTs, groups)
+	if err != nil {
+		return SummaryAllResult{}, err
+	}
+	for _, row := range historyRows {
+		mergeModelBucket(recentBuckets, row.ModelName, row.BucketTs, counters{
+			requestCount: row.RequestCount,
+			successCount: row.SuccessCount,
+		})
+	}
+
+	// 尚未落库的热桶同样要补进历史序列
+	hotBuckets.Range(func(key, value any) bool {
+		k := key.(bucketKey)
+		if k.bucketTs < recentStartTs || k.bucketTs > endTs {
+			return true
+		}
+		if allowedGroups != nil {
+			if _, ok := allowedGroups[k.group]; !ok {
+				return true
+			}
+		}
+		if _, inWindow := modelBuckets[k.model]; !inWindow {
+			return true
+		}
+		if _, ok := recentBuckets[k.model]; !ok {
+			recentBuckets[k.model] = map[int64]counters{}
+		}
+		snap := value.(*atomicBucket).snapshot()
+		mergeModelBucket(recentBuckets, k.model, k.bucketTs, snap)
 		return true
 	})
 
@@ -251,7 +259,7 @@ func QuerySummaryAll(hours int, groups []string, recentModels ...string) (Summar
 			AvgLatencyMs:        avgLatency,
 			SuccessRate:         math.Round(successRate*100) / 100,
 			AvgTps:              math.Round(avgTps*100) / 100,
-			RecentSuccessSeries: recentSuccessSeries(modelBuckets[name]),
+			RecentSuccessSeries: recentSeries[name],
 			RequestCount:        total.requestCount,
 		})
 	}

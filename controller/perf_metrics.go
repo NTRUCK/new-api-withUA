@@ -21,16 +21,8 @@ func GetPerfMetricsSummary(c *gin.Context) {
 
 	// 统计站点全部启用分组（含 auto），与模型广场展示的分组范围保持一致，
 	// 避免只统计 default 分组导致流量在其他分组时成功率失真。
-	recentModels := c.QueryArray("recent_model")
-	if len(recentModels) > perfmetrics.MaxRecentModels {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "too many recent_model parameters",
-		})
-		return
-	}
 	activeGroups := append(lo.Keys(ratio_setting.GetGroupRatioCopy()), "auto")
-	result, err := perfmetrics.QuerySummaryAll(hours, activeGroups, recentModels...)
+	result, err := perfmetrics.QuerySummaryAll(hours, activeGroups)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
