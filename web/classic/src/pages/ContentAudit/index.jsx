@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Card,
@@ -77,6 +77,54 @@ const parseAssistantText = (body) => {
   return '';
 };
 
+// 把消息 content 归一化为可读文本，非文本 part 用占位标记代替。
+// 兼容 [OI] chat（text/image_url/input_audio/file/video_url）、
+// Gemini（text/inlineData/fileData）与 Responses（input_text/input_image）。
+const contentToText = (content) => {
+  if (content === null || content === undefined) return '';
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (!part || typeof part !== 'object') return '';
+        const type = part.type || '';
+        if (typeof part.text === 'string' && part.text) return part.text;
+        if (type === 'text' || type === 'input_text') return part.text || '';
+        if (type === 'image_url' || type === 'input_image') return '[图片]';
+        if (type === 'input_audio') return '[音频]';
+        if (type === 'file' || type === 'input_file') return '[文件]';
+        if (type === 'video_url' || type === 'input_video') return '[视频]';
+        if (part.inlineData || part.inline_data) return '[图片/媒体]';
+        if (part.fileData || part.file_data) return '[文件]';
+        if (part.functionCall || part.function_call) return '[工具调用]';
+        if (part.functionResponse || part.function_response) return '[工具结果]';
+        return `[${type || '未知内容'}]`;
+      })
+      .filter((s) => s !== '')
+      .join('\n');
+  }
+  if (typeof content === 'object') return JSON.stringify(content, null, 2);
+  return String(content);
+};
+
+// 被截断的请求体不是合法 JSON，这里把字面转义序列还原成真实字符，
+// 避免整段内容挤成一行、满屏 \n。
+const unescapeJsonLike = (s) => {
+  if (!s) return '';
+  return s
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\\t/g, '\t')
+    .replace(/\\"/g, '"');
+};
+
+const messageRoleLabel = (msg) => {
+  if (!msg || typeof msg !== 'object') return '?';
+  return msg.role || msg.type || '?';
+};
+
 const ContentAudit = () => {
   const [authed, setAuthed] = useState(
     Boolean(localStorage.getItem(TICKET_KEY)),
@@ -98,6 +146,29 @@ const ContentAudit = () => {
   const [saving, setSaving] = useState(false);
 
   const [activeTab, setActiveTab] = useState('users');
+  const [userKeyword, setUserKeyword] = useState('');
+
+  const sessionsScrollRef = useRef(null);
+  const detailTopRef = useRef(null);
+
+  // 左侧用户列表按用户名/ID 过滤，便于用户很多时快速定位
+  const filteredUsers = useMemo(() => {
+    const kw = userKeyword.trim().toLowerCase();
+    if (!kw) return users;
+    return users.filter(
+      (u) =>
+        String(u.username || '')
+          .toLowerCase()
+          .includes(kw) || String(u.user_id).includes(kw),
+    );
+  }, [users, userKeyword]);
+
+  // 切到对话详情时把页面拉回顶部，避免停在上一个 tab 的滚动位置
+  useEffect(() => {
+    if (activeTab === 'detail' && detailTopRef.current) {
+      detailTopRef.current.scrollIntoView({ block: 'start' });
+    }
+  }, [activeTab, currentSession]);
 
   const loadConfig = async () => {
     try {
@@ -199,6 +270,10 @@ const ContentAudit = () => {
         return;
       }
       setSessions(data || []);
+      // 切换用户后右侧会话列表回到顶部
+      if (sessionsScrollRef.current) {
+        sessionsScrollRef.current.scrollTop = 0;
+      }
     } catch (e) {
       showError(e.message);
     } finally {
@@ -292,6 +367,7 @@ const ContentAudit = () => {
                 <Paragraph
                   style={{
                     whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
                     background: 'var(--semi-color-fill-0)',
                     padding: 12,
                     borderRadius: 6,
@@ -299,26 +375,42 @@ const ContentAudit = () => {
                     overflow: 'auto',
                   }}
                 >
-                  {typeof lastUser?.content === 'string'
-                    ? lastUser.content
-                    : JSON.stringify(lastUser?.content, null, 2)}
+                  {contentToText(lastUser?.content) || '(空)'}
                 </Paragraph>
               </div>
               <details style={{ marginBottom: 8 }}>
                 <summary style={{ cursor: 'pointer' }}>
                   完整请求（{messages.length} 条消息）
                 </summary>
-                <pre
+                <div
                   style={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-all',
                     maxHeight: 360,
                     overflow: 'auto',
-                    fontSize: 12,
+                    padding: 12,
+                    marginTop: 6,
+                    background: 'var(--semi-color-fill-0)',
+                    borderRadius: 6,
                   }}
                 >
-                  {JSON.stringify(messages, null, 2)}
-                </pre>
+                  {messages.map((msg, msgIdx) => (
+                    <div key={msgIdx} style={{ marginBottom: 12 }}>
+                      <Tag size='small' color='blue'>
+                        {messageRoleLabel(msg)}
+                      </Tag>
+                      <pre
+                        style={{
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          margin: '6px 0 0',
+                          fontFamily: 'inherit',
+                          fontSize: 13,
+                        }}
+                      >
+                        {contentToText(msg?.content) || '(空)'}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
               </details>
             </>
           ) : (
@@ -327,13 +419,13 @@ const ContentAudit = () => {
               <pre
                 style={{
                   whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
+                  wordBreak: 'break-word',
                   maxHeight: 360,
                   overflow: 'auto',
                   fontSize: 12,
                 }}
               >
-                {item.request_body || '(空)'}
+                {unescapeJsonLike(item.request_body) || '(空)'}
               </pre>
             </details>
           )}
@@ -357,7 +449,7 @@ const ContentAudit = () => {
             <pre
               style={{
                 whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
+                wordBreak: 'break-word',
                 maxHeight: 360,
                 overflow: 'auto',
                 fontSize: 12,
@@ -454,89 +546,122 @@ const ContentAudit = () => {
               headerExtraContent={
                 <Text type='tertiary'>{users.length} 人</Text>
               }
+              bodyStyle={{ padding: 12 }}
             >
-              <Spin spinning={loadingUsers}>
-                {users.length === 0 ? (
-                  <Empty title='暂无审计记录' />
-                ) : (
-                  users.map((u) => (
-                    <div
-                      key={u.user_id}
-                      onClick={() => handleSelectUser(u)}
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                        background:
-                          currentUser?.user_id === u.user_id
-                            ? 'var(--semi-color-primary-light-default)'
-                            : 'transparent',
-                        marginBottom: 4,
-                      }}
-                    >
-                      <div>
-                        <Text strong>{u.username || `用户 #${u.user_id}`}</Text>
-                        <Tag size='small' style={{ marginLeft: 8 }}>
-                          {u.reqs} 请求
-                        </Tag>
-                      </div>
-                      <Text type='tertiary' size='small'>
-                        最近 {timestamp2string(u.last_at)}
-                      </Text>
-                    </div>
-                  ))
-                )}
-              </Spin>
-            </Card>
-
-            <Card style={{ flex: 1 }} title='会话列表'>
-              {!currentUser ? (
-                <Empty title='请选择左侧用户' />
-              ) : (
-                <Spin spinning={loadingSessions}>
-                  {sessions.length === 0 ? (
-                    <Empty title='该用户暂无会话' />
+              <Input
+                placeholder='搜索用户名或 ID'
+                value={userKeyword}
+                onChange={setUserKeyword}
+                showClear
+                style={{ marginBottom: 8 }}
+              />
+              <div
+                style={{
+                  maxHeight: 'calc(100vh - 320px)',
+                  minHeight: 160,
+                  overflow: 'auto',
+                }}
+              >
+                <Spin spinning={loadingUsers}>
+                  {filteredUsers.length === 0 ? (
+                    <Empty title={userKeyword ? '无匹配用户' : '暂无审计记录'} />
                   ) : (
-                    sessions.map((s) => (
+                    filteredUsers.map((u) => (
                       <div
-                        key={s.session_id}
-                        onClick={() => handleSelectSession(s)}
+                        key={u.user_id}
+                        onClick={() => handleSelectUser(u)}
                         style={{
-                          padding: '10px 12px',
-                          border: '1px solid var(--semi-color-border)',
+                          padding: '8px 10px',
                           borderRadius: 6,
                           cursor: 'pointer',
-                          marginBottom: 8,
                           background:
-                            currentSession?.session_id === s.session_id
+                            currentUser?.user_id === u.user_id
                               ? 'var(--semi-color-primary-light-default)'
                               : 'transparent',
+                          marginBottom: 4,
                         }}
                       >
-                        <div style={{ marginBottom: 4 }}>
-                          <Tag color='blue'>{s.model_name || '-'}</Tag>
-                          <Tag color='grey' style={{ marginLeft: 6 }}>
-                            {s.token_name || '-'}
+                        <div>
+                          <Text strong>{u.username || `用户 #${u.user_id}`}</Text>
+                          <Tag size='small' style={{ marginLeft: 8 }}>
+                            {u.reqs} 请求
                           </Tag>
-                          <Tag color='light-green' style={{ marginLeft: 6 }}>
-                            {s.reqs} 轮
-                          </Tag>
-                          <Text type='tertiary' size='small' style={{ marginLeft: 8 }}>
-                            {timestamp2string(s.start_at)} ~{' '}
-                            {timestamp2string(s.end_at)}
-                          </Text>
                         </div>
-                        <Text
-                          type='tertiary'
-                          size='small'
-                          style={{ wordBreak: 'break-all' }}
-                        >
-                          UA: {s.user_agent || '-'}
+                        <Text type='tertiary' size='small'>
+                          最近 {timestamp2string(u.last_at)}
                         </Text>
                       </div>
                     ))
                   )}
                 </Spin>
+              </div>
+            </Card>
+
+            <Card
+              style={{ flex: 1, minWidth: 0 }}
+              title='会话列表'
+              bodyStyle={{ padding: 12 }}
+            >
+              {!currentUser ? (
+                <Empty title='请选择左侧用户' />
+              ) : (
+                <div
+                  ref={sessionsScrollRef}
+                  style={{
+                    maxHeight: 'calc(100vh - 320px)',
+                    minHeight: 160,
+                    overflow: 'auto',
+                  }}
+                >
+                  <Spin spinning={loadingSessions}>
+                    {sessions.length === 0 ? (
+                      <Empty title='该用户暂无会话' />
+                    ) : (
+                      sessions.map((s) => (
+                        <div
+                          key={s.session_id}
+                          onClick={() => handleSelectSession(s)}
+                          style={{
+                            padding: '10px 12px',
+                            border: '1px solid var(--semi-color-border)',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            marginBottom: 8,
+                            background:
+                              currentSession?.session_id === s.session_id
+                                ? 'var(--semi-color-primary-light-default)'
+                                : 'transparent',
+                          }}
+                        >
+                          <div style={{ marginBottom: 4 }}>
+                            <Tag color='blue'>{s.model_name || '-'}</Tag>
+                            <Tag color='grey' style={{ marginLeft: 6 }}>
+                              {s.token_name || '-'}
+                            </Tag>
+                            <Tag color='light-green' style={{ marginLeft: 6 }}>
+                              {s.reqs} 轮
+                            </Tag>
+                            <Text
+                              type='tertiary'
+                              size='small'
+                              style={{ marginLeft: 8 }}
+                            >
+                              {timestamp2string(s.start_at)} ~{' '}
+                              {timestamp2string(s.end_at)}
+                            </Text>
+                          </div>
+                          <Text
+                            type='tertiary'
+                            size='small'
+                            style={{ wordBreak: 'break-all' }}
+                          >
+                            UA: {s.user_agent || '-'}
+                          </Text>
+                        </div>
+                      ))
+                    )}
+                  </Spin>
+                </div>
               )}
             </Card>
           </div>
@@ -546,24 +671,26 @@ const ContentAudit = () => {
           {!currentSession ? (
             <Empty title='请先在「按用户」中选择一个会话' />
           ) : (
-            <Spin spinning={loadingLogs}>
-              <Card
-                style={{ marginBottom: 12 }}
-                title={`会话 ${currentSession.session_id}`}
-                headerExtraContent={
+            <div ref={detailTopRef}>
+              <Spin spinning={loadingLogs}>
+                <Card
+                  style={{ marginBottom: 12 }}
+                  title={`会话 ${currentSession.session_id}`}
+                  headerExtraContent={
+                    <Text type='tertiary'>
+                      {currentSession.reqs} 轮 · UA{' '}
+                      {currentSession.user_agent || '-'}
+                    </Text>
+                  }
+                >
                   <Text type='tertiary'>
-                    {currentSession.reqs} 轮 · UA{' '}
-                    {currentSession.user_agent || '-'}
+                    模型 {currentSession.model_name || '-'} ｜ 令牌{' '}
+                    {currentSession.token_name || '-'}
                   </Text>
-                }
-              >
-                <Text type='tertiary'>
-                  模型 {currentSession.model_name || '-'} ｜ 令牌{' '}
-                  {currentSession.token_name || '-'}
-                </Text>
-              </Card>
-              {renderConversation}
-            </Spin>
+                </Card>
+                {renderConversation}
+              </Spin>
+            </div>
           )}
         </TabPane>
 
