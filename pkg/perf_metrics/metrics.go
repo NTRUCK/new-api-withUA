@@ -80,7 +80,8 @@ func Record(sample Sample) {
 	recordRedis(key, sample)
 }
 
-// queryWindow 覆盖当前未完成的小时加上此前完整的小时，保证所有读取方共用同一批整点桶。
+// queryWindow 返回滚动窗口 [now-hours, now]。由于桶是整点聚合的，起点下取整到
+// 所在小时的起点，否则整点刚过时会丢掉上一小时大部分样本，导致成功率显示为空。
 func queryWindow(now time.Time, hours int) (int64, int64) {
 	if hours <= 0 {
 		hours = 24
@@ -89,7 +90,7 @@ func queryWindow(now time.Time, hours int) (int64, int64) {
 		hours = 24 * 30
 	}
 	endTs := now.Unix()
-	return endTs - endTs%3600 - int64(hours-1)*3600, endTs
+	return bucketStart(endTs - int64(hours)*3600), endTs
 }
 
 func Query(params QueryParams) (QueryResult, error) {

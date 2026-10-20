@@ -1,6 +1,7 @@
 {
   "translation": {
     "近 1 小时成功率": "Tỷ lệ thành công trong 1 giờ qua",
+    "近期无调用": "Không có cuộc gọi gần đây",
     "延迟": "Độ trễ",
     "吞吐": "Thông lượng",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + Gọi tạo hình ảnh {{symbol}}{{price}} / 1 lần * {{ratioType}} {{ratio}}",

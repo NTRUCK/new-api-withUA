@@ -1,6 +1,7 @@
 {
   "translation": {
     "近 1 小时成功率": "Taux de réussite sur la dernière heure",
+    "近期无调用": "Aucun appel récent",
     "延迟": "Latence",
     "吞吐": "Débit",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + Appel de génération d'image {{symbol}}{{price}} / 1 fois * {{ratioType}} {{ratio}}",

@@ -196,24 +196,27 @@ const formatThroughputText = (tps) => {
   return `${tps.toFixed(tps < 10 ? 2 : 1)}t/s`;
 };
 
-// 渲染模型性能摘要：状态（近 1 小时成功率 + 逐小时色条）、延迟、吞吐
+// 渲染模型性能摘要：状态（近 1 小时成功率 + 逐小时色条）、延迟、吞吐。
+// 近期没有调用时同样占位展示，用灰色状态条提示「近期无调用」。
 const renderPerfMetrics = (model, t) => {
   const perf = model.perf;
-  if (!perf) return null;
-  const rate = Number.isFinite(perf.success_rate) ? perf.success_rate : null;
-  const samples = Array.isArray(perf.recent_success_series)
-    ? perf.recent_success_series
-        .filter(
-          (p) =>
-            p &&
-            Number.isFinite(p.ts) &&
-            Number.isFinite(p.success_rate) &&
-            p.success_rate >= 0 &&
-            p.success_rate <= 100,
-        )
-        .sort((a, b) => a.ts - b.ts)
-        .slice(-STATUS_SAMPLE_LIMIT)
-    : [];
+  const rate =
+    perf && Number.isFinite(perf.success_rate) ? perf.success_rate : null;
+  const hasData = rate != null;
+  const samples =
+    hasData && Array.isArray(perf.recent_success_series)
+      ? perf.recent_success_series
+          .filter(
+            (p) =>
+              p &&
+              Number.isFinite(p.ts) &&
+              Number.isFinite(p.success_rate) &&
+              p.success_rate >= 0 &&
+              p.success_rate <= 100,
+          )
+          .sort((a, b) => a.ts - b.ts)
+          .slice(-STATUS_SAMPLE_LIMIT)
+      : [];
 
   return (
     <div
@@ -221,7 +224,9 @@ const renderPerfMetrics = (model, t) => {
       style={{ borderTop: '1px solid var(--semi-color-border)' }}
     >
       <div className='flex items-start gap-4 text-xs'>
-        <Tooltip content={t('近 1 小时成功率')}>
+        <Tooltip
+          content={hasData ? t('近 1 小时成功率') : t('近期无调用')}
+        >
           <div style={{ width: 96 }}>
             <div
               className='flex items-center justify-between text-[11px] leading-4'
@@ -229,7 +234,7 @@ const renderPerfMetrics = (model, t) => {
             >
               <span>{t('状态')}</span>
               <span style={{ fontFamily: 'monospace' }}>
-                {rate != null ? `${rate.toFixed(2)}%` : '—'}
+                {hasData ? `${rate.toFixed(2)}%` : '—'}
               </span>
             </div>
             <div
@@ -249,7 +254,14 @@ const renderPerfMetrics = (model, t) => {
                   />
                 ))
               ) : (
-                <span style={{ color: 'var(--semi-color-text-2)' }}>—</span>
+                <span
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: 1,
+                    background: 'var(--semi-color-fill-2)',
+                  }}
+                />
               )}
             </div>
           </div>
@@ -262,7 +274,7 @@ const renderPerfMetrics = (model, t) => {
             {t('延迟')}
           </div>
           <div className='mt-1' style={{ fontFamily: 'monospace' }}>
-            {formatLatencyText(perf.avg_latency_ms)}
+            {hasData ? formatLatencyText(perf.avg_latency_ms) : '—'}
           </div>
         </div>
         <div>
@@ -273,7 +285,7 @@ const renderPerfMetrics = (model, t) => {
             {t('吞吐')}
           </div>
           <div className='mt-1' style={{ fontFamily: 'monospace' }}>
-            {formatThroughputText(perf.avg_tps)}
+            {hasData ? formatThroughputText(perf.avg_tps) : '—'}
           </div>
         </div>
       </div>
@@ -281,7 +293,7 @@ const renderPerfMetrics = (model, t) => {
         className='text-xs shrink-0'
         style={{ color: 'var(--semi-color-text-2)' }}
       >
-        {t('详情')} ›
+        {hasData ? `${t('详情')} ›` : t('近期无调用')}
       </span>
     </div>
   );

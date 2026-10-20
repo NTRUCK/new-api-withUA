@@ -1,6 +1,7 @@
 {
   "translation": {
     "近 1 小时成功率": "直近1時間の成功率",
+    "近期无调用": "最近の呼び出しなし",
     "延迟": "レイテンシ",
     "吞吐": "スループット",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + 画像生成APIコール {{symbol}}{{price}} / 1回 * {{ratioType}} {{ratio}}",
