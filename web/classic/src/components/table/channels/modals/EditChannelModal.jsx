@@ -235,7 +235,6 @@ const EditChannelModal = (props) => {
     max_input_tokens_by_group: '',
     proxy: '',
     pass_through_body_enabled: false,
-    text_only_input: false,
     system_prompt: '',
     system_prompt_override: false,
     kiro_credit_sim: false,
@@ -569,7 +568,6 @@ const EditChannelModal = (props) => {
     max_input_tokens_by_group: '',
     proxy: '',
     pass_through_body_enabled: false,
-    text_only_input: false,
     system_prompt: '',
     kiro_credit_sim: false,
     kiro_tokens_per_credit: 0,
@@ -980,7 +978,6 @@ const EditChannelModal = (props) => {
           data.proxy = parsedSettings.proxy || '';
           data.pass_through_body_enabled =
             parsedSettings.pass_through_body_enabled || false;
-          data.text_only_input = parsedSettings.text_only_input || false;
           data.system_prompt = parsedSettings.system_prompt || '';
           data.system_prompt_override =
             parsedSettings.system_prompt_override || false;
@@ -1005,7 +1002,6 @@ const EditChannelModal = (props) => {
           data.max_input_tokens_by_group = '';
           data.proxy = '';
           data.pass_through_body_enabled = false;
-          data.text_only_input = false;
           data.system_prompt = '';
           data.system_prompt_override = false;
           data.kiro_credit_sim = false;
@@ -1025,7 +1021,6 @@ const EditChannelModal = (props) => {
         data.max_input_tokens_by_group = '';
         data.proxy = '';
         data.pass_through_body_enabled = false;
-        data.text_only_input = false;
         data.system_prompt = '';
         data.system_prompt_override = false;
         data.kiro_credit_sim = false;
@@ -1970,7 +1965,6 @@ const EditChannelModal = (props) => {
       max_input_tokens_by_group: maxInputTokensByGroup,
       proxy: localInputs.proxy || '',
       pass_through_body_enabled: localInputs.pass_through_body_enabled || false,
-      text_only_input: localInputs.text_only_input || false,
       system_prompt: localInputs.system_prompt || '',
       system_prompt_override: localInputs.system_prompt_override || false,
       kiro_credit_sim: localInputs.kiro_credit_sim || false,
@@ -3119,18 +3113,6 @@ const EditChannelModal = (props) => {
                       )
                     }
                     extraText={t('启用请求体透传功能')}
-                  />
-                  <Form.Switch
-                    field='text_only_input'
-                    label={t('纯文本模式（无视觉）')}
-                    checkedText={t('开')}
-                    uncheckedText={t('关')}
-                    onChange={(value) =>
-                      handleChannelSettingsChange('text_only_input', value)
-                    }
-                    extraText={t(
-                      '剥离图片、音频、文件、视频输入，使多模态模型按纯文本处理；开启后该渠道的请求体透传将失效',
-                    )}
                   />
 
                   <Form.Input

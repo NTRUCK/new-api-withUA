@@ -13,7 +13,6 @@ type ChannelSettings struct {
 	Proxy                  string         `json:"proxy"`
 	KeyProxies             map[int]string `json:"key_proxies,omitempty"` // 多密钥渠道下按 key 索引单独指定代理；命中则覆盖渠道级 Proxy，用于让每把 key 走不同出口 IP
 	PassThroughBodyEnabled bool           `json:"pass_through_body_enabled,omitempty"`
-	TextOnlyInput          bool           `json:"text_only_input,omitempty"` // 纯文本模式：剥离图片/音频/文件/视频输入，使多模态模型按无视觉的文本模型处理
 	SystemPrompt           string         `json:"system_prompt,omitempty"`
 	SystemPromptOverride   bool           `json:"system_prompt_override,omitempty"`
 	KiroCreditSim          bool           `json:"kiro_credit_sim,omitempty"`               // Kiro 额度模拟：按官方 credits 规则估算每个请求的额度消耗（写入日志 other），并按 KiroCreditLimit 做月度额度熔断
