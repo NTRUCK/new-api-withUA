@@ -29,7 +29,7 @@ import {
   Avatar,
 } from '@douyinfe/semi-ui';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
-import { Copy, Activity, MessageSquareWarning, FlaskConical } from 'lucide-react';
+import { Copy, MessageSquareWarning, FlaskConical } from 'lucide-react';
 import {
   IllustrationNoResult,
   IllustrationNoResultDark,
@@ -174,30 +174,120 @@ const renderDailyLimit = (model, selectedGroup, t) => {
   );
 };
 
-// 渲染模型精简成功率标签（数据来自 perf-metrics）
-const renderSuccessRate = (model, t) => {
+// 成功率分级配色：100% 深绿、≥90% 浅绿、≥70% 琥珀、<70% 红
+const successRateColor = (rate) => {
+  if (rate >= 100) return '#10b981';
+  if (rate >= 90) return '#34d399';
+  if (rate >= 70) return '#f59e0b';
+  return '#ef4444';
+};
+
+const STATUS_SAMPLE_LIMIT = 24;
+
+const formatLatencyText = (ms) => {
+  if (!Number.isFinite(ms) || ms <= 0) return '—';
+  if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
+  return `${Math.round(ms)}ms`;
+};
+
+const formatThroughputText = (tps) => {
+  if (!Number.isFinite(tps) || tps <= 0) return '—';
+  if (tps >= 1000) return `${(tps / 1000).toFixed(1)}Kt/s`;
+  return `${tps.toFixed(tps < 10 ? 2 : 1)}t/s`;
+};
+
+// 渲染模型性能摘要：状态（近 24 小时成功率 + 逐小时色条）、延迟、吞吐
+const renderPerfMetrics = (model, t) => {
   const perf = model.perf;
-  if (!perf || typeof perf.success_rate !== 'number') return null;
-  const rate = perf.success_rate;
-  let color = 'green';
-  if (rate < 60) color = 'red';
-  else if (rate < 90) color = 'orange';
-  else if (rate < 95) color = 'amber';
+  if (!perf) return null;
+  const rate = Number.isFinite(perf.success_rate) ? perf.success_rate : null;
+  const samples = Array.isArray(perf.recent_success_series)
+    ? perf.recent_success_series
+        .filter(
+          (p) =>
+            p &&
+            Number.isFinite(p.ts) &&
+            Number.isFinite(p.success_rate) &&
+            p.success_rate >= 0 &&
+            p.success_rate <= 100,
+        )
+        .sort((a, b) => a.ts - b.ts)
+        .slice(-STATUS_SAMPLE_LIMIT)
+    : [];
+
   return (
-    <Tooltip
-      content={t('近 1 小时成功率（{{count}} 次请求）', {
-        count: (perf.request_count ?? 0).toLocaleString(),
-      })}
+    <div
+      className='flex items-center justify-between gap-3 pt-3 mt-3'
+      style={{ borderTop: '1px solid var(--semi-color-border)' }}
     >
-      <Tag
-        size='small'
-        color={color}
-        shape='circle'
-        prefixIcon={<Activity size={12} />}
+      <div className='flex items-start gap-4 text-xs'>
+        <Tooltip
+          content={t(
+            '近 24 小时成功率，已排除业务拒绝与用户主动取消，按请求数加权',
+          )}
+        >
+          <div style={{ width: 96 }}>
+            <div
+              className='flex items-center justify-between text-[11px] leading-4'
+              style={{ color: 'var(--semi-color-text-2)' }}
+            >
+              <span>{t('状态')}</span>
+              <span style={{ fontFamily: 'monospace' }}>
+                {rate != null ? `${rate.toFixed(2)}%` : '—'}
+              </span>
+            </div>
+            <div
+              className='mt-1 flex items-center gap-px'
+              style={{ height: 12, width: 96 }}
+            >
+              {samples.length > 0 ? (
+                samples.map((s) => (
+                  <span
+                    key={s.ts}
+                    style={{
+                      width: 3,
+                      height: '100%',
+                      borderRadius: 1,
+                      background: successRateColor(s.success_rate),
+                    }}
+                  />
+                ))
+              ) : (
+                <span style={{ color: 'var(--semi-color-text-2)' }}>—</span>
+              )}
+            </div>
+          </div>
+        </Tooltip>
+        <div>
+          <div
+            className='text-[11px] leading-4'
+            style={{ color: 'var(--semi-color-text-2)' }}
+          >
+            {t('延迟')}
+          </div>
+          <div className='mt-1' style={{ fontFamily: 'monospace' }}>
+            {formatLatencyText(perf.avg_latency_ms)}
+          </div>
+        </div>
+        <div>
+          <div
+            className='text-[11px] leading-4'
+            style={{ color: 'var(--semi-color-text-2)' }}
+          >
+            {t('吞吐')}
+          </div>
+          <div className='mt-1' style={{ fontFamily: 'monospace' }}>
+            {formatThroughputText(perf.avg_tps)}
+          </div>
+        </div>
+      </div>
+      <span
+        className='text-xs shrink-0'
+        style={{ color: 'var(--semi-color-text-2)' }}
       >
-        {rate.toFixed(1)}%
-      </Tag>
-    </Tooltip>
+        {t('详情')} ›
+      </span>
+    </div>
   );
 };
 
@@ -349,10 +439,7 @@ const PricingCardView = ({
 
     return (
       <div className='flex items-center justify-between'>
-        <div className='flex items-center gap-2'>
-          {billingTag}
-          {renderSuccessRate(record, t)}
-        </div>
+        <div className='flex items-center gap-2'>{billingTag}</div>
         <div className='flex items-center gap-1'>
           {customTags.length > 0 &&
             renderLimitedItems({
@@ -549,6 +636,8 @@ const PricingCardView = ({
                       </div>
                     </div>
                   )}
+                  {/* 性能摘要：状态 + 延迟 + 吞吐 */}
+                  {renderPerfMetrics(model, t)}
                 </div>
               </div>
             </Card>

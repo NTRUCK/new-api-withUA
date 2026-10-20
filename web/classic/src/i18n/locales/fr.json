@@ -1,5 +1,8 @@
 {
   "translation": {
+    "延迟": "Latence",
+    "吞吐": "Débit",
+    "近 24 小时成功率，已排除业务拒绝与用户主动取消，按请求数加权": "Taux de réussite sur les dernières 24 heures, hors rejets métier et annulations utilisateur, pondéré par le nombre de requêtes",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + Appel de génération d'image {{symbol}}{{price}} / 1 fois * {{ratioType}} {{ratio}}",
     " + 文件搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_one": " + Recherche de fichiers {{count}} fois / 1K fois * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",
     " + 文件搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_many": " + Recherche de fichiers {{count}} fois / 1K fois * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",

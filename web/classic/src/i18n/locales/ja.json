@@ -1,5 +1,8 @@
 {
   "translation": {
+    "延迟": "レイテンシ",
+    "吞吐": "スループット",
+    "近 24 小时成功率，已排除业务拒绝与用户主动取消，按请求数加权": "過去 24 時間の成功率（ビジネス上の拒否とユーザーによるキャンセルを除き、リクエスト数で重み付け）",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + 画像生成APIコール {{symbol}}{{price}} / 1回 * {{ratioType}} {{ratio}}",
     " + 文件搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_one": " + ファイル検索 {{count}}回 / 1K回 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_one",
     " + 文件搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_other": " + ファイル検索 {{count}}回 / 1K回 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_other",

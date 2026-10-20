@@ -22,6 +22,8 @@ type QueryParams struct {
 	Model string
 	Group string
 	Hours int
+	// AllowedGroups 同时约束分组明细与模型汇总；nil 表示不限制。
+	AllowedGroups []string
 }
 
 type BucketPoint struct {
@@ -47,16 +49,25 @@ type QueryResult struct {
 	Groups       []GroupResult `json:"groups"`
 }
 
+type SuccessRatePoint struct {
+	Ts          int64   `json:"ts"`
+	SuccessRate float64 `json:"success_rate"`
+}
+
 type ModelSummary struct {
-	ModelName    string  `json:"model_name"`
-	AvgLatencyMs int64   `json:"avg_latency_ms"`
-	SuccessRate  float64 `json:"success_rate"`
-	AvgTps       float64 `json:"avg_tps"`
-	RequestCount int64   `json:"request_count"`
+	ModelName           string             `json:"model_name"`
+	AvgLatencyMs        int64              `json:"avg_latency_ms"`
+	SuccessRate         float64            `json:"success_rate"`
+	AvgTps              float64            `json:"avg_tps"`
+	RecentSuccessSeries []SuccessRatePoint `json:"recent_success_series,omitempty"`
+	RequestCount        int64              `json:"request_count"`
 }
 
 type SummaryAllResult struct {
 	Models []ModelSummary `json:"models"`
+	// RecentSuccessSeries 保存最近 7 天内最多 24 个有流量的整点小时成功率，
+	// 包含在统计窗口内无流量但被显式请求的模型。
+	RecentSuccessSeries map[string][]SuccessRatePoint `json:"recent_success_series,omitempty"`
 }
 
 type bucketKey struct {

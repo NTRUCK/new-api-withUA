@@ -378,6 +378,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	}
 	if newAPIError != nil {
 		gopool.Go(func() {
+			// 业务拒绝与客户端主动取消不计入模型健康样本
+			if perfmetrics.ClassifyRelayFailure(newAPIError) == perfmetrics.OutcomeIgnored {
+				return
+			}
 			perfmetrics.RecordRelaySample(relayInfo, false, 0)
 		})
 	}
