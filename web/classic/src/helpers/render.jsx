@@ -80,6 +80,7 @@ import {
   Package,
   Server,
   CalendarClock,
+  UserCheck,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -152,6 +153,8 @@ export function getLucideIcon(key, selected = false) {
       return <CalendarClock {...commonProps} color={iconColor} />;
     case 'setting':
       return <Settings {...commonProps} color={iconColor} />;
+    case 'invite':
+      return <UserCheck {...commonProps} color={iconColor} />;
     default:
       return <CircleUser {...commonProps} color={iconColor} />;
   }
@@ -415,6 +418,17 @@ export function getChannelIcon(channelType) {
   }
 }
 
+// @lobehub/icons 中各品牌的子组件名；部分品牌只有单色版本，需要忽略多余后缀
+const LOBE_SUB_COMPONENTS = new Set([
+  'Color',
+  'Mono',
+  'Text',
+  'Avatar',
+  'Combine',
+  'Brand',
+  'BrandColor',
+]);
+
 /**
  * 根据图标名称动态获取 LobeHub 图标组件
  * 支持：
@@ -442,6 +456,10 @@ export function getLobeHubIcon(iconName, size = 14) {
 
   if (BaseIcon && segments.length > 1 && BaseIcon[segments[1]]) {
     IconComponent = BaseIcon[segments[1]];
+    propStartIndex = 2;
+  } else if (BaseIcon && segments.length > 1 && LOBE_SUB_COMPONENTS.has(segments[1])) {
+    // 品牌只提供单色版本时（如 XiaomiMiMo、Inception），忽略 .Color 之类的后缀
+    IconComponent = BaseIcon;
     propStartIndex = 2;
   } else {
     IconComponent = LobeIcons[baseKey];
