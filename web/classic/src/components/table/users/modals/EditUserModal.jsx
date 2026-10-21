@@ -94,6 +94,7 @@ const EditUserModal = (props) => {
     quota_amount: 0,
     group: 'default',
     remark: '',
+    max_concurrency: 0,
   });
 
   const fetchGroups = async () => {
@@ -150,6 +151,7 @@ const EditUserModal = (props) => {
     let payload = { ...values };
     delete payload.quota;
     delete payload.quota_amount;
+    payload.max_concurrency = Number(payload.max_concurrency) || 0;
     if (userId) {
       payload.id = parseInt(userId);
     }
@@ -365,6 +367,20 @@ const EditUserModal = (props) => {
                           allowAdditions
                           search
                           rules={[{ required: true, message: t('请选择分组') }]}
+                        />
+                      </Col>
+
+                      <Col span={24}>
+                        <Form.InputNumber
+                          field='max_concurrency'
+                          label={t('并发上限')}
+                          placeholder={t('0 表示不限制')}
+                          min={0}
+                          precision={0}
+                          style={{ width: '100%' }}
+                          extraText={t(
+                            '该用户同时在处理的请求数上限，0 表示不限制',
+                          )}
                         />
                       </Col>
 

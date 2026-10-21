@@ -267,12 +267,18 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)
 
-		lease, acquired, acquireErr := service.TryAcquireConcurrency(channel, relayInfo.OriginModelName)
+		lease, limitReason, acquireErr := service.TryAcquireConcurrency(channel, relayInfo.OriginModelName, relayInfo.UserId)
 		if acquireErr != nil {
 			newAPIError = types.NewErrorWithStatusCode(acquireErr, types.ErrorCodeConcurrencyLimitExceeded, http.StatusInternalServerError, types.ErrOptionWithSkipRetry())
 			break
 		}
-		if !acquired {
+		if limitReason == service.ConcurrencyLimitUser {
+			// 用户级并发已满：换渠道无法解决，直接 429 且不重试
+			newAPIError = types.NewErrorWithStatusCode(errors.New("当前用户并发请求已达上限，请稍后再试"), types.ErrorCodeConcurrencyLimitExceeded, http.StatusTooManyRequests, types.ErrOptionWithSkipRetry())
+			relayInfo.LastError = newAPIError
+			break
+		}
+		if limitReason != service.ConcurrencyLimitNone {
 			newAPIError = types.NewErrorWithStatusCode(errors.New("当前渠道或模型并发已满，请稍后再试"), types.ErrorCodeConcurrencyLimitExceeded, http.StatusTooManyRequests)
 			relayInfo.LastError = newAPIError
 			if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
@@ -721,12 +727,17 @@ func RelayTask(c *gin.Context) {
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)
 
-		lease, acquired, acquireErr := service.TryAcquireConcurrency(channel, relayInfo.OriginModelName)
+		lease, limitReason, acquireErr := service.TryAcquireConcurrency(channel, relayInfo.OriginModelName, relayInfo.UserId)
 		if acquireErr != nil {
 			taskErr = service.TaskErrorWrapperLocal(acquireErr, string(types.ErrorCodeConcurrencyLimitExceeded), http.StatusInternalServerError)
 			break
 		}
-		if !acquired {
+		if limitReason == service.ConcurrencyLimitUser {
+			// 用户级并发已满：换渠道无法解决，直接 429 且不重试
+			taskErr = service.TaskErrorWrapperLocal(errors.New("当前用户并发请求已达上限，请稍后再试"), string(types.ErrorCodeConcurrencyLimitExceeded), http.StatusTooManyRequests)
+			break
+		}
+		if limitReason != service.ConcurrencyLimitNone {
 			taskErr = service.TaskErrorWrapperLocal(errors.New("当前渠道或模型并发已满，请稍后再试"), string(types.ErrorCodeConcurrencyLimitExceeded), http.StatusTooManyRequests)
 			if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {
 				break

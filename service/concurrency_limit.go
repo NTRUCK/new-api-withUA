@@ -19,22 +19,20 @@ var (
 )
 
 var acquireConcurrencyScript = `
-local acquired = 0
 for i = 1, #KEYS do
     local limit = tonumber(ARGV[i])
     local current = tonumber(redis.call('GET', KEYS[i]) or '0')
     if limit > 0 and current >= limit then
-        return 0
+        return i
     end
 end
 for i = 1, #KEYS do
     if tonumber(ARGV[i]) > 0 then
         redis.call('INCR', KEYS[i])
         redis.call('EXPIRE', KEYS[i], ARGV[#KEYS + 1])
-        acquired = 1
     end
 end
-return acquired
+return -1
 `
 
 var releaseConcurrencyScript = `
@@ -78,19 +76,50 @@ func (l *ConcurrencyLease) Release() {
 	})
 }
 
-func TryAcquireConcurrency(channel *model.Channel, modelName string) (*ConcurrencyLease, bool, error) {
-	keys := make([]string, 0, 2)
-	limits := make([]int, 0, 2)
+// ConcurrencyLimitReason 表示并发获取失败时命中的限制维度。
+type ConcurrencyLimitReason int
+
+const (
+	ConcurrencyLimitNone ConcurrencyLimitReason = iota
+	ConcurrencyLimitChannel
+	ConcurrencyLimitModel
+	ConcurrencyLimitUser
+)
+
+func (r ConcurrencyLimitReason) String() string {
+	switch r {
+	case ConcurrencyLimitChannel:
+		return "channel"
+	case ConcurrencyLimitModel:
+		return "model"
+	case ConcurrencyLimitUser:
+		return "user"
+	default:
+		return "none"
+	}
+}
+
+func TryAcquireConcurrency(channel *model.Channel, modelName string, userId int) (*ConcurrencyLease, ConcurrencyLimitReason, error) {
+	keys := make([]string, 0, 3)
+	limits := make([]int, 0, 3)
+	reasons := make([]ConcurrencyLimitReason, 0, 3)
 	if limit := channel.GetSetting().MaxConcurrency; limit > 0 {
 		keys = append(keys, fmt.Sprintf("concurrency:channel:%d", channel.Id))
 		limits = append(limits, limit)
+		reasons = append(reasons, ConcurrencyLimitChannel)
 	}
 	if limit := setting.GetModelConcurrencyLimit(modelName); limit > 0 {
 		keys = append(keys, "concurrency:model:"+modelName)
 		limits = append(limits, limit)
+		reasons = append(reasons, ConcurrencyLimitModel)
+	}
+	if limit := getUserConcurrencyLimit(userId); limit > 0 {
+		keys = append(keys, fmt.Sprintf("concurrency:user:%d", userId))
+		limits = append(limits, limit)
+		reasons = append(reasons, ConcurrencyLimitUser)
 	}
 	if len(keys) == 0 {
-		return &ConcurrencyLease{}, true, nil
+		return &ConcurrencyLease{}, ConcurrencyLimitNone, nil
 	}
 
 	if common.RedisEnabled && common.RDB != nil {
@@ -103,20 +132,36 @@ func TryAcquireConcurrency(channel *model.Channel, modelName string) (*Concurren
 		defer cancel()
 		result, err := common.RDB.Eval(ctx, acquireConcurrencyScript, keys, args...).Int()
 		if err != nil {
-			return nil, false, err
+			return nil, ConcurrencyLimitNone, err
 		}
-		return &ConcurrencyLease{keys: keys, redis: true}, result == 1, nil
+		if result > 0 && result <= len(reasons) {
+			return nil, reasons[result-1], nil
+		}
+		return &ConcurrencyLease{keys: keys, redis: true}, ConcurrencyLimitNone, nil
 	}
 
 	concurrencyMu.Lock()
 	defer concurrencyMu.Unlock()
 	for i, key := range keys {
 		if concurrencyCounts[key] >= limits[i] {
-			return nil, false, nil
+			return nil, reasons[i], nil
 		}
 	}
 	for _, key := range keys {
 		concurrencyCounts[key]++
 	}
-	return &ConcurrencyLease{keys: keys}, true, nil
+	return &ConcurrencyLease{keys: keys}, ConcurrencyLimitNone, nil
+}
+
+// getUserConcurrencyLimit 读取用户级并发上限，0 表示不限制。
+// 缓存/数据库读取失败时按不限制处理，避免因缓存抖动阻塞正常请求。
+func getUserConcurrencyLimit(userId int) int {
+	if userId <= 0 {
+		return 0
+	}
+	userCache, err := model.GetUserCache(userId)
+	if err != nil || userCache == nil {
+		return 0
+	}
+	return userCache.MaxConcurrency
 }

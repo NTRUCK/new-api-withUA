@@ -39,10 +39,13 @@ type User struct {
 	WeChatId          string         `json:"wechat_id" gorm:"column:wechat_id;index"`
 	TelegramId        string         `json:"telegram_id" gorm:"column:telegram_id;index"`
 	VerificationCode  string         `json:"verification_code" gorm:"-:all"`                         // this field is only for Email verification, don't save it to database!
+	ReviewReason      string         `json:"review_reason" gorm:"-:all"`                             // 注册审核：申请理由，不落 users 表
+	ReviewContact     string         `json:"review_contact" gorm:"-:all"`                            // 注册审核：联系方式（Discord 用户名/ID 等），不落 users 表
 	AccessToken       *string        `json:"-" gorm:"type:char(32);column:access_token;uniqueIndex"` // this token is for system management
 	Quota             int            `json:"quota" gorm:"type:int;default:0"`
 	UsedQuota         int            `json:"used_quota" gorm:"type:int;default:0;column:used_quota"` // used quota
 	RequestCount      int            `json:"request_count" gorm:"type:int;default:0;"`               // request number
+	MaxConcurrency    int            `json:"max_concurrency" gorm:"type:int;default:0"`              // 用户级并发上限，0 表示不限制
 	Group             string         `json:"group" gorm:"type:varchar(64);default:'default'"`
 	AffCode           string         `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	AffCount          int            `json:"aff_count" gorm:"type:int;default:0;column:aff_count"`
@@ -60,13 +63,14 @@ type User struct {
 
 func (user *User) ToBaseUser() *UserBase {
 	cache := &UserBase{
-		Id:       user.Id,
-		Group:    user.Group,
-		Quota:    user.Quota,
-		Status:   user.Status,
-		Username: user.Username,
-		Setting:  user.Setting,
-		Email:    user.Email,
+		Id:             user.Id,
+		Group:          user.Group,
+		Quota:          user.Quota,
+		Status:         user.Status,
+		Username:       user.Username,
+		Setting:        user.Setting,
+		Email:          user.Email,
+		MaxConcurrency: user.MaxConcurrency,
 	}
 	return cache
 }
@@ -735,10 +739,11 @@ func (user *User) Edit(updatePassword bool) error {
 
 	newUser := *user
 	updates := map[string]interface{}{
-		"username":     newUser.Username,
-		"display_name": newUser.DisplayName,
-		"group":        newUser.Group,
-		"remark":       newUser.Remark,
+		"username":        newUser.Username,
+		"display_name":    newUser.DisplayName,
+		"group":           newUser.Group,
+		"remark":          newUser.Remark,
+		"max_concurrency": newUser.MaxConcurrency,
 	}
 	if updatePassword {
 		updates["password"] = newUser.Password
@@ -748,6 +753,9 @@ func (user *User) Edit(updatePassword bool) error {
 	if err = DB.Model(user).Updates(updates).Error; err != nil {
 		return err
 	}
+
+	// 并发上限需要立即反映到缓存，否则旧缓存会继续按旧值放行/拒绝
+	user.MaxConcurrency = newUser.MaxConcurrency
 
 	// Update cache
 	return updateUserCache(*user)
