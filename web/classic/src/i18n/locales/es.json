@@ -2377,7 +2377,6 @@
     "全部填入": "Completar todo",
     "全部硬件总可用资源": "Recursos disponibles totales de todo el hardware",
     "全部展开": "Expand all",
-    "全部状态": "Todos los estados",
     "全局成功率": "Tasa global de éxito",
     "全局控制侧边栏区域和功能显示，管理员隐藏的功能用户无法启用": "Controla los elementos de la barra lateral y la visibilidad de funciones; los usuarios no pueden activar las funciones ocultas por el administrador",
     "全局设置": "Configuración global",
@@ -4484,6 +4483,17 @@
     "单次下限": "Límite por solicitud",
     "单次上限": "Tope por solicitud",
     "预计扣除 {{quota}}，池余额 {{balance}}": "Se descontarán {{quota}}, saldo del fondo {{balance}}",
-    "从低保池创建红包": "Crear sobres rojos desde el fondo de subsidios"
+    "从低保池创建红包": "Crear sobres rojos desde el fondo de subsidios",
+    "代码执行风控": "Control de ejecución de código",
+    "代码执行豁免分组": "Grupos exentos de ejecución de código",
+    "代码执行违规阈值": "Umbral de infracción de ejecución de código",
+    "到期时间": "Vence el",
+    "逗号或换行分隔。这些分组里执行代码不计数（默认仅 coding）；但一旦触发限速，限速对所有分组生效": "Separados por comas o saltos de línea. La ejecución de código en estos grupos no se cuenta (solo coding por defecto); una vez activado, el límite se aplica a todos los grupos.",
+    "该用户正被自动风控限速": "Este usuario está limitado por el control automático de riesgos",
+    "解除限速": "Quitar límite",
+    "每分钟请求上限": "Límite de solicitudes por minuto",
+    "同一用户累计真实代码执行达到此次数后自动限速。同一 tool_call_id 在 24 小时内只计一次": "El usuario se limita tras acumular este número de ejecuciones reales de código. El mismo tool_call_id solo se cuenta una vez cada 24 horas.",
+    "已解除该用户的限速": "Límite eliminado para este usuario",
+    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "Cuando un usuario ejecuta realmente código (comandos de shell / escritura de archivos cuyos resultados de herramientas se devolvieron realmente) en un grupo no exento y alcanza el umbral, se le aplica un límite global (RPM 1, concurrencia 1, 24 horas). La cuenta no se bloquea y un administrador puede levantarlo. Los presets de Tavern que solo declaran herramientas sin una ida y vuelta de tool_call_id no se contabilizan."
   }
 }

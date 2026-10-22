@@ -126,6 +126,32 @@ const (
 	MsgUserTelegramNotBound     = "user.telegram_not_bound"
 	MsgUserLinuxDOIdEmpty       = "user.linux_do_id_empty"
 	MsgUserQuotaChangeZero      = "user.quota_change_zero"
+	// MsgUserReviewReasonRequired 开启注册审核后，申请未填写理由
+	MsgUserReviewReasonRequired = "user.review_reason_required"
+	// MsgUserReviewReasonTooLong 申请理由超长
+	MsgUserReviewReasonTooLong = "user.review_reason_too_long"
+	// MsgUserReviewContactRequired 申请未填写联系方式
+	MsgUserReviewContactRequired = "user.review_contact_required"
+	// MsgUserReviewContactTooLong 联系方式超长
+	MsgUserReviewContactTooLong = "user.review_contact_too_long"
+	// MsgUserReviewTooManyRequests 提交申请过于频繁
+	MsgUserReviewTooManyRequests = "user.review_too_many_requests"
+	// MsgUserReviewAlreadyPending 已有待审核申请，无需重复提交
+	MsgUserReviewAlreadyPending = "user.review_already_pending"
+	// MsgUserReviewNotFound 审核申请不存在
+	MsgUserReviewNotFound = "user.review_not_found"
+	// MsgUserReviewHandled 审核申请已被处理
+	MsgUserReviewHandled = "user.review_handled"
+	// MsgUserReviewForbidden 无审核权限
+	MsgUserReviewForbidden = "user.review_forbidden"
+	// MsgUserReviewApproved 申请已通过
+	MsgUserReviewApproved = "user.review_approved"
+	// MsgUserReviewRejected 申请已驳回
+	MsgUserReviewRejected = "user.review_rejected"
+	// MsgUserReviewDiscordNotConfigured Discord 查询未配置
+	MsgUserReviewDiscordNotConfigured = "user.review_discord_not_configured"
+	// MsgUserReviewDiscordLookupFailed Discord 查询失败
+	MsgUserReviewDiscordLookupFailed = "user.review_discord_lookup_failed"
 )
 
 // Quota related messages
@@ -308,7 +334,7 @@ const (
 
 	MsgOAuthDiscordNotGuildMember = "oauth.discord_not_guild_member"
 	MsgOAuthDiscordMissingRole    = "oauth.discord_missing_role"
-	// MsgOAuthDiscordGuildRulesNotSatisfied 多服务器准入（任一模式）下所有规则均未满足
+	// MsgOAuthDiscordGuildRulesNotSatisfied 多服务器准入（任一模式）下所有准入组均未满足
 	MsgOAuthDiscordGuildRulesNotSatisfied = "oauth.discord_guild_rules_not_satisfied"
 )
 

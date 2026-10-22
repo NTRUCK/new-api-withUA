@@ -25,7 +25,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useSidebarCollapsed } from '../../hooks/common/useSidebarCollapsed';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
-import { isAdmin, isRoot, showError } from '../../helpers';
+import { isAdmin, isRoot, showError, API } from '../../helpers';
 import SkeletonWrapper from './components/SkeletonWrapper';
 
 import { Nav, Divider, Button } from '@douyinfe/semi-ui';
@@ -50,6 +50,7 @@ const routerMap = {
   playground: '/console/playground',
   personal: '/console/personal',
   feedback: '/console/feedback',
+  invite: '/invite',
   content_audit: '/content-audit',
   dice_game: '/console/dice-game',
   dice_welfare: '/console/dice-welfare',
@@ -72,6 +73,23 @@ const SiderBar = ({ onNavigate = () => {} }) => {
   const [openedKeys, setOpenedKeys] = useState([]);
   const location = useLocation();
   const [routerMapState, setRouterMapState] = useState(routerMap);
+  // 是否有注册审核权限（管理员或审核员白名单），决定是否展示审核入口
+  const [canReview, setCanReview] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem('user')) {
+      return;
+    }
+    API.get('/api/user_review/summary')
+      .then((res) => {
+        if (res.data?.success && res.data?.data?.can_review) {
+          setCanReview(true);
+        }
+      })
+      .catch(() => {
+        // 接口不可用时静默隐藏入口
+      });
+  }, []);
 
   const workspaceItems = useMemo(() => {
     const items = [
@@ -220,6 +238,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         itemKey: 'feedback',
         to: '/feedback',
         className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('注册审核'),
+        itemKey: 'invite',
+        to: '/invite',
+        className: canReview ? '' : 'tableHiddle',
       },
       {
         text: t('内容审计'),

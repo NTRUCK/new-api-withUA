@@ -45,6 +45,8 @@ const DEFAULT_INPUTS = {
   UserAgentGroupWhitelist: '',
   UserAgentGroupBanThreshold: '5',
   UserAgentGroupExemptUserIds: '',
+  CodeExecRateLimitThreshold: '3',
+  CodeExecRateLimitExemptGroups: 'coding',
   MultiKeyQuotaDisableEnabled: true,
   MultiKeyQuotaDisableKeywords: '',
   MultiKeyQuotaDisableStatusCodes: '402',
@@ -494,6 +496,53 @@ export default function SettingsMonitoring(props) {
                 <div className='text-sm text-semi-color-text-2 mb-4'>
                   {t('分组 UA 策略豁免用户：仅绕过分组 UA 黑白名单，仍受全局违规 UA 关键词（如 tavo）和令牌自身 UA 限制约束')}
                 </div>
+              </Col>
+            </Row>
+            <Row>
+              <Button size='default' onClick={onSubmit}>
+                {t('保存监控设置')}
+              </Button>
+            </Row>
+          </Form.Section>
+
+          <Form.Section title={t('代码执行风控')}>
+            <div className='text-sm text-semi-color-text-2 mb-4'>
+              {t(
+                '在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。',
+              )}
+            </div>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('代码执行违规阈值')}
+                  step={1}
+                  min={1}
+                  suffix={t('次')}
+                  extraText={t(
+                    '同一用户累计真实代码执行达到此次数后自动限速。同一 tool_call_id 在 24 小时内只计一次',
+                  )}
+                  field={'CodeExecRateLimitThreshold'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      CodeExecRateLimitThreshold: String(value),
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.TextArea
+                  label={t('代码执行豁免分组')}
+                  placeholder={'coding'}
+                  extraText={t(
+                    '逗号或换行分隔。这些分组里执行代码不计数（默认仅 coding）；但一旦触发限速，限速对所有分组生效',
+                  )}
+                  field={'CodeExecRateLimitExemptGroups'}
+                  autosize={{ minRows: 2, maxRows: 6 }}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, CodeExecRateLimitExemptGroups: value })
+                  }
+                />
               </Col>
             </Row>
             <Row>

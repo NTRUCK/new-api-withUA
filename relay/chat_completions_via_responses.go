@@ -126,6 +126,15 @@ func chatCompletionsViaResponses(c *gin.Context, info *relaycommon.RelayInfo, ad
 		return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
 
+	// 在转换后的 responses 请求体上再次应用参数覆盖，
+	// 以便渠道可以为仅 Responses API 支持的字段（如 include、prompt_cache_key）注入值。
+	if len(info.ParamOverride) > 0 {
+		jsonData, err = relaycommon.ApplyParamOverrideWithRelayInfo(jsonData, info)
+		if err != nil {
+			return nil, newAPIErrorFromParamOverride(err)
+		}
+	}
+
 	body, size, closer, err := relaycommon.NewOutboundJSONBody(jsonData)
 	if err != nil {
 		return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())

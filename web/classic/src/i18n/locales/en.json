@@ -4,7 +4,7 @@
     "近期无调用": "No recent calls",
     "调用状态": "Call status",
     "近期有调用": "Recently called",
-    "全部状态": "All statuses",
+    "全部状态": "All status",
     "延迟": "Latency",
     "吞吐": "Throughput",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + Image generation call {{symbol}}{{price}} / 1 time * {{ratioType}} {{ratio}}",
@@ -2377,7 +2377,6 @@
     "全部填入": "Fill All",
     "全部硬件总可用资源": "Total Available Hardware Resources",
     "全部展开": "Expand All",
-    "全部状态": "All status",
     "全局成功率": "Global success rate",
     "全局控制侧边栏区域和功能显示，管理员隐藏的功能用户无法启用": "Global control of sidebar areas and functions, users cannot enable functions hidden by administrators",
     "全局设置": "Global Settings",
@@ -4484,6 +4483,17 @@
     "单次下限": "Minimum per transaction",
     "单次上限": "Per-transaction limit",
     "预计扣除 {{quota}}，池余额 {{balance}}": "Estimated deduction {{quota}}, pool balance {{balance}}",
-    "从低保池创建红包": "Create Red Packet from Low-End Pool"
+    "从低保池创建红包": "Create Red Packet from Low-End Pool",
+    "代码执行风控": "Code Execution Guard",
+    "代码执行豁免分组": "Code Execution Exempt Groups",
+    "代码执行违规阈值": "Code Execution Violation Threshold",
+    "到期时间": "Expires at",
+    "逗号或换行分隔。这些分组里执行代码不计数（默认仅 coding）；但一旦触发限速，限速对所有分组生效": "Separated by commas or newlines. Code execution in these groups is not counted (only coding by default); once triggered, the rate limit applies to all groups.",
+    "该用户正被自动风控限速": "This user is being rate limited by automatic risk control",
+    "解除限速": "Remove rate limit",
+    "每分钟请求上限": "Requests per minute limit",
+    "同一用户累计真实代码执行达到此次数后自动限速。同一 tool_call_id 在 24 小时内只计一次": "The user is rate limited after accumulating this many genuine code executions. The same tool_call_id is counted only once per 24 hours.",
+    "已解除该用户的限速": "Rate limit removed for this user",
+    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "When a user genuinely executes code (shell commands / file writes whose tool results were actually returned) in a non-exempt group and reaches the threshold, a global rate limit (RPM 1, concurrency 1, 24 hours) is applied to that user. The account is not banned and admins can lift it. Tavern presets that only declare tools without a tool_call_id round-trip are not counted."
   }
 }

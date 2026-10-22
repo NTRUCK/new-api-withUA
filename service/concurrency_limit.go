@@ -154,6 +154,7 @@ func TryAcquireConcurrency(channel *model.Channel, modelName string, userId int)
 }
 
 // getUserConcurrencyLimit 读取用户级并发上限，0 表示不限制。
+// 处于自动风控限速期时强制使用风控并发上限。
 // 缓存/数据库读取失败时按不限制处理，避免因缓存抖动阻塞正常请求。
 func getUserConcurrencyLimit(userId int) int {
 	if userId <= 0 {
@@ -162,6 +163,9 @@ func getUserConcurrencyLimit(userId int) int {
 	userCache, err := model.GetUserCache(userId)
 	if err != nil || userCache == nil {
 		return 0
+	}
+	if userCache.RateLimitUntil > time.Now().Unix() && userCache.RateLimitRpm > 0 {
+		return CodeExecRateLimitConcurrency
 	}
 	return userCache.MaxConcurrency
 }

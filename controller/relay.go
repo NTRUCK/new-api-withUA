@@ -149,6 +149,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	auditUserId = c.GetInt("id")
 	auditRec = initContentAuditRecorder(c, relayInfo)
 
+	// 代码执行风控：非豁免分组中出现「已闭环」的代码执行调用则累计计数，
+	// 达到阈值后对该用户做全局限速（不受分组影响，coding 分组也生效）。
+	checkCodeExecutionViolation(c, relayInfo, request)
+
 	// 模型每日/分时段调用次数限制（按 模型+分组 统计，仅计成功调用）
 	dailyLimitGroup := modelDailyLimitGroup(relayInfo)
 	if allowed, limit, used := service.CheckModelDailyLimit(relayInfo.OriginModelName, dailyLimitGroup); !allowed {

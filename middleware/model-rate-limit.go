@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/common/limiter"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 
 	"github.com/gin-gonic/gin"
@@ -163,9 +164,58 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 	}
 }
 
+// userRiskRateLimitHandler 用户级自动风控限速（由代码执行风控写入 users.rate_limit_rpm）。
+// 该限制不受分组配置影响，覆盖全局，优先级高于分组/系统阈值。
+func userRiskRateLimitHandler(rpm int) gin.HandlerFunc {
+	duration := int64(60)
+	return func(c *gin.Context) {
+		userId := strconv.Itoa(c.GetInt("id"))
+		if common.RedisEnabled {
+			successKey := fmt.Sprintf("rateLimit:%s:risk:%s", ModelRequestRateLimitSuccessCountMark, userId)
+			ctx := context.Background()
+			allowed, err := checkRedisRateLimit(ctx, common.RDB, successKey, rpm, duration)
+			if err != nil {
+				fmt.Println("检查用户风控限速失败:", err.Error())
+				abortWithOpenAiMessage(c, http.StatusInternalServerError, "rate_limit_check_failed")
+				return
+			}
+			if !allowed {
+				abortWithOpenAiMessage(c, http.StatusTooManyRequests,
+					fmt.Sprintf("该账号因异常调用被临时限速：每分钟最多 %d 次请求，请稍后再试", rpm))
+				return
+			}
+			c.Next()
+			if c.Writer.Status() < 400 {
+				now := time.Now()
+				common.RDB.LPush(ctx, successKey, now.Format(timeFormat))
+				common.RDB.LTrim(ctx, successKey, 0, int64(rpm-1))
+				common.RDB.Expire(ctx, successKey, time.Minute)
+			}
+			return
+		}
+
+		key := "risk" + userId
+		inMemoryRateLimiter.Init(time.Minute)
+		if !inMemoryRateLimiter.Request(key, rpm, duration) {
+			abortWithOpenAiMessage(c, http.StatusTooManyRequests,
+				fmt.Sprintf("该账号因异常调用被临时限速：每分钟最多 %d 次请求，请稍后再试", rpm))
+			return
+		}
+		c.Next()
+	}
+}
+
 // ModelRequestRateLimit 模型请求限流中间件
 func ModelRequestRateLimit() func(c *gin.Context) {
 	return func(c *gin.Context) {
+		// 用户级自动风控限速优先，且不受分组配置豁免（即使 coding 分组也生效）
+		if userId := c.GetInt("id"); userId > 0 {
+			if rpm := service.GetUserRiskRateLimitRpm(userId); rpm > 0 {
+				userRiskRateLimitHandler(rpm)(c)
+				return
+			}
+		}
+
 		// 在每个请求时检查是否启用限流
 		if !setting.ModelRequestRateLimitEnabled {
 			c.Next()

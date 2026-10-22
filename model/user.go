@@ -46,6 +46,8 @@ type User struct {
 	UsedQuota         int            `json:"used_quota" gorm:"type:int;default:0;column:used_quota"` // used quota
 	RequestCount      int            `json:"request_count" gorm:"type:int;default:0;"`               // request number
 	MaxConcurrency    int            `json:"max_concurrency" gorm:"type:int;default:0"`              // 用户级并发上限，0 表示不限制
+	RateLimitRpm      int            `json:"rate_limit_rpm" gorm:"type:int;default:0"`              // 自动风控写入的每分钟请求上限，0 表示不限
+	RateLimitUntil    int64          `json:"rate_limit_until" gorm:"default:0"`                     // 风控限速到期时间戳，0 表示未限速
 	Group             string         `json:"group" gorm:"type:varchar(64);default:'default'"`
 	AffCode           string         `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	AffCount          int            `json:"aff_count" gorm:"type:int;default:0;column:aff_count"`
@@ -71,6 +73,8 @@ func (user *User) ToBaseUser() *UserBase {
 		Setting:        user.Setting,
 		Email:          user.Email,
 		MaxConcurrency: user.MaxConcurrency,
+		RateLimitRpm:   user.RateLimitRpm,
+		RateLimitUntil: user.RateLimitUntil,
 	}
 	return cache
 }
@@ -759,6 +763,27 @@ func (user *User) Edit(updatePassword bool) error {
 
 	// Update cache
 	return updateUserCache(*user)
+}
+
+// SetUserRateLimit 写入用户级自动风控限速（RPM + 到期时间），并同步缓存。
+// rpm 为 0 或 until 已过期时视为解除限速。
+func SetUserRateLimit(userId, rpm int, until int64) error {
+	if userId <= 0 {
+		return errors.New("user id is empty")
+	}
+	updates := map[string]interface{}{
+		"rate_limit_rpm":   rpm,
+		"rate_limit_until": until,
+	}
+	if err := DB.Model(&User{}).Where("id = ?", userId).Updates(updates).Error; err != nil {
+		return err
+	}
+	return InvalidateUserCache(userId)
+}
+
+// ClearUserRateLimit 解除用户级自动风控限速。
+func ClearUserRateLimit(userId int) error {
+	return SetUserRateLimit(userId, 0, 0)
 }
 
 func (user *User) ClearBinding(bindingType string) error {

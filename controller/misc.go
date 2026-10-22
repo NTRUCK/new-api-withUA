@@ -93,6 +93,8 @@ func GetStatus(c *gin.Context) {
 		"password_login_enabled":    common.PasswordLoginEnabled,
 		"password_register_enabled": common.PasswordRegisterEnabled,
 		"aff_code_required":         common.AffCodeRequiredForRegister,
+		// 开启注册审核后，注册需填写申请理由与联系方式，且审核通过前无法登录
+		"register_review_enabled": common.RegisterReviewEnabled,
 		// 邀请专属 DC 准入开启后，注册仅可通过 Discord 完成
 		"aff_discord_gating":     len(system_setting.GetDiscordSettings().GetAffGuildRules()) > 0,
 		"default_use_auto_group": setting.DefaultUseAutoGroup,

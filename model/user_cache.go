@@ -23,6 +23,8 @@ type UserBase struct {
 	Username       string `json:"username"`
 	Setting        string `json:"setting"`
 	MaxConcurrency int    `json:"max_concurrency"`
+	RateLimitRpm   int    `json:"rate_limit_rpm"`
+	RateLimitUntil int64  `json:"rate_limit_until"`
 }
 
 func (user *UserBase) WriteContext(c *gin.Context) {
@@ -115,6 +117,8 @@ func GetUserCache(userId int) (userCache *UserBase, err error) {
 		Setting:        user.Setting,
 		Email:          user.Email,
 		MaxConcurrency: user.MaxConcurrency,
+		RateLimitRpm:   user.RateLimitRpm,
+		RateLimitUntil: user.RateLimitUntil,
 	}
 
 	return userCache, nil

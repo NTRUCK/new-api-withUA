@@ -285,6 +285,7 @@ func migrateDB() error {
 		&UserOAuthBinding{},
 		&PerfMetric{},
 		&ModelFeedback{},
+		&UserReview{},
 		&DiceGameRecord{},
 		&DiceWelfarePool{},
 		&DiceWelfareClaim{},

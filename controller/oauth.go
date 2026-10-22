@@ -283,6 +283,10 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	if !common.RegisterEnabled {
 		return nil, &OAuthRegistrationDisabledError{}
 	}
+	// 开启注册审核时，OAuth 注册无法填写申请理由与联系方式，须改用密码注册提交申请
+	if common.RegisterReviewEnabled {
+		return nil, &OAuthRegistrationDisabledError{}
+	}
 	limitWhitelisted := provider.GetName() == "Discord" && system_setting.IsDiscordRegisterLimitWhitelisted(oauthUser.ProviderUserID)
 	if isRegisterUserCountReached() && !limitWhitelisted {
 		return nil, &OAuthRegistrationDisabledError{}

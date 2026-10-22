@@ -203,6 +203,8 @@ func InitOptionMap() {
 	common.OptionMap["UserAgentGroupBlacklist"] = operation_setting.UserAgentGroupBlacklistToString()
 	common.OptionMap["UserAgentGroupBanThreshold"] = strconv.Itoa(operation_setting.UserAgentGroupBanThreshold)
 	common.OptionMap["UserAgentGroupExemptUserIds"] = operation_setting.UserAgentGroupExemptUserIdsToString()
+	common.OptionMap["CodeExecRateLimitThreshold"] = strconv.Itoa(operation_setting.CodeExecRateLimitThreshold)
+	common.OptionMap["CodeExecRateLimitExemptGroups"] = operation_setting.CodeExecRateLimitExemptGroupsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	common.OptionMap["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
 	common.OptionMap["MultiKeyQuotaDisableEnabled"] = strconv.FormatBool(operation_setting.MultiKeyQuotaDisableEnabled)
@@ -677,6 +679,12 @@ func updateOptionMap(key string, value string) (err error) {
 		}
 	case "UserAgentGroupExemptUserIds":
 		operation_setting.UserAgentGroupExemptUserIdsFromString(value)
+	case "CodeExecRateLimitThreshold":
+		if n, convErr := strconv.Atoi(value); convErr == nil && n > 0 {
+			operation_setting.CodeExecRateLimitThreshold = n
+		}
+	case "CodeExecRateLimitExemptGroups":
+		operation_setting.CodeExecRateLimitExemptGroupsFromString(value)
 	case "AutomaticDisableStatusCodes":
 		err = operation_setting.AutomaticDisableStatusCodesFromString(value)
 	case "MultiKeyQuotaDisableEnabled":

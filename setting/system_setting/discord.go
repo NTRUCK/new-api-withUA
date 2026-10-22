@@ -3,6 +3,7 @@ package system_setting
 import (
 	"strings"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/config"
 )
 
@@ -11,6 +12,32 @@ import (
 type DiscordGuildRule struct {
 	GuildId string `json:"guild_id"` // Discord 服务器 ID
 	RoleId  string `json:"role_id"`  // 可选：要求的身份组 ID
+}
+
+// DiscordGuildRuleGroup 一个准入组：组内所有规则必须全部满足（AND）。
+type DiscordGuildRuleGroup []DiscordGuildRule
+
+// DiscordGuildRuleGroups 准入组列表：组之间按 any/all 匹配。
+// 兼容历史平铺格式 [{...}]：此时每条规则视为一个只含单条规则的组，
+// 使改造前后的 any/all 语义保持一致。
+type DiscordGuildRuleGroups []DiscordGuildRuleGroup
+
+func (g *DiscordGuildRuleGroups) UnmarshalJSON(data []byte) error {
+	var groups []DiscordGuildRuleGroup
+	if err := common.Unmarshal(data, &groups); err == nil {
+		*g = groups
+		return nil
+	}
+	var flat []DiscordGuildRule
+	if err := common.Unmarshal(data, &flat); err != nil {
+		return err
+	}
+	converted := make(DiscordGuildRuleGroups, 0, len(flat))
+	for _, rule := range flat {
+		converted = append(converted, DiscordGuildRuleGroup{rule})
+	}
+	*g = converted
+	return nil
 }
 
 type DiscordSettings struct {
@@ -25,11 +52,13 @@ type DiscordSettings struct {
 	RoleId                 string `json:"role_id"`                  // 指定身份组 ID（require_role=true 时生效）
 	RegisterLimitWhitelist string `json:"register_limit_whitelist"` // 满员时仍可注册的 Discord 用户 ID
 	// 服务器准入（多服务器）：配置后优先生效，忽略上方单服务器配置。
-	GuildRules      []DiscordGuildRule `json:"guild_rules"`       // 服务器+身份组规则列表
-	GuildRulesMatch string             `json:"guild_rules_match"` // any=满足任一规则 / all=全部规则均需满足
+	// 每个组内的规则须全部满足，组之间按 GuildRulesMatch 决定任一/全部。
+	GuildRules      DiscordGuildRuleGroups `json:"guild_rules"`       // 服务器+身份组准入组列表
+	GuildRulesMatch string                `json:"guild_rules_match"` // any=满足任一组 / all=全部组均需满足
 	// 邀请码专属准入：配置后，新用户注册只能通过 Discord OAuth 完成，
-	// 且必须满足其中任一规则（叠加在全局服务器准入之上）。为空则不启用。
-	AffGuildRules []DiscordGuildRule `json:"aff_guild_rules"` // 邀请注册专属的服务器+身份组规则
+	// 且必须通过其中规则（叠加在全局服务器准入之上）。为空则不启用。
+	AffGuildRules      DiscordGuildRuleGroups `json:"aff_guild_rules"`       // 邀请注册专属的服务器+身份组准入组
+	AffGuildRulesMatch string                 `json:"aff_guild_rules_match"` // any=满足任一组 / all=全部组均需满足
 }
 
 // 默认配置
@@ -44,29 +73,40 @@ func GetDiscordSettings() *DiscordSettings {
 	return &defaultDiscordSettings
 }
 
-// GetGuildRules 返回有效的多服务器准入规则（过滤掉未填服务器 ID 的条目）
-func (s *DiscordSettings) GetGuildRules() []DiscordGuildRule {
-	return filterGuildRules(s.GuildRules)
+// GetGuildRules 返回有效的多服务器准入组（过滤掉未填服务器 ID 的条目与空组）
+func (s *DiscordSettings) GetGuildRules() DiscordGuildRuleGroups {
+	return filterGuildRuleGroups(s.GuildRules)
 }
 
-// GetAffGuildRules 返回邀请码专属的服务器准入规则（过滤掉未填服务器 ID 的条目）
-func (s *DiscordSettings) GetAffGuildRules() []DiscordGuildRule {
-	return filterGuildRules(s.AffGuildRules)
+// GetAffGuildRules 返回邀请码专属的服务器准入组（过滤掉未填服务器 ID 的条目与空组）
+func (s *DiscordSettings) GetAffGuildRules() DiscordGuildRuleGroups {
+	return filterGuildRuleGroups(s.AffGuildRules)
 }
 
-func filterGuildRules(rules []DiscordGuildRule) []DiscordGuildRule {
-	valid := make([]DiscordGuildRule, 0, len(rules))
-	for _, rule := range rules {
-		if strings.TrimSpace(rule.GuildId) != "" {
-			valid = append(valid, rule)
+func filterGuildRuleGroups(groups []DiscordGuildRuleGroup) DiscordGuildRuleGroups {
+	valid := make(DiscordGuildRuleGroups, 0, len(groups))
+	for _, group := range groups {
+		cleaned := make(DiscordGuildRuleGroup, 0, len(group))
+		for _, rule := range group {
+			if strings.TrimSpace(rule.GuildId) != "" {
+				cleaned = append(cleaned, rule)
+			}
+		}
+		if len(cleaned) > 0 {
+			valid = append(valid, cleaned)
 		}
 	}
 	return valid
 }
 
-// IsGuildRulesMatchAll 是否要求全部规则均满足（默认满足任一即可）
+// IsGuildRulesMatchAll 是否要求全部准入组均满足（默认满足任一组即可）
 func (s *DiscordSettings) IsGuildRulesMatchAll() bool {
 	return strings.TrimSpace(s.GuildRulesMatch) == "all"
+}
+
+// IsAffGuildRulesMatchAll 邀请码专属准入是否要求全部准入组均满足（默认满足任一组即可）
+func (s *DiscordSettings) IsAffGuildRulesMatchAll() bool {
+	return strings.TrimSpace(s.AffGuildRulesMatch) == "all"
 }
 
 func IsDiscordRegisterLimitWhitelisted(discordId string) bool {

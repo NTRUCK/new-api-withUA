@@ -2606,7 +2606,6 @@
     "全部填入": "Điền tất cả",
     "全部硬件总可用资源": "Total Available Hardware Resources",
     "全部展开": "Mở rộng tất cả",
-    "全部状态": "Tất cả trạng thái",
     "全局成功率": "Tỷ lệ thành công toàn cục",
     "全局控制侧边栏区域和功能显示，管理员隐藏的功能用户无法启用": "Kiểm soát toàn cầu các khu vực và chức năng thanh bên, người dùng không thể bật các chức năng bị quản trị viên ẩn",
     "全局设置": "Cài đặt toàn cầu",
@@ -4842,6 +4841,17 @@
     "whsec_xxx 的 Webhook 签名密钥，敏感信息不显示": "Khóa chữ ký Webhook cho whsec_xxx, thông tin nhạy cảm không được hiển thị",
     "Worker地址": "Địa chỉ Worker",
     "Worker密钥": "Khóa Worker",
-    "X 也可以小于 1，当折扣用。想做\"只给输出加价\"或\"额外加固定费用\"，请直接写完整计费公式。": ""
+    "X 也可以小于 1，当折扣用。想做\"只给输出加价\"或\"额外加固定费用\"，请直接写完整计费公式。": "",
+    "代码执行风控": "Kiểm soát thực thi mã",
+    "代码执行豁免分组": "Nhóm miễn kiểm soát thực thi mã",
+    "代码执行违规阈值": "Ngưỡng vi phạm thực thi mã",
+    "到期时间": "Hết hạn lúc",
+    "逗号或换行分隔。这些分组里执行代码不计数（默认仅 coding）；但一旦触发限速，限速对所有分组生效": "Phân tách bằng dấu phẩy hoặc xuống dòng. Việc thực thi mã trong các nhóm này không được tính (mặc định chỉ coding); sau khi kích hoạt, giới hạn áp dụng cho tất cả các nhóm.",
+    "该用户正被自动风控限速": "Người dùng này đang bị giới hạn bởi kiểm soát rủi ro tự động",
+    "解除限速": "Gỡ giới hạn",
+    "每分钟请求上限": "Giới hạn yêu cầu mỗi phút",
+    "同一用户累计真实代码执行达到此次数后自动限速。同一 tool_call_id 在 24 小时内只计一次": "Người dùng bị giới hạn sau khi tích lũy số lần thực thi mã thực tế này. Cùng một tool_call_id chỉ được tính một lần trong 24 giờ.",
+    "已解除该用户的限速": "Đã gỡ giới hạn cho người dùng này",
+    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "Khi người dùng thực sự thực thi mã (lệnh shell / ghi tệp mà kết quả công cụ thực sự được trả về) trong nhóm không được miễn và đạt ngưỡng, hệ thống sẽ áp dụng giới hạn toàn cục (RPM 1, đồng thời 1, 24 giờ) cho người dùng đó. Tài khoản không bị cấm và quản trị viên có thể gỡ bỏ. Các preset Tavern chỉ khai báo công cụ mà không có vòng lặp tool_call_id sẽ không được tính."
   }
 }

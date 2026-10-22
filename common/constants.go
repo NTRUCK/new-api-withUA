@@ -107,6 +107,22 @@ var AffInviterWhitelist = ""
 // <= 0 表示不限制。
 var MaxAffInviteCount = 0
 
+// RegisterReviewEnabled 注册是否进入人工审核流程。
+// 开启后，新用户注册不会立即创建账号，而是先落一条待审核申请（user_reviews），
+// 审核通过后才真正建号，因此未通过审核的用户无法登录。
+var RegisterReviewEnabled = false
+
+// RegisterReviewWhitelist 审核员用户 ID 列表（换行或逗号分隔）。
+// 名单内的用户可访问审核界面并执行批准/驳回操作，不要求管理员角色。
+var RegisterReviewWhitelist = ""
+
+// RegisterReviewDiscordBotToken 用于查询申请人所在服务器与身份组的 Discord Bot Token。
+// 留空则审核界面不展示 Discord 信息。
+var RegisterReviewDiscordBotToken = ""
+
+// RegisterReviewDiscordGuildIds 需要展示的 Discord 服务器 ID 列表（换行或逗号分隔）。
+var RegisterReviewDiscordGuildIds = ""
+
 var EmailDomainRestrictionEnabled = false // 是否启用邮箱域名限制
 var EmailAliasRestrictionEnabled = false  // 是否启用邮箱别名限制
 var EmailDomainWhitelist = []string{

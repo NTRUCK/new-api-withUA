@@ -168,6 +168,22 @@ const EditUserModal = (props) => {
     setLoading(false);
   };
 
+  /* --------------------- 自动风控限速 -------------------- */
+  const handleUnlimitRate = async () => {
+    const res = await API.post('/api/user/manage', {
+      id: parseInt(userId),
+      action: 'unlimit_rate',
+    });
+    const { success, message } = res.data;
+    if (success) {
+      showSuccess(t('已解除该用户的限速'));
+      props.refresh();
+      loadUser();
+    } else {
+      showError(message);
+    }
+  };
+
   /* --------------------- atomic quota adjust -------------------- */
   const adjustQuota = async () => {
     const quotaVal = parseInt(adjustQuotaLocal) || 0;
@@ -383,6 +399,32 @@ const EditUserModal = (props) => {
                           )}
                         />
                       </Col>
+
+                      {isEdit && inputs?.rate_limit_until > 0 && (
+                        <Col span={24}>
+                          <Card
+                            style={{ width: '100%' }}
+                            bodyStyle={{ padding: 12 }}
+                          >
+                            <Space vertical align='start' spacing={8}>
+                              <Text type='danger' strong>
+                                {t('该用户正被自动风控限速')}
+                              </Text>
+                              <Text type='tertiary' size='small'>
+                                {`${t('每分钟请求上限')}: ${inputs.rate_limit_rpm || 1} / ${t('并发上限')}: 1`}
+                              </Text>
+                              <Text type='tertiary' size='small'>
+                                {`${t('到期时间')}: ${new Date(
+                                  inputs.rate_limit_until * 1000,
+                                ).toLocaleString()}`}
+                              </Text>
+                              <Button onClick={handleUnlimitRate}>
+                                {t('解除限速')}
+                              </Button>
+                            </Space>
+                          </Card>
+                        </Col>
+                      )}
 
                       <Col span={10}>
                         <Form.InputNumber

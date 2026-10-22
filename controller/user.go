@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
@@ -199,9 +200,70 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, service.AffCodeErrorI18nKey(affErr))
 		return
 	}
-	// 开启邀请专属 DC 准入后，密码注册无法验证 Discord 身份，直接拒绝
-	if len(system_setting.GetDiscordSettings().GetAffGuildRules()) > 0 {
+	// 开启邀请专属 DC 准入后，密码注册无法验证 Discord 身份，直接拒绝。
+	// 注册审核本身已是人工准入手段，开启后不再叠加该限制。
+	if !common.RegisterReviewEnabled && len(system_setting.GetDiscordSettings().GetAffGuildRules()) > 0 {
 		common.ApiErrorI18n(c, i18n.MsgUserAffDiscordOnly)
+		return
+	}
+	// 开启注册审核后不直接建号：先落一条待审核申请，审核通过才创建用户。
+	// 未通过审核的用户在 users 表中不存在，因此天然无法登录。
+	if common.RegisterReviewEnabled {
+		reason := strings.TrimSpace(user.ReviewReason)
+		contact := strings.TrimSpace(user.ReviewContact)
+		if reason == "" {
+			common.ApiErrorI18n(c, i18n.MsgUserReviewReasonRequired)
+			return
+		}
+		if utf8.RuneCountInString(reason) > 500 {
+			common.ApiErrorI18n(c, i18n.MsgUserReviewReasonTooLong)
+			return
+		}
+		if contact == "" {
+			common.ApiErrorI18n(c, i18n.MsgUserReviewContactRequired)
+			return
+		}
+		if utf8.RuneCountInString(contact) > 128 {
+			common.ApiErrorI18n(c, i18n.MsgUserReviewContactTooLong)
+			return
+		}
+		clientIp := c.ClientIP()
+		// 同一 IP 10 分钟内最多提交 3 次，防止刷申请
+		if count, countErr := model.CountRecentUserReviewsByIp(clientIp, common.GetTimestamp()-600); countErr == nil && count >= 3 {
+			common.ApiErrorI18n(c, i18n.MsgUserReviewTooManyRequests)
+			return
+		}
+		exists, existErr := model.CheckPendingUserReviewExist(user.Username, user.Email)
+		if existErr != nil {
+			common.ApiErrorI18n(c, i18n.MsgDatabaseError)
+			common.SysLog(fmt.Sprintf("CheckPendingUserReviewExist error: %v", existErr))
+			return
+		}
+		if exists {
+			common.ApiErrorI18n(c, i18n.MsgUserReviewAlreadyPending)
+			return
+		}
+		review := model.UserReview{
+			Username:  user.Username,
+			Password:  user.Password,
+			Email:     user.Email,
+			Reason:    reason,
+			Contact:   contact,
+			InviterId: inviterId,
+			ClientIp:  clientIp,
+		}
+		if err := review.Insert(); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "",
+			"data": gin.H{
+				"review_required": true,
+				"username":        review.Username,
+			},
+		})
 		return
 	}
 	cleanUser := model.User{
@@ -1266,6 +1328,22 @@ func ManageUser(c *gin.Context) {
 			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 			return
 		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "",
+		})
+		return
+	case "unlimit_rate":
+		// 解除代码执行风控自动限速
+		if err := model.ClearUserRateLimit(user.Id); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		model.RecordLogWithAdminInfo(user.Id, model.LogTypeManage, "管理员解除了该用户的自动风控限速",
+			map[string]interface{}{
+				"admin_id":       c.GetInt("id"),
+				"admin_username": c.GetString("username"),
+			})
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "",

@@ -229,9 +229,9 @@ func CheckGuildAccess(c *gin.Context, token *OAuthToken) error {
 
 	ctx := c.Request.Context()
 
-	// 多服务器规则优先
-	if rules := settings.GetGuildRules(); len(rules) > 0 {
-		return checkGuildRules(c, token, rules, settings.IsGuildRulesMatchAll())
+	// 多服务器准入组优先
+	if groups := settings.GetGuildRules(); len(groups) > 0 {
+		return checkGuildRuleGroups(c, token, groups, settings.IsGuildRulesMatchAll())
 	}
 
 	if settings.GuildId == "" {
@@ -254,53 +254,80 @@ func CheckGuildAccess(c *gin.Context, token *OAuthToken) error {
 	return nil
 }
 
-// checkGuildRules 多服务器准入校验：
-//   - matchAll=false：满足任一规则即放行（是成员且持有该规则要求的身份组，规则未配身份组则仅要求成员）
-//   - matchAll=true：所有规则均需满足，任一不满足即拒绝并给出具体原因
-func checkGuildRules(c *gin.Context, token *OAuthToken, rules []system_setting.DiscordGuildRule, matchAll bool) error {
+// checkGuildRuleGroups 多组准入校验：
+//   - 组内：所有规则必须全部满足（是成员，且配了身份组时须持有该身份组）
+//   - 组间：matchAll=false 任一组全部满足即放行；matchAll=true 所有组均须全部满足
+func checkGuildRuleGroups(c *gin.Context, token *OAuthToken, groups []system_setting.DiscordGuildRuleGroup, matchAll bool) error {
 	ctx := c.Request.Context()
 
-	// 同一服务器只请求一次成员信息
+	// 同一服务器只请求一次成员信息，member 为 nil 表示不是该服务器成员
 	memberCache := make(map[string]*discordGuildMember)
-	for _, rule := range rules {
-		member, ok := memberCache[rule.GuildId]
-		if !ok {
-			var err error
-			member, err = fetchGuildMember(ctx, token.AccessToken, rule.GuildId)
+	fetchMember := func(guildId string) (*discordGuildMember, error) {
+		if member, ok := memberCache[guildId]; ok {
+			return member, nil
+		}
+		member, err := fetchGuildMember(ctx, token.AccessToken, guildId)
+		if err != nil {
+			return nil, err
+		}
+		memberCache[guildId] = member
+		return member, nil
+	}
+
+	for _, group := range groups {
+		groupPassed := true
+		failedNotMember := false
+		failedGuildId, failedRoleId := "", ""
+		for _, rule := range group {
+			member, err := fetchMember(rule.GuildId)
 			if err != nil {
 				return err
 			}
-			memberCache[rule.GuildId] = member
+			if member == nil {
+				groupPassed, failedNotMember, failedGuildId, failedRoleId = false, true, rule.GuildId, rule.RoleId
+				break
+			}
+			if rule.RoleId != "" && !member.hasRole(rule.RoleId) {
+				groupPassed, failedNotMember, failedGuildId, failedRoleId = false, false, rule.GuildId, rule.RoleId
+				break
+			}
 		}
 
-		passed := member != nil && (rule.RoleId == "" || member.hasRole(rule.RoleId))
-		if !passed && matchAll {
-			if member == nil {
+		if groupPassed {
+			if !matchAll {
+				return nil
+			}
+			continue
+		}
+
+		if matchAll {
+			// 全部满足模式：任一组不通过即拒绝，并给出具体原因
+			if failedNotMember {
 				return &AccessDeniedError{Message: i18n.T(c, i18n.MsgOAuthDiscordNotGuildMember)}
 			}
-			logger.LogDebug(ctx, "[OAuth-Discord] CheckGuildAccess: user lacks required role %s in guild %s", rule.RoleId, rule.GuildId)
+			logger.LogDebug(ctx, "[OAuth-Discord] CheckGuildAccess: user lacks required role %s in guild %s", failedRoleId, failedGuildId)
 			return &AccessDeniedError{Message: i18n.T(c, i18n.MsgOAuthDiscordMissingRole)}
 		}
-		if passed && !matchAll {
-			return nil
-		}
 	}
+
 	if matchAll {
 		return nil
 	}
-	logger.LogDebug(ctx, "[OAuth-Discord] CheckGuildAccess: user satisfies none of the %d guild rules", len(rules))
+	logger.LogDebug(ctx, "[OAuth-Discord] CheckGuildAccess: user satisfies none of the %d guild rule groups", len(groups))
 	return &AccessDeniedError{Message: i18n.T(c, i18n.MsgOAuthDiscordGuildRulesNotSatisfied)}
 }
 
 // CheckAffGuildAccess 校验邀请码注册用户的 Discord 服务器准入要求。
-// 规则来自邀请专属配置（aff_guild_rules），满足任一规则即放行；未配置则直接放行。
-// 仅在新用户注册时调用，已有用户登录不受影响。
+// 规则来自邀请专属配置（aff_guild_rules），组内规则须全部满足，
+// 组之间按 aff_guild_rules_match 决定满足任一组（any，默认）还是全部组（all）；
+// 未配置则直接放行。仅在新用户注册时调用，已有用户登录不受影响。
 func CheckAffGuildAccess(c *gin.Context, token *OAuthToken) error {
-	rules := system_setting.GetDiscordSettings().GetAffGuildRules()
-	if len(rules) == 0 {
+	settings := system_setting.GetDiscordSettings()
+	groups := settings.GetAffGuildRules()
+	if len(groups) == 0 {
 		return nil
 	}
-	if err := checkGuildRules(c, token, rules, false); err != nil {
+	if err := checkGuildRuleGroups(c, token, groups, settings.IsAffGuildRulesMatchAll()); err != nil {
 		// 统一换成邀请注册场景的提示文案，避免暴露准入规则细节
 		return &AccessDeniedError{Message: i18n.T(c, i18n.MsgUserAffGuildNotSatisfied)}
 	}

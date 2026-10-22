@@ -44,6 +44,59 @@ import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import CustomOAuthSetting from './CustomOAuthSetting';
 
+// Discord 准入规则组：组内规则须全部满足，组之间按「满足任一/全部满足」匹配。
+// 文本框格式为每行一条规则，行首用「组号:」标记所属组；未写组号的行归入第 1 组
+// （兼容旧版无组号的纯规则行）。返回嵌套数组 [[{guild_id, role_id}], ...]。
+const parseGuildRuleGroups = (text) => {
+  const groups = new Map();
+  const lines = (text || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  for (const line of lines) {
+    const matched = line.match(/^(\d+)\s*[:：]\s*(.+)$/);
+    const groupNo = matched ? parseInt(matched[1], 10) : 1;
+    const body = (matched ? matched[2] : line).trim();
+    const [guildId, roleId] = body.split(/[,，\s]+/).map((s) => s.trim());
+    if (groupNo < 1 || !/^\d+$/.test(guildId || '')) {
+      throw new Error('invalid guild rule');
+    }
+    if (roleId && !/^\d+$/.test(roleId)) {
+      throw new Error('invalid guild rule');
+    }
+    if (!groups.has(groupNo)) {
+      groups.set(groupNo, []);
+    }
+    groups.get(groupNo).push({ guild_id: guildId, role_id: roleId || '' });
+  }
+  return [...groups.keys()]
+    .sort((a, b) => a - b)
+    .map((no) => groups.get(no));
+};
+
+// 后端存储的准入组 → 文本框内容（兼容历史平铺格式，此时每条规则单独成组）
+const guildRuleGroupsToText = (raw) => {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return '';
+  }
+  const groups = raw.every((item) => Array.isArray(item))
+    ? raw
+    : raw.map((rule) => [rule]);
+  return groups
+    .map((group, index) =>
+      group
+        .map(
+          (rule) =>
+            `${index + 1}: ${[rule.guild_id, rule.role_id]
+              .filter(Boolean)
+              .join(',')}`,
+        )
+        .join('\n'),
+    )
+    .filter(Boolean)
+    .join('\n');
+};
+
 const SystemSetting = () => {
   const { t } = useTranslation();
   let [inputs, setInputs] = useState({
@@ -63,6 +116,7 @@ const SystemSetting = () => {
     'discord.guild_rules': '',
     'discord.aff_guild_rules': '',
     'discord.guild_rules_match': 'any',
+    'discord.aff_guild_rules_match': 'any',
     'discord.register_limit_whitelist': '',
     'oidc.enabled': '',
     'oidc.client_id': '',
@@ -93,6 +147,10 @@ const SystemSetting = () => {
     AffCodeRequiredForRegister: '',
     AffInviterWhitelist: '',
     MaxAffInviteCount: '',
+    RegisterReviewEnabled: '',
+    RegisterReviewWhitelist: '',
+    RegisterReviewDiscordBotToken: '',
+    RegisterReviewDiscordGuildIds: '',
     'passkey.enabled': '',
     'passkey.rp_display_name': '',
     'passkey.rp_id': '',
@@ -211,6 +269,7 @@ const SystemSetting = () => {
           case 'TelegramOAuthEnabled':
           case 'RegisterEnabled':
           case 'AffCodeRequiredForRegister':
+          case 'RegisterReviewEnabled':
           case 'TurnstileCheckEnabled':
           case 'EmailDomainRestrictionEnabled':
           case 'EmailAliasRestrictionEnabled':
@@ -241,36 +300,20 @@ const SystemSetting = () => {
             item.value = item.value || 'preferred';
             break;
           case 'discord.guild_rules':
-            // JSON 数组 → 每行一条「服务器ID,身份组ID」（身份组可省略）
-            try {
-              const rules = item.value ? JSON.parse(item.value) : [];
-              item.value = Array.isArray(rules)
-                ? rules
-                    .map((r) =>
-                      [r.guild_id, r.role_id].filter(Boolean).join(','),
-                    )
-                    .join('\n')
-                : '';
-            } catch (e) {
-              item.value = '';
-            }
-            break;
           case 'discord.aff_guild_rules':
-            // JSON 数组 → 每行一条「服务器ID,身份组ID」（身份组可省略）
+            // 准入组 JSON → 每行一条「组号: 服务器ID,身份组ID」（身份组可省略）
             try {
-              const affRules = item.value ? JSON.parse(item.value) : [];
-              item.value = Array.isArray(affRules)
-                ? affRules
-                    .map((r) =>
-                      [r.guild_id, r.role_id].filter(Boolean).join(','),
-                    )
-                    .join('\n')
-                : '';
+              item.value = guildRuleGroupsToText(
+                item.value ? JSON.parse(item.value) : [],
+              );
             } catch (e) {
               item.value = '';
             }
             break;
           case 'discord.guild_rules_match':
+            item.value = item.value === 'all' ? 'all' : 'any';
+            break;
+          case 'discord.aff_guild_rules_match':
             item.value = item.value === 'all' ? 'all' : 'any';
             break;
           case 'Price':
@@ -549,6 +592,23 @@ const SystemSetting = () => {
     ]);
   };
 
+  const submitRegisterReviewSettings = async () => {
+    await updateOptions([
+      {
+        key: 'RegisterReviewWhitelist',
+        value: String(inputs.RegisterReviewWhitelist || ''),
+      },
+      {
+        key: 'RegisterReviewDiscordBotToken',
+        value: String(inputs.RegisterReviewDiscordBotToken || ''),
+      },
+      {
+        key: 'RegisterReviewDiscordGuildIds',
+        value: String(inputs.RegisterReviewDiscordGuildIds || ''),
+      },
+    ]);
+  };
+
   const submitGitHubOAuth = async () => {
     const options = [];
 
@@ -613,65 +673,39 @@ const SystemSetting = () => {
         value: inputs['discord.role_id'],
       });
     }
-    // 多服务器规则：TextArea 文本 → JSON 数组
+    // 多服务器准入组：TextArea 文本 → 嵌套 JSON 数组
     if (originInputs['discord.guild_rules'] !== inputs['discord.guild_rules']) {
-      const lines = (inputs['discord.guild_rules'] || '')
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean);
-      const rules = [];
-      for (const line of lines) {
-        const parts = line.split(/[,，\s]+/).map((s) => s.trim());
-        const [guildId, roleId] = parts;
-        if (!guildId || !/^\d+$/.test(guildId)) {
-          showError(
-            t('多服务器规则格式有误：每行应为「服务器ID」或「服务器ID,身份组ID」，且 ID 为纯数字'),
-          );
-          return;
-        }
-        if (roleId && !/^\d+$/.test(roleId)) {
-          showError(
-            t('多服务器规则格式有误：每行应为「服务器ID」或「服务器ID,身份组ID」，且 ID 为纯数字'),
-          );
-          return;
-        }
-        rules.push({ guild_id: guildId, role_id: roleId || '' });
+      let groups;
+      try {
+        groups = parseGuildRuleGroups(inputs['discord.guild_rules']);
+      } catch (e) {
+        showError(
+          t('多服务器规则格式有误：每行应为「组号: 服务器ID」或「组号: 服务器ID,身份组ID」，且 ID 为纯数字'),
+        );
+        return;
       }
       options.push({
         key: 'discord.guild_rules',
-        value: JSON.stringify(rules),
+        value: JSON.stringify(groups),
       });
     }
-    // 邀请码注册专属规则：TextArea 文本 → JSON 数组
+    // 邀请码注册专属准入组：TextArea 文本 → 嵌套 JSON 数组
     if (
       originInputs['discord.aff_guild_rules'] !==
       inputs['discord.aff_guild_rules']
     ) {
-      const affLines = (inputs['discord.aff_guild_rules'] || '')
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean);
-      const affRules = [];
-      for (const line of affLines) {
-        const parts = line.split(/[,，\s]+/).map((s) => s.trim());
-        const [guildId, roleId] = parts;
-        if (!guildId || !/^\d+$/.test(guildId)) {
-          showError(
-            t('邀请注册专属规则格式有误：每行应为「服务器ID」或「服务器ID,身份组ID」，且 ID 为纯数字'),
-          );
-          return;
-        }
-        if (roleId && !/^\d+$/.test(roleId)) {
-          showError(
-            t('邀请注册专属规则格式有误：每行应为「服务器ID」或「服务器ID,身份组ID」，且 ID 为纯数字'),
-          );
-          return;
-        }
-        affRules.push({ guild_id: guildId, role_id: roleId || '' });
+      let groups;
+      try {
+        groups = parseGuildRuleGroups(inputs['discord.aff_guild_rules']);
+      } catch (e) {
+        showError(
+          t('邀请注册专属规则格式有误：每行应为「组号: 服务器ID」或「组号: 服务器ID,身份组ID」，且 ID 为纯数字'),
+        );
+        return;
       }
       options.push({
         key: 'discord.aff_guild_rules',
-        value: JSON.stringify(affRules),
+        value: JSON.stringify(groups),
       });
     }
     if (
@@ -681,6 +715,15 @@ const SystemSetting = () => {
       options.push({
         key: 'discord.guild_rules_match',
         value: inputs['discord.guild_rules_match'] || 'any',
+      });
+    }
+    if (
+      originInputs['discord.aff_guild_rules_match'] !==
+      inputs['discord.aff_guild_rules_match']
+    ) {
+      options.push({
+        key: 'discord.aff_guild_rules_match',
+        value: inputs['discord.aff_guild_rules_match'] || 'any',
       });
     }
     if (
@@ -1303,6 +1346,57 @@ const SystemSetting = () => {
                     </Col>
                     <Col xs={24} sm={24} md={12} lg={12} xl={12}>
                       <Form.Checkbox
+                        field='RegisterReviewEnabled'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange('RegisterReviewEnabled', e)
+                        }
+                        extraText={t(
+                          '开启后新用户注册不会立即创建账号，需填写申请理由与联系方式并等待审核；审核通过后才能登录，未通过前无法登录。',
+                        )}
+                      >
+                        {t('开启注册人工审核')}
+                      </Form.Checkbox>
+                      <Form.TextArea
+                        field='RegisterReviewWhitelist'
+                        label={t('审核员白名单（用户 ID）')}
+                        placeholder={t('一行一个用户 ID，例如：\n1\n1024')}
+                        autosize={{ minRows: 3, maxRows: 8 }}
+                        style={{ width: '100%', marginTop: 12 }}
+                        extraText={t(
+                          '名单内用户可访问 /invite 审核界面并批准或驳回申请。管理员无需加入名单。',
+                        )}
+                      />
+                      <Form.Input
+                        field='RegisterReviewDiscordBotToken'
+                        label={t('Discord Bot Token')}
+                        placeholder={t('留空则不展示 Discord 信息')}
+                        style={{ width: '100%', marginTop: 12 }}
+                        extraText={t(
+                          '用于查询申请人所在服务器与身份组，Bot 需已加入下方服务器并有查看成员的权限。',
+                        )}
+                      />
+                      <Form.TextArea
+                        field='RegisterReviewDiscordGuildIds'
+                        label={t('要查询的 Discord 服务器 ID')}
+                        placeholder={t(
+                          '一行一个服务器 ID，例如：\n123456789012345678',
+                        )}
+                        autosize={{ minRows: 2, maxRows: 6 }}
+                        style={{ width: '100%', marginTop: 12 }}
+                        extraText={t(
+                          '审核界面会展示申请人在这些服务器中的成员身份与身份组。',
+                        )}
+                      />
+                      <Button
+                        style={{ marginTop: 12 }}
+                        onClick={submitRegisterReviewSettings}
+                      >
+                        {t('保存审核设置')}
+                      </Button>
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Checkbox
                         field='GitHubOAuthEnabled'
                         noLabel
                         onChange={(e) =>
@@ -1818,7 +1912,7 @@ const SystemSetting = () => {
                         field="['discord.guild_rules_match']"
                         label={t('多服务器规则匹配方式')}
                         extraText={t(
-                          '满足任一：通过任意一条规则即可登录；全部满足：每条规则都必须通过。仅在填写了多服务器规则时生效。',
+                          '满足任一：通过任意一组规则即可登录；全部满足：每一组规则都必须通过。同一组内的规则始终须全部满足。仅在填写了多服务器规则时生效。',
                         )}
                         disabled={!inputs['discord.guild_gating']}
                         onChange={(value) => {
@@ -1837,9 +1931,9 @@ const SystemSetting = () => {
                         field="['discord.guild_rules']"
                         label={t('多服务器准入规则')}
                         extraText={t(
-                          '每行一条：「服务器ID」或「服务器ID,身份组ID」（身份组可省略，省略则仅要求加入该服务器）。填写后优先生效，忽略上方单服务器配置。',
+                          '每行一条规则，行首以组号标记所属组：「组号: 服务器ID」或「组号: 服务器ID,身份组ID」（身份组可省略，省略则仅要求加入该服务器）。同一组内的规则须全部满足。填写后优先生效，忽略上方单服务器配置。',
                         )}
-                        placeholder={'1134557553011998840,1335363403870502912\n987654321098765432'}
+                        placeholder={'1: 1134557553011998840,1335363403870502912\n1: 987654321098765432\n2: 111111111111111111,222222222222222222'}
                         autosize={{ minRows: 4, maxRows: 10 }}
                         disabled={!inputs['discord.guild_gating']}
                         style={{ fontFamily: 'JetBrains Mono, Consolas' }}
@@ -1854,13 +1948,29 @@ const SystemSetting = () => {
                     autosize={{ minRows: 4, maxRows: 10 }}
                     style={{ fontFamily: 'JetBrains Mono, Consolas' }}
                   />
+                  <Form.RadioGroup
+                    field="['discord.aff_guild_rules_match']"
+                    label={t('邀请码注册规则匹配方式')}
+                    extraText={t(
+                      '满足任一：通过任意一组规则即可注册；全部满足：每一组规则都必须通过。同一组内的规则始终须全部满足。仅在填写了邀请注册专属规则时生效。',
+                    )}
+                    onChange={(value) => {
+                      setInputs({
+                        ...inputs,
+                        'discord.aff_guild_rules_match': value,
+                      });
+                    }}
+                  >
+                    <Radio value='any'>{t('满足任一')}</Radio>
+                    <Radio value='all'>{t('全部满足')}</Radio>
+                  </Form.RadioGroup>
                   <Form.TextArea
                     field="['discord.aff_guild_rules']"
                     label={t('邀请码注册专属准入规则')}
                     extraText={t(
-                      '开启邀请码注册后生效：新用户仅可通过 Discord 注册，且需满足任一规则（叠加在上方服务器准入之上）。每行一条：「服务器ID」或「服务器ID,身份组ID」。留空则不启用。',
+                      '开启邀请码注册后生效：新用户仅可通过 Discord 注册，且需按上方匹配方式通过规则组（叠加在上方服务器准入之上）。每行一条规则，行首以组号标记所属组：「组号: 服务器ID」或「组号: 服务器ID,身份组ID」。留空则不启用。',
                     )}
-                    placeholder={'1134557553011998840,1335363403870502912\n987654321098765432'}
+                    placeholder={'1: 1134557553011998840,1335363403870502912\n1: 987654321098765432\n2: 111111111111111111,222222222222222222'}
                     autosize={{ minRows: 4, maxRows: 10 }}
                     style={{ fontFamily: 'JetBrains Mono, Consolas' }}
                   />

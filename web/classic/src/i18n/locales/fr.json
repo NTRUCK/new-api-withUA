@@ -4,7 +4,7 @@
     "近期无调用": "Aucun appel récent",
     "调用状态": "État des appels",
     "近期有调用": "Appelé récemment",
-    "全部状态": "Tous les états",
+    "全部状态": "Tous les statuts",
     "延迟": "Latence",
     "吞吐": "Débit",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + Appel de génération d'image {{symbol}}{{price}} / 1 fois * {{ratioType}} {{ratio}}",
@@ -2318,7 +2318,6 @@
     "全部填入": "Tout remplir",
     "全部硬件总可用资源": "Total Available Hardware Resources",
     "全部展开": "Tout développer",
-    "全部状态": "Tous les statuts",
     "全局成功率": "Taux de réussite global",
     "全局控制侧边栏区域和功能显示，管理员隐藏的功能用户无法启用": "Contrôle global des zones et des fonctions de la barre latérale, les utilisateurs ne peuvent pas activer les fonctions masquées par les administrateurs",
     "全局设置": "Paramètres globaux",
@@ -4331,6 +4330,17 @@
     "whsec_xxx 的 Webhook 签名密钥，敏感信息不显示": "Clé de signature Webhook whsec_xxx, les informations sensibles ne sont pas affichées",
     "Worker地址": "Adresse du Worker",
     "Worker密钥": "Clé du Worker",
-    "X 也可以小于 1，当折扣用。想做\"只给输出加价\"或\"额外加固定费用\"，请直接写完整计费公式。": ""
+    "X 也可以小于 1，当折扣用。想做\"只给输出加价\"或\"额外加固定费用\"，请直接写完整计费公式。": "",
+    "代码执行风控": "Contrôle des exécutions de code",
+    "代码执行豁免分组": "Groupes exemptés d'exécution de code",
+    "代码执行违规阈值": "Seuil de violation d'exécution de code",
+    "到期时间": "Date d'expiration",
+    "逗号或换行分隔。这些分组里执行代码不计数（默认仅 coding）；但一旦触发限速，限速对所有分组生效": "Séparés par des virgules ou des retours à la ligne. L'exécution de code dans ces groupes n'est pas comptée (coding uniquement par défaut) ; une fois déclenchée, la limitation s'applique à tous les groupes.",
+    "该用户正被自动风控限速": "Cet utilisateur est limité par le contrôle automatique des risques",
+    "解除限速": "Supprimer la limitation",
+    "每分钟请求上限": "Limite de requêtes par minute",
+    "同一用户累计真实代码执行达到此次数后自动限速。同一 tool_call_id 在 24 小时内只计一次": "L'utilisateur est limité après avoir accumulé ce nombre d'exécutions de code réelles. Un même tool_call_id n'est compté qu'une fois par 24 heures.",
+    "已解除该用户的限速": "Limitation supprimée pour cet utilisateur",
+    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "Lorsqu'un utilisateur exécute réellement du code (commandes shell / écritures de fichiers dont les résultats d'outils ont bien été renvoyés) dans un groupe non exempté et atteint le seuil, une limitation globale (RPM 1, concurrence 1, 24 heures) est appliquée à cet utilisateur. Le compte n'est pas banni et un administrateur peut la lever. Les presets Tavern qui déclarent seulement des outils sans aller-retour tool_call_id ne sont pas comptés."
   }
 }

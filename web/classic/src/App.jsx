@@ -22,6 +22,7 @@ import { Route, Routes, useLocation, useParams } from 'react-router-dom';
 import Loading from './components/common/ui/Loading';
 import User from './pages/User';
 import ModelFeedback from './pages/ModelFeedback';
+import Invite from './pages/Invite';
 import { AuthRedirect, PrivateRoute, AdminRoute } from './helpers';
 import RegisterForm from './components/auth/RegisterForm';
 import LoginForm from './components/auth/LoginForm';
@@ -186,6 +187,8 @@ function App() {
             </AdminRoute>
           }
         />
+        {/* 注册审核：申请人无需登录即可查询进度，审查员视图由页面内按权限切换 */}
+        <Route path='/invite' element={<Invite />} />
         <Route
           path='/user/reset'
           element={

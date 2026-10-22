@@ -81,6 +81,8 @@ const RegisterForm = () => {
     email: '',
     verification_code: '',
     wechat_verification_code: '',
+    review_reason: '',
+    review_contact: '',
   });
   const { username, password, password2 } = inputs;
   const [userState, userDispatch] = useContext(UserContext);
@@ -148,6 +150,8 @@ const RegisterForm = () => {
   const affCodeRequired = Boolean(status.aff_code_required);
   // 邀请专属 DC 准入开启时，注册仅保留 Discord 入口，由后端 /api/status 下发
   const affDiscordGating = Boolean(status.aff_discord_gating);
+  // 注册审核开启时，注册只提交申请，需填写申请理由与联系方式，审核通过前无法登录
+  const registerReviewEnabled = Boolean(status.register_review_enabled);
   const [affCodeInput, setAffCodeInput] = useState(
     () =>
       new URLSearchParams(window.location.search).get('aff') ||
@@ -261,6 +265,14 @@ const RegisterForm = () => {
         showInfo('本站需要邀请码才能注册，请填写邀请码');
         return;
       }
+      if (registerReviewEnabled && !(inputs.review_reason || '').trim()) {
+        showInfo('请填写申请理由');
+        return;
+      }
+      if (registerReviewEnabled && !(inputs.review_contact || '').trim()) {
+        showInfo('请填写联系方式');
+        return;
+      }
       if (turnstileEnabled && turnstileToken === '') {
         showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
         return;
@@ -272,8 +284,15 @@ const RegisterForm = () => {
           `/api/user/register?turnstile=${turnstileToken}`,
           inputs,
         );
-        const { success, message } = res.data;
+        const { success, message, data } = res.data;
         if (success) {
+          // 开启注册审核时注册只是提交申请，引导申请人去 /invite 查看审核进度
+          if (data?.review_required) {
+            const reviewName = data.username || username;
+            navigate(`/invite?username=${encodeURIComponent(reviewName)}`);
+            showSuccess('申请已提交，请等待审核');
+            return;
+          }
           navigate('/login');
           showSuccess('注册成功！');
         } else {
@@ -464,6 +483,18 @@ const RegisterForm = () => {
                 </div>
               )}
               <div className='space-y-3'>
+                {registerReviewEnabled && (
+                  <div className='p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'>
+                    <Text
+                      size='small'
+                      className='!text-amber-700 dark:!text-amber-300'
+                    >
+                      {t(
+                        '本站开启注册审核，请使用下方「用户名注册」提交申请，通过后才能登录；第三方登录注册暂不可用',
+                      )}
+                    </Text>
+                  </div>
+                )}
                 {status.wechat_login && !affDiscordGating && (
                   <Button
                     theme='outline'
@@ -649,6 +680,43 @@ const RegisterForm = () => {
                       '本站需要邀请码才能注册，请向邀请人索取邀请链接',
                     )}
                   />
+                )}
+
+                {registerReviewEnabled && (
+                  <>
+                    <Form.TextArea
+                      field='review_reason'
+                      label={
+                        <>
+                          {t('申请理由')}
+                          <span className='text-red-500 ml-1'>*</span>
+                        </>
+                      }
+                      placeholder={t('请说明你的使用场景与申请理由')}
+                      name='review_reason'
+                      autosize={{ minRows: 3, maxRows: 6 }}
+                      maxCount={500}
+                      onChange={(value) => handleChange('review_reason', value)}
+                      extraText={t('本站开启人工审核，审核通过后才能登录')}
+                    />
+                    <Form.Input
+                      field='review_contact'
+                      label={
+                        <>
+                          {t('联系方式')}
+                          <span className='text-red-500 ml-1'>*</span>
+                        </>
+                      }
+                      placeholder={t('Discord 用户名或 ID')}
+                      name='review_contact'
+                      onChange={(value) =>
+                        handleChange('review_contact', value)
+                      }
+                      extraText={t(
+                        '建议填写 Discord 用户名或 ID，审核时可核验服务器身份',
+                      )}
+                    />
+                  </>
                 )}
 
                 <Form.Input

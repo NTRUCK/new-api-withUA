@@ -56,6 +56,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     user: true,
     subscription: true,
     feedback: true,
+    invite: true,
     content_audit: true,
     setting: true,
   },

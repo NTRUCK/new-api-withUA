@@ -127,6 +127,40 @@ var UserAgentGroupBlacklist = map[string][]string{}
 // UserAgentGroupBanThreshold 分组黑/白名单累计违规多少次后封禁用户（默认 5）。
 var UserAgentGroupBanThreshold = 5
 
+// CodeExecRateLimitThreshold 非 coding 分组真实执行代码累计多少次后自动限速用户（默认 3）。
+var CodeExecRateLimitThreshold = 3
+
+// CodeExecRateLimitExemptGroups 允许无限制执行代码的分组（默认仅 coding）。
+var CodeExecRateLimitExemptGroups = map[string]struct{}{"coding": {}}
+
+func IsCodeExecRateLimitExemptGroup(group string) bool {
+	_, ok := CodeExecRateLimitExemptGroups[group]
+	return ok
+}
+
+func CodeExecRateLimitExemptGroupsToString() string {
+	groups := make([]string, 0, len(CodeExecRateLimitExemptGroups))
+	for g := range CodeExecRateLimitExemptGroups {
+		groups = append(groups, g)
+	}
+	sort.Strings(groups)
+	return strings.Join(groups, ",")
+}
+
+func CodeExecRateLimitExemptGroupsFromString(s string) {
+	CodeExecRateLimitExemptGroups = map[string]struct{}{}
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r' || r == ' ' || r == '\t'
+	}) {
+		if g := strings.TrimSpace(part); g != "" {
+			CodeExecRateLimitExemptGroups[g] = struct{}{}
+		}
+	}
+	if len(CodeExecRateLimitExemptGroups) == 0 {
+		CodeExecRateLimitExemptGroups["coding"] = struct{}{}
+	}
+}
+
 // UserAgentGroupExemptUserIds 仅豁免分组级 UA 黑/白名单，仍受全局违规 UA 关键词限制。
 var UserAgentGroupExemptUserIds = map[int]struct{}{}
 
