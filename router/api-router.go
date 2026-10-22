@@ -46,6 +46,13 @@ func SetApiRouter(router *gin.Engine) {
 			violationAdminRoute.DELETE("", controller.AdminRemoveAllViolations)
 			violationAdminRoute.DELETE("/:user_id", controller.AdminRemoveViolation)
 		}
+		// 风控面板：查看/解除代码执行自动限速
+		riskAdminRoute := apiRouter.Group("/risk")
+		riskAdminRoute.Use(middleware.AdminAuth(), middleware.CriticalRateLimit())
+		{
+			riskAdminRoute.GET("/limited_users", controller.GetRiskLimitedUsers)
+			riskAdminRoute.POST("/unlimit", controller.BatchUnlimitRiskUsers)
+		}
 		// 模型反馈：登录用户提交，管理员查看/处理
 		modelFeedbackRoute := apiRouter.Group("/model_feedback")
 		{

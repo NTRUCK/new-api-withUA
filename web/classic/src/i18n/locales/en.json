@@ -4494,6 +4494,19 @@
     "每分钟请求上限": "Requests per minute limit",
     "同一用户累计真实代码执行达到此次数后自动限速。同一 tool_call_id 在 24 小时内只计一次": "The user is rate limited after accumulating this many genuine code executions. The same tool_call_id is counted only once per 24 hours.",
     "已解除该用户的限速": "Rate limit removed for this user",
-    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "When a user genuinely executes code (shell commands / file writes whose tool results were actually returned) in a non-exempt group and reaches the threshold, a global rate limit (RPM 1, concurrency 1, 24 hours) is applied to that user. The account is not banned and admins can lift it. Tavern presets that only declare tools without a tool_call_id round-trip are not counted."
+    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "When a user genuinely executes code (shell commands / file writes whose tool results were actually returned) in a non-exempt group and reaches the threshold, a global rate limit (RPM 1, concurrency 1, 24 hours) is applied to that user. The account is not banned and admins can lift it. Tavern presets that only declare tools without a tool_call_id round-trip are not counted.",
+    "风控": "Risk Control",
+    "当前限速用户": "Rate-limited users",
+    "触发分组": "Trigger group",
+    "触发次数": "Trigger count",
+    "最近工具调用": "Recent tool calls",
+    "限速力度": "Rate limit",
+    "批量解除": "Batch remove",
+    "确认解除限速": "Confirm removing rate limit",
+    "确定解除选中 {{count}} 个用户的限速吗？": "Remove the rate limit for the {{count}} selected user(s)?",
+    "已解除 {{count}} 个用户的限速": "Rate limit removed for {{count}} user(s)",
+    "暂无被限速的用户": "No rate-limited users",
+    "搜索 UID 或用户名": "Search UID or username",
+    "仅在非豁免分组中累计真实代码执行（tool_call_id 闭环），达到阈值后对该用户全局限速 24 小时：每分钟 1 次、并发 1。解除后立即恢复原有限制。": "Only genuine code executions (closed tool_call_id loops) in non-exempt groups are counted. Once the threshold is reached, the user is globally rate limited for 24 hours: 1 request per minute, concurrency 1. Removing the limit restores the original limits immediately."
   }
 }

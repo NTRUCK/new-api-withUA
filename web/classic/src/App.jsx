@@ -54,6 +54,7 @@ import PersonalSetting from './components/settings/PersonalSetting';
 import Setup from './pages/Setup';
 import SetupCheck from './components/layout/SetupCheck';
 import Violations from './pages/Violations';
+import Risk from './pages/Risk';
 import ModelHealth from './pages/ModelHealth';
 import ContentAudit from './pages/ContentAudit';
 import QuotaQuery from './pages/QuotaQuery';
@@ -407,6 +408,14 @@ function App() {
           }
         />
         <Route path='/model-health' element={<ModelHealth />} />
+        <Route
+          path='/risk'
+          element={
+            <AdminRoute>
+              <Risk />
+            </AdminRoute>
+          }
+        />
         {/* 内容审计面板：独立密码鉴权，故不套 AdminRoute */}
         <Route path='/content-audit' element={<ContentAudit />} />
         <Route

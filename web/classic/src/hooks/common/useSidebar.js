@@ -58,6 +58,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     feedback: true,
     invite: true,
     content_audit: true,
+    risk: true,
     setting: true,
   },
 };

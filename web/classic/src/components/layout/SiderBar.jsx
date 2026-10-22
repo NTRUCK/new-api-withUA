@@ -52,6 +52,7 @@ const routerMap = {
   feedback: '/console/feedback',
   invite: '/invite',
   content_audit: '/content-audit',
+  risk: '/risk',
   dice_game: '/console/dice-game',
   dice_welfare: '/console/dice-welfare',
   quota_query: '/console/quota-query',
@@ -249,6 +250,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('内容审计'),
         itemKey: 'content_audit',
         to: '/content-audit',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('风控'),
+        itemKey: 'risk',
+        to: '/risk',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

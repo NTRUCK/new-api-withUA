@@ -4852,6 +4852,19 @@
     "每分钟请求上限": "Giới hạn yêu cầu mỗi phút",
     "同一用户累计真实代码执行达到此次数后自动限速。同一 tool_call_id 在 24 小时内只计一次": "Người dùng bị giới hạn sau khi tích lũy số lần thực thi mã thực tế này. Cùng một tool_call_id chỉ được tính một lần trong 24 giờ.",
     "已解除该用户的限速": "Đã gỡ giới hạn cho người dùng này",
-    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "Khi người dùng thực sự thực thi mã (lệnh shell / ghi tệp mà kết quả công cụ thực sự được trả về) trong nhóm không được miễn và đạt ngưỡng, hệ thống sẽ áp dụng giới hạn toàn cục (RPM 1, đồng thời 1, 24 giờ) cho người dùng đó. Tài khoản không bị cấm và quản trị viên có thể gỡ bỏ. Các preset Tavern chỉ khai báo công cụ mà không có vòng lặp tool_call_id sẽ không được tính."
+    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "Khi người dùng thực sự thực thi mã (lệnh shell / ghi tệp mà kết quả công cụ thực sự được trả về) trong nhóm không được miễn và đạt ngưỡng, hệ thống sẽ áp dụng giới hạn toàn cục (RPM 1, đồng thời 1, 24 giờ) cho người dùng đó. Tài khoản không bị cấm và quản trị viên có thể gỡ bỏ. Các preset Tavern chỉ khai báo công cụ mà không có vòng lặp tool_call_id sẽ không được tính.",
+    "风控": "Kiểm soát rủi ro",
+    "当前限速用户": "Người dùng đang bị giới hạn",
+    "触发分组": "Nhóm kích hoạt",
+    "触发次数": "Số lần kích hoạt",
+    "最近工具调用": "Lệnh gọi công cụ gần nhất",
+    "限速力度": "Mức giới hạn",
+    "批量解除": "Gỡ hàng loạt",
+    "确认解除限速": "Xác nhận gỡ giới hạn",
+    "确定解除选中 {{count}} 个用户的限速吗？": "Gỡ giới hạn tốc độ cho {{count}} người dùng đã chọn?",
+    "已解除 {{count}} 个用户的限速": "Đã gỡ giới hạn cho {{count}} người dùng",
+    "暂无被限速的用户": "Không có người dùng bị giới hạn",
+    "搜索 UID 或用户名": "Tìm UID hoặc tên người dùng",
+    "仅在非豁免分组中累计真实代码执行（tool_call_id 闭环），达到阈值后对该用户全局限速 24 小时：每分钟 1 次、并发 1。解除后立即恢复原有限制。": "Chỉ tính các lần thực thi mã thực sự (vòng lặp tool_call_id khép kín) trong các nhóm không được miễn trừ. Khi đạt ngưỡng, người dùng bị giới hạn toàn cục trong 24 giờ: 1 yêu cầu mỗi phút, đồng thời 1. Sau khi gỡ, giới hạn ban đầu được khôi phục ngay lập tức."
   }
 }

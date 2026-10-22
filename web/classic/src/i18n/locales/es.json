@@ -4494,6 +4494,19 @@
     "每分钟请求上限": "Límite de solicitudes por minuto",
     "同一用户累计真实代码执行达到此次数后自动限速。同一 tool_call_id 在 24 小时内只计一次": "El usuario se limita tras acumular este número de ejecuciones reales de código. El mismo tool_call_id solo se cuenta una vez cada 24 horas.",
     "已解除该用户的限速": "Límite eliminado para este usuario",
-    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "Cuando un usuario ejecuta realmente código (comandos de shell / escritura de archivos cuyos resultados de herramientas se devolvieron realmente) en un grupo no exento y alcanza el umbral, se le aplica un límite global (RPM 1, concurrencia 1, 24 horas). La cuenta no se bloquea y un administrador puede levantarlo. Los presets de Tavern que solo declaran herramientas sin una ida y vuelta de tool_call_id no se contabilizan."
+    "在非豁免分组里真实执行代码（命令行 / 文件写入，且工具结果已回传）累计达到阈值后，对该用户写入全局限速（RPM 1、并发 1，持续 24 小时），不封号，管理员可解除。仅声明工具、没有 tool_call_id 回环的酒馆预设不会被计入。": "Cuando un usuario ejecuta realmente código (comandos de shell / escritura de archivos cuyos resultados de herramientas se devolvieron realmente) en un grupo no exento y alcanza el umbral, se le aplica un límite global (RPM 1, concurrencia 1, 24 horas). La cuenta no se bloquea y un administrador puede levantarlo. Los presets de Tavern que solo declaran herramientas sin una ida y vuelta de tool_call_id no se contabilizan.",
+    "风控": "Control de riesgos",
+    "当前限速用户": "Usuarios limitados",
+    "触发分组": "Grupo de activación",
+    "触发次数": "Número de activaciones",
+    "最近工具调用": "Últimas llamadas a herramientas",
+    "限速力度": "Límite de velocidad",
+    "批量解除": "Eliminación por lotes",
+    "确认解除限速": "Confirmar eliminación del límite",
+    "确定解除选中 {{count}} 个用户的限速吗？": "¿Eliminar el límite de velocidad de los {{count}} usuarios seleccionados?",
+    "已解除 {{count}} 个用户的限速": "Límite eliminado para {{count}} usuarios",
+    "暂无被限速的用户": "No hay usuarios limitados",
+    "搜索 UID 或用户名": "Buscar UID o nombre de usuario",
+    "仅在非豁免分组中累计真实代码执行（tool_call_id 闭环），达到阈值后对该用户全局限速 24 小时：每分钟 1 次、并发 1。解除后立即恢复原有限制。": "Solo se cuentan las ejecuciones de código reales (bucle cerrado de tool_call_id) en grupos no exentos. Al alcanzar el umbral, el usuario queda limitado globalmente durante 24 horas: 1 solicitud por minuto, concurrencia 1. Al eliminar el límite se restablecen de inmediato los límites originales."
   }
 }
