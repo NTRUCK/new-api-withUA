@@ -243,6 +243,7 @@ const EditChannelModal = (props) => {
     kiro_credit_used_initial: 0,
     kiro_plan_template: '',
     kiro_plan_count: 0,
+    clamp_inflated_prompt_tokens: false,
     settings: '',
     // 仅 Vertex: 密钥格式（存入 settings.vertex_key_type）
     vertex_key_type: 'json',
@@ -575,6 +576,7 @@ const EditChannelModal = (props) => {
     kiro_credit_used_initial: 0,
     kiro_plan_template: '',
     kiro_plan_count: 0,
+    clamp_inflated_prompt_tokens: false,
   });
   const showApiConfigCard = true; // 控制是否显示 API 配置卡片
   const getInitValues = () => ({ ...originInputs });
@@ -970,8 +972,7 @@ const EditChannelModal = (props) => {
           data.hide_upstream_info = parsedSettings.hide_upstream_info === true;
           data.max_concurrency = Number(parsedSettings.max_concurrency) || 0;
           data.max_rpm = Number(parsedSettings.max_rpm) || 0;
-          data.max_input_tokens =
-            Number(parsedSettings.max_input_tokens) || 0;
+          data.max_input_tokens = Number(parsedSettings.max_input_tokens) || 0;
           data.max_input_tokens_by_group = maxInputTokensByGroupToText(
             parsedSettings.max_input_tokens_by_group,
           );
@@ -987,10 +988,11 @@ const EditChannelModal = (props) => {
           data.kiro_credit_limit =
             Number(parsedSettings.kiro_credit_limit) || 0;
           data.kiro_plan_template = parsedSettings.kiro_plan_template || '';
-          data.kiro_plan_count =
-            Number(parsedSettings.kiro_plan_count) || 0;
+          data.kiro_plan_count = Number(parsedSettings.kiro_plan_count) || 0;
           data.kiro_credit_used_initial =
             Number(parsedSettings.kiro_credit_used_initial) || 0;
+          data.clamp_inflated_prompt_tokens =
+            parsedSettings.clamp_inflated_prompt_tokens === true;
         } catch (error) {
           console.error('解析渠道设置失败:', error);
           data.force_format = false;
@@ -1010,6 +1012,7 @@ const EditChannelModal = (props) => {
           data.kiro_plan_template = '';
           data.kiro_plan_count = 0;
           data.kiro_credit_used_initial = 0;
+          data.clamp_inflated_prompt_tokens = false;
         }
       } else {
         data.force_format = false;
@@ -1029,6 +1032,7 @@ const EditChannelModal = (props) => {
         data.kiro_plan_template = '';
         data.kiro_plan_count = 0;
         data.kiro_credit_used_initial = 0;
+        data.clamp_inflated_prompt_tokens = false;
       }
 
       if (data.settings) {
@@ -1188,6 +1192,7 @@ const EditChannelModal = (props) => {
         data.claude_beta_query ||
         data.system_prompt_override ||
         data.kiro_credit_sim ||
+        data.clamp_inflated_prompt_tokens ||
         (Number(data.kiro_credit_limit) || 0) > 0;
       if (hasAdvancedValues) {
         setAdvancedSettingsOpen(true);
@@ -1578,6 +1583,7 @@ const EditChannelModal = (props) => {
       kiro_credit_used_initial: 0,
       kiro_plan_template: '',
       kiro_plan_count: 0,
+      clamp_inflated_prompt_tokens: false,
     });
     // 重置密钥模式状态
     setKeyMode('append');
@@ -1974,6 +1980,8 @@ const EditChannelModal = (props) => {
       kiro_plan_count: Number(localInputs.kiro_plan_count) || 0,
       kiro_credit_used_initial:
         Number(localInputs.kiro_credit_used_initial) || 0,
+      clamp_inflated_prompt_tokens:
+        localInputs.clamp_inflated_prompt_tokens === true,
     };
     localInputs.setting = JSON.stringify(channelExtraSettings);
 
@@ -2066,6 +2074,7 @@ const EditChannelModal = (props) => {
     delete localInputs.kiro_plan_template;
     delete localInputs.kiro_plan_count;
     delete localInputs.kiro_credit_used_initial;
+    delete localInputs.clamp_inflated_prompt_tokens;
     delete localInputs.is_enterprise_account;
     // 顶层的 vertex_key_type 不应发送给后端
     delete localInputs.vertex_key_type;
@@ -3021,7 +3030,9 @@ const EditChannelModal = (props) => {
                   {inputs.kiro_credit_sim && (
                     <Form.InputNumber
                       field='kiro_tokens_per_credit'
-                      label={t('Kiro 基线：每 1 credit 对应 token 数（Auto 1.0x）')}
+                      label={t(
+                        'Kiro 基线：每 1 credit 对应 token 数（Auto 1.0x）',
+                      )}
                       placeholder={t('填 0 使用默认 50000')}
                       min={0}
                       step={5000}
@@ -3044,9 +3055,18 @@ const EditChannelModal = (props) => {
                       optionList={[
                         { label: t('自定义（直接填月度总额）'), value: '' },
                         { label: 'Pro — $20 / 1,000 credits', value: 'pro' },
-                        { label: 'Pro+ — $40 / 2,000 credits', value: 'pro_plus' },
-                        { label: 'Pro Max — $100 / 5,000 credits', value: 'pro_max' },
-                        { label: 'Power — $200 / 10,000 credits', value: 'power' },
+                        {
+                          label: 'Pro+ — $40 / 2,000 credits',
+                          value: 'pro_plus',
+                        },
+                        {
+                          label: 'Pro Max — $100 / 5,000 credits',
+                          value: 'pro_max',
+                        },
+                        {
+                          label: 'Power — $200 / 10,000 credits',
+                          value: 'power',
+                        },
                       ]}
                       showClear
                       onChange={handleKiroPlanTemplateChange}
@@ -3101,6 +3121,21 @@ const EditChannelModal = (props) => {
                       )}
                     />
                   )}
+                  <Form.Switch
+                    field='clamp_inflated_prompt_tokens'
+                    label={t('上游用量兜底')}
+                    checkedText={t('开')}
+                    uncheckedText={t('关')}
+                    onChange={(value) =>
+                      handleChannelSettingsChange(
+                        'clamp_inflated_prompt_tokens',
+                        value,
+                      )
+                    }
+                    extraText={t(
+                      '开启后，上游返回的输入 token 超过本地估算 1.3 倍时改用本地估算值计费，缓存字段按同比例缩放；正常请求与缓存折扣不受影响，适合会重复累加缓存的中转渠道',
+                    )}
+                  />
                   <Form.Switch
                     field='pass_through_body_enabled'
                     label={t('透传请求体')}

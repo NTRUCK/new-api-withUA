@@ -4354,6 +4354,8 @@
     "已解除 {{count}} 个用户的限速": "Limite supprimée pour {{count}} utilisateur(s)",
     "暂无被限速的用户": "Aucun utilisateur limité",
     "搜索 UID 或用户名": "Rechercher un UID ou un nom d'utilisateur",
-    "仅在非豁免分组中累计真实代码执行（tool_call_id 闭环），达到阈值后对该用户全局限速 24 小时：每分钟 1 次、并发 1。解除后立即恢复原有限制。": "Seules les exécutions de code réelles (boucle tool_call_id fermée) dans les groupes non exemptés sont comptées. Une fois le seuil atteint, l'utilisateur est limité globalement pendant 24 heures : 1 requête par minute, concurrence 1. La suppression de la limite rétablit immédiatement les limites d'origine."
+    "仅在非豁免分组中累计真实代码执行（tool_call_id 闭环），达到阈值后对该用户全局限速 24 小时：每分钟 1 次、并发 1。解除后立即恢复原有限制。": "Seules les exécutions de code réelles (boucle tool_call_id fermée) dans les groupes non exemptés sont comptées. Une fois le seuil atteint, l'utilisateur est limité globalement pendant 24 heures : 1 requête par minute, concurrence 1. La suppression de la limite rétablit immédiatement les limites d'origine.",
+    "上游用量兜底": "Repli sur l'estimation locale",
+    "开启后，上游返回的输入 token 超过本地估算 1.3 倍时改用本地估算值计费，缓存字段按同比例缩放；正常请求与缓存折扣不受影响，适合会重复累加缓存的中转渠道": "Si activé, lorsque les tokens d'entrée renvoyés par l'amont dépassent 1,3x l'estimation locale, la facturation utilise l'estimation locale et les champs de cache sont mis à l'échelle proportionnellement. Les requêtes normales et les remises de cache ne sont pas affectées. Convient aux canaux relais qui cumulent les tokens en cache."
   }
 }
