@@ -129,11 +129,18 @@ func HandleOAuth(c *gin.Context) {
 		}
 	}
 
-	// 6.7 注册分组：新用户注册时按 Discord 身份组分配用户组，
+	// 6.7 注册分组：仅普通注册（不带邀请码）生效，带邀请码的注册仍分配默认用户组。
 	// 命中多条取优先级最高者；启用后未命中任何规则则拒绝注册。
 	registerGroup := ""
+	isInviteRegister := false
+	if aff := session.Get("aff"); aff != nil {
+		if affCode, ok := aff.(string); ok && strings.TrimSpace(affCode) != "" {
+			isInviteRegister = true
+		}
+	}
 	if provider.GetName() == "Discord" &&
 		system_setting.GetDiscordSettings().RoleGroupEnabled &&
+		!isInviteRegister &&
 		!provider.IsUserIDTaken(oauthUser.ProviderUserID) {
 		group, err := oauth.ResolveRegisterGroup(c, token)
 		if err != nil {

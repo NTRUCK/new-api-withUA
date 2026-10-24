@@ -2109,7 +2109,7 @@ const SystemSetting = () => {
                         style={{ display: 'block', marginBottom: 8 }}
                       >
                         {t(
-                          '仅对新用户注册生效；同一用户命中多条规则时取权重数字最大者，未命中任何规则将被拒绝注册。',
+                          '仅对不带邀请码的新用户（普通注册）生效；同一用户命中多条规则时取权重数字最大者，未命中任何规则将被拒绝注册。带邀请码的注册仍分配默认用户组。',
                         )}
                       </Text>
                       <div
@@ -2234,7 +2234,7 @@ const SystemSetting = () => {
                         style={{ display: 'block', marginBottom: 8 }}
                       >
                         {t(
-                          '输入 Discord 用户 ID 或用户名，用当前规则模拟其注册后将被分配的用户组。需在注册审核设置中配置 Discord Bot Token。',
+                          '输入 Discord 用户 ID 或用户名，模拟其普通注册后将被分配的用户组。需在注册审核设置中配置 Discord Bot Token。',
                         )}
                       </Text>
                       <div style={{ display: 'flex', gap: 8 }}>
