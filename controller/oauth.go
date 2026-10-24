@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/i18n"
@@ -424,6 +425,94 @@ func applyDiscordOAuthProfile(user *model.User, oauthUser *oauth.OAuthUser) {
 	user.DiscordUsername, _ = oauthUser.Extra["discord_username"].(string)
 	user.DiscordGlobalName, _ = oauthUser.Extra["discord_global_name"].(string)
 	user.DiscordAvatar, _ = oauthUser.Extra["discord_avatar"].(string)
+}
+
+type discordRoleGroupPreviewRequest struct {
+	Query string                                `json:"query"`
+	Rules []system_setting.DiscordRoleGroupRule `json:"rules"`
+}
+
+// PreviewDiscordRoleGroup 用 Bot Token 查询指定 Discord 用户的服务器成员与身份组，
+// 并按当前编辑中的规则计算其注册时将被分配的用户组，供管理端保存前验证配置。
+func PreviewDiscordRoleGroup(c *gin.Context) {
+	var req discordRoleGroupPreviewRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		common.ApiErrorMsg(c, "参数错误")
+		return
+	}
+	query := strings.TrimSpace(req.Query)
+	if query == "" {
+		common.ApiErrorMsg(c, "请输入 Discord 用户 ID 或用户名")
+		return
+	}
+
+	rules := make([]system_setting.DiscordRoleGroupRule, 0, len(req.Rules))
+	guildIds := make([]string, 0, len(req.Rules))
+	seen := make(map[string]struct{})
+	for _, rule := range req.Rules {
+		guildId := strings.TrimSpace(rule.GuildId)
+		group := strings.TrimSpace(rule.Group)
+		if guildId == "" || group == "" {
+			continue
+		}
+		rule.GuildId = guildId
+		rule.RoleId = strings.TrimSpace(rule.RoleId)
+		rule.Group = group
+		rules = append(rules, rule)
+		if _, ok := seen[guildId]; !ok {
+			seen[guildId] = struct{}{}
+			guildIds = append(guildIds, guildId)
+		}
+	}
+	if len(rules) == 0 {
+		common.ApiErrorMsg(c, "请先添加至少一条有效的注册分组规则")
+		return
+	}
+
+	result, err := service.LookupDiscordUserInGuilds(query, guildIds)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	matchedGroup := ""
+	matchedIndex := -1
+	matchedPriority := 0
+	for i, rule := range rules {
+		var membership *service.DiscordGuildMembership
+		for j := range result.Memberships {
+			if result.Memberships[j].GuildId == rule.GuildId {
+				membership = &result.Memberships[j]
+				break
+			}
+		}
+		if membership == nil || !membership.InGuild {
+			continue
+		}
+		if rule.RoleId != "" && !hasDiscordRole(membership.Roles, rule.RoleId) {
+			continue
+		}
+		if matchedIndex == -1 || rule.Priority > matchedPriority {
+			matchedGroup = rule.Group
+			matchedIndex = i
+			matchedPriority = rule.Priority
+		}
+	}
+
+	common.ApiSuccess(c, gin.H{
+		"user":               result,
+		"matched_group":      matchedGroup,
+		"matched_rule_index": matchedIndex,
+	})
+}
+
+func hasDiscordRole(roles []service.DiscordRoleInfo, roleId string) bool {
+	for _, role := range roles {
+		if role.Id == roleId {
+			return true
+		}
+	}
+	return false
 }
 
 // Error types for OAuth

@@ -31,7 +31,12 @@ import {
   Card,
   Radio,
   Select,
+  Input,
+  InputNumber,
+  Popconfirm,
+  Tag,
 } from '@douyinfe/semi-ui';
+import { IconPlus, IconDelete } from '@douyinfe/semi-icons';
 const { Text } = Typography;
 import {
   API,
@@ -97,59 +102,22 @@ const guildRuleGroupsToText = (raw) => {
     .join('\n');
 };
 
-// 注册分组规则：每行「服务器ID,身份组ID,用户组,优先级」。
-// 身份组ID 可留空（表示该服务器任意成员），优先级可省略（默认 0）。返回 [{guild_id, role_id, group, priority}]。
-const parseRoleGroupRules = (text) => {
-  const lines = (text || '')
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean);
-  return lines.map((line) => {
-    const [guildId, roleId, group, priority] = line
-      .split(/[,，]/)
-      .map((s) => (s || '').trim());
-    if (!/^\d+$/.test(guildId || '')) {
-      throw new Error('invalid role group rule');
-    }
-    if (roleId && !/^\d+$/.test(roleId)) {
-      throw new Error('invalid role group rule');
-    }
-    if (!group) {
-      throw new Error('invalid role group rule');
-    }
-    let priorityValue = 0;
-    if (priority) {
-      if (!/^-?\d+$/.test(priority)) {
-        throw new Error('invalid role group rule');
-      }
-      priorityValue = parseInt(priority, 10);
-    }
-    return {
-      guild_id: guildId,
-      role_id: roleId || '',
-      group,
-      priority: priorityValue,
-    };
-  });
-};
+// 内置 Discord 服务器与身份组（注册分组配置用）
+const DISCORD_GUILDS = [
+  {
+    id: '1134557553011998840',
+    name: '类脑',
+    roles: [{ id: '1335363403870502912', name: '已验证' }],
+  },
+  {
+    id: '1516472025751879829',
+    name: 'NTRUCK DO',
+    roles: [{ id: '1541790690340642818', name: '牛友' }],
+  },
+];
 
-// 后端存储的注册分组规则 → 文本框内容
-const roleGroupRulesToText = (raw) => {
-  if (!Array.isArray(raw) || raw.length === 0) {
-    return '';
-  }
-  return raw
-    .filter((rule) => rule && rule.guild_id && rule.group)
-    .map((rule) =>
-      [
-        rule.guild_id,
-        rule.role_id || '',
-        rule.group,
-        rule.priority ? String(rule.priority) : '',
-      ].join(','),
-    )
-    .join('\n');
-};
+const discordGuildById = (guildId) =>
+  DISCORD_GUILDS.find((guild) => guild.id === guildId);
 
 const SystemSetting = () => {
   const { t } = useTranslation();
@@ -256,6 +224,13 @@ const SystemSetting = () => {
     enabled: null,
     deregistered: null,
   });
+  // 注册分组规则（结构化编辑）与可选用户组
+  const [roleGroupRules, setRoleGroupRules] = useState([]);
+  const [groupOptions, setGroupOptions] = useState([]);
+  // 注册分组验证：输入 Discord 用户，模拟其将被分配的用户组
+  const [previewQuery, setPreviewQuery] = useState('');
+  const [previewResult, setPreviewResult] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const fetchUserStatusCounts = async () => {
     try {
@@ -370,16 +345,21 @@ const SystemSetting = () => {
           case 'discord.guild_rules_match':
             item.value = item.value === 'all' ? 'all' : 'any';
             break;
-          case 'discord.role_group_rules':
-            // 注册分组 JSON → 每行「服务器ID,身份组ID,用户组,优先级」
+          case 'discord.role_group_rules': {
+            // 注册分组规则 JSON → 结构化数组编辑；规范化后存回 inputs 供比较
+            let parsedRules = [];
             try {
-              item.value = roleGroupRulesToText(
-                item.value ? JSON.parse(item.value) : [],
-              );
+              parsedRules = item.value ? JSON.parse(item.value) : [];
             } catch (e) {
-              item.value = '';
+              parsedRules = [];
             }
+            if (!Array.isArray(parsedRules)) {
+              parsedRules = [];
+            }
+            setRoleGroupRules(parsedRules);
+            item.value = JSON.stringify(parsedRules);
             break;
+          }
           case 'discord.aff_guild_rules_match':
             item.value = item.value === 'all' ? 'all' : 'any';
             break;
@@ -413,9 +393,22 @@ const SystemSetting = () => {
     setLoading(false);
   };
 
+  // 可选用户组列表（来自分组倍率配置）
+  const loadGroupOptions = async () => {
+    try {
+      const res = await API.get('/api/group/');
+      if (res.data.success) {
+        setGroupOptions([...(res.data.data || [])].sort());
+      }
+    } catch (e) {
+      // 分组列表获取失败不影响其它设置
+    }
+  };
+
   useEffect(() => {
     getOptions();
     fetchUserStatusCounts();
+    loadGroupOptions();
   }, []);
 
   const updateOptions = async (options) => {
@@ -697,6 +690,54 @@ const SystemSetting = () => {
     }
   };
 
+  const updateRoleGroupRule = (index, patch) => {
+    setRoleGroupRules((rules) =>
+      rules.map((rule, i) => (i === index ? { ...rule, ...patch } : rule)),
+    );
+  };
+
+  const addRoleGroupRule = () => {
+    setRoleGroupRules([
+      ...roleGroupRules,
+      { guild_id: DISCORD_GUILDS[0].id, role_id: '', group: '', priority: 0 },
+    ]);
+  };
+
+  const removeRoleGroupRule = (index) => {
+    setRoleGroupRules(roleGroupRules.filter((_, i) => i !== index));
+  };
+
+  // 用 Bot Token 查询指定 Discord 用户，按当前编辑中的规则模拟注册分组
+  const handlePreviewRoleGroup = async () => {
+    const query = previewQuery.trim();
+    if (!query) {
+      showError(t('请输入 Discord 用户 ID 或用户名'));
+      return;
+    }
+    const rules = roleGroupRules.filter((rule) => rule.guild_id && rule.group);
+    if (rules.length === 0) {
+      showError(t('请先添加至少一条有效的注册分组规则'));
+      return;
+    }
+    setPreviewLoading(true);
+    try {
+      const res = await API.post('/api/discord/preview_role_group', {
+        query,
+        rules,
+      });
+      if (res.data.success) {
+        setPreviewResult(res.data.data);
+      } else {
+        setPreviewResult(null);
+        showError(res.data.message);
+      }
+    } catch (e) {
+      setPreviewResult(null);
+      showError(t('验证失败'));
+    }
+    setPreviewLoading(false);
+  };
+
   const submitDiscordOAuth = async () => {
     const options = [];
 
@@ -812,23 +853,19 @@ const SystemSetting = () => {
         value: String(inputs['discord.role_group_enabled']),
       });
     }
-    // 注册分组映射：TextArea 文本 → JSON 数组
-    if (
-      originInputs['discord.role_group_rules'] !==
-      inputs['discord.role_group_rules']
-    ) {
-      let rules;
-      try {
-        rules = parseRoleGroupRules(inputs['discord.role_group_rules']);
-      } catch (e) {
-        showError(
-          t('注册分组规则格式有误：每行应为「服务器ID,身份组ID,用户组,优先级」，身份组与优先级可省略'),
-        );
+    // 注册分组映射：结构化规则 → JSON，保存前校验每条规则完整
+    const nextRoleGroupRules = roleGroupRules.filter(
+      (rule) => rule.guild_id && rule.group,
+    );
+    const nextRoleGroupRulesJson = JSON.stringify(nextRoleGroupRules);
+    if (originInputs['discord.role_group_rules'] !== nextRoleGroupRulesJson) {
+      if (roleGroupRules.some((rule) => !rule.guild_id || !rule.group)) {
+        showError(t('请为每条规则选择服务器与用户组'));
         return;
       }
       options.push({
         key: 'discord.role_group_rules',
-        value: JSON.stringify(rules),
+        value: nextRoleGroupRulesJson,
       });
     }
 
@@ -2060,17 +2097,212 @@ const SystemSetting = () => {
                       />
                     </Col>
                   </Row>
-                  <Form.TextArea
-                    field="['discord.role_group_rules']"
-                    label={t('身份组 → 用户组映射')}
-                    extraText={t(
-                      '仅对新用户注册生效：每行「服务器ID,身份组ID,用户组,优先级」，身份组可省略（省略表示该服务器任意成员），优先级可省略（默认 0）。同一用户命中多条规则时取优先级数字最大者。启用后未命中任何规则将拒绝注册。需 OAuth 授权范围包含 guilds.members.read。',
-                    )}
-                    placeholder={'1134557553011998840,1335363403870502912,vip,10\n1134557553011998840,,default,0'}
-                    autosize={{ minRows: 4, maxRows: 10 }}
-                    disabled={!inputs['discord.role_group_enabled']}
-                    style={{ fontFamily: 'JetBrains Mono, Consolas' }}
-                  />
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} md={14}>
+                      <Text strong>{t('身份组 → 用户组映射')}</Text>
+                      <Text
+                        type='tertiary'
+                        size='small'
+                        style={{ display: 'block', marginBottom: 8 }}
+                      >
+                        {t(
+                          '仅对新用户注册生效；同一用户命中多条规则时取权重数字最大者，未命中任何规则将被拒绝注册。',
+                        )}
+                      </Text>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: 8,
+                          marginBottom: 4,
+                          paddingRight: 32,
+                        }}
+                      >
+                        <Text type='tertiary' size='small' style={{ flex: 28 }}>
+                          {t('服务器')}
+                        </Text>
+                        <Text type='tertiary' size='small' style={{ flex: 30 }}>
+                          {t('身份组')}
+                        </Text>
+                        <Text type='tertiary' size='small' style={{ flex: 28 }}>
+                          {t('用户组')}
+                        </Text>
+                        <Text type='tertiary' size='small' style={{ flex: 14 }}>
+                          {t('权重')}
+                        </Text>
+                      </div>
+                      {roleGroupRules.map((rule, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: 'flex',
+                            gap: 8,
+                            marginBottom: 8,
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Select
+                            size='small'
+                            value={rule.guild_id || undefined}
+                            placeholder={t('服务器')}
+                            optionList={DISCORD_GUILDS.map((guild) => ({
+                              value: guild.id,
+                              label: guild.name,
+                            }))}
+                            onChange={(value) =>
+                              updateRoleGroupRule(index, {
+                                guild_id: value,
+                                role_id: '',
+                              })
+                            }
+                            style={{ flex: 28 }}
+                          />
+                          <Select
+                            size='small'
+                            value={rule.role_id || ''}
+                            placeholder={t('任意成员')}
+                            optionList={[
+                              { value: '', label: t('任意成员') },
+                              ...(
+                                discordGuildById(rule.guild_id)?.roles || []
+                              ).map((role) => ({
+                                value: role.id,
+                                label: role.name,
+                              })),
+                            ]}
+                            onChange={(value) =>
+                              updateRoleGroupRule(index, { role_id: value })
+                            }
+                            style={{ flex: 30 }}
+                          />
+                          <Select
+                            size='small'
+                            filter
+                            value={rule.group || undefined}
+                            placeholder={t('用户组')}
+                            optionList={groupOptions.map((group) => ({
+                              value: group,
+                              label: group,
+                            }))}
+                            onChange={(value) =>
+                              updateRoleGroupRule(index, { group: value })
+                            }
+                            style={{ flex: 28 }}
+                          />
+                          <InputNumber
+                            size='small'
+                            value={rule.priority}
+                            min={0}
+                            onChange={(value) =>
+                              updateRoleGroupRule(index, {
+                                priority: Number(value) || 0,
+                              })
+                            }
+                            style={{ flex: 14 }}
+                          />
+                          <Popconfirm
+                            title={t('确认移除？')}
+                            onConfirm={() => removeRoleGroupRule(index)}
+                            position='left'
+                          >
+                            <Button
+                              icon={<IconDelete />}
+                              type='danger'
+                              theme='borderless'
+                              size='small'
+                            />
+                          </Popconfirm>
+                        </div>
+                      ))}
+                      <Button
+                        icon={<IconPlus />}
+                        theme='outline'
+                        size='small'
+                        onClick={addRoleGroupRule}
+                        style={{ marginTop: 4 }}
+                      >
+                        {t('添加规则')}
+                      </Button>
+                    </Col>
+                    <Col xs={24} md={10}>
+                      <Text strong>{t('注册分组验证')}</Text>
+                      <Text
+                        type='tertiary'
+                        size='small'
+                        style={{ display: 'block', marginBottom: 8 }}
+                      >
+                        {t(
+                          '输入 Discord 用户 ID 或用户名，用当前规则模拟其注册后将被分配的用户组。需在注册审核设置中配置 Discord Bot Token。',
+                        )}
+                      </Text>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Input
+                          size='small'
+                          value={previewQuery}
+                          placeholder={t('Discord 用户 ID 或用户名')}
+                          onChange={(value) => setPreviewQuery(value)}
+                        />
+                        <Button
+                          size='small'
+                          loading={previewLoading}
+                          onClick={handlePreviewRoleGroup}
+                        >
+                          {t('验证')}
+                        </Button>
+                      </div>
+                      {previewResult && (
+                        <div style={{ marginTop: 12 }}>
+                          <Text type='tertiary' size='small'>
+                            {previewResult.user?.global_name ||
+                              previewResult.user?.username ||
+                              previewResult.user?.user_id}
+                          </Text>
+                          {(previewResult.user?.memberships || []).map(
+                            (membership) => (
+                              <div
+                                key={membership.guild_id}
+                                style={{ marginTop: 6 }}
+                              >
+                                <Tag
+                                  size='small'
+                                  color={
+                                    membership.in_guild ? 'green' : 'grey'
+                                  }
+                                >
+                                  {membership.guild_name ||
+                                    membership.guild_id}
+                                </Tag>
+                                <Text size='small' style={{ marginLeft: 6 }}>
+                                  {membership.in_guild
+                                    ? (membership.roles || [])
+                                        .map((role) => role.name || role.id)
+                                        .join('、') || t('无身份组')
+                                    : t('不在该服务器')}
+                                </Text>
+                              </div>
+                            ),
+                          )}
+                          <div style={{ marginTop: 10 }}>
+                            {previewResult.matched_group ? (
+                              <Text
+                                strong
+                                style={{ color: 'var(--semi-color-success)' }}
+                              >
+                                {t('将分配到用户组')}：
+                                {previewResult.matched_group}
+                              </Text>
+                            ) : (
+                              <Text strong type='danger'>
+                                {t('未命中任何规则，该用户注册时将被拒绝')}
+                              </Text>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </Col>
+                  </Row>
                   <Form.RadioGroup
                     field="['discord.aff_guild_rules_match']"
                     label={t('邀请码注册规则匹配方式')}

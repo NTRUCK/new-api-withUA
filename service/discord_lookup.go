@@ -87,11 +87,16 @@ const discordGuildMetaTTL = 10 * time.Minute
 // query 可以是 Discord 数字 ID，也可以是用户名——后者会先在配置的服务器中搜索解析成 ID。
 // 未配置 Bot Token 或服务器时返回错误，由调用方转为提示。
 func LookupDiscordApplicant(query string) (*DiscordLookupResult, error) {
+	return LookupDiscordUserInGuilds(query, GetRegisterReviewDiscordGuildIds())
+}
+
+// LookupDiscordUserInGuilds 在指定服务器中查询 Discord 用户的成员与身份组信息。
+// query 可以是 Discord 数字 ID 或用户名（用户名会在给定服务器中搜索解析成 ID）。
+func LookupDiscordUserInGuilds(query string, guildIds []string) (*DiscordLookupResult, error) {
 	token := strings.TrimSpace(common.RegisterReviewDiscordBotToken)
 	if token == "" {
 		return nil, errors.New("未配置 Discord Bot Token，无法查询")
 	}
-	guildIds := GetRegisterReviewDiscordGuildIds()
 	if len(guildIds) == 0 {
 		return nil, errors.New("未配置需要查询的 Discord 服务器")
 	}

@@ -53,6 +53,12 @@ func SetApiRouter(router *gin.Engine) {
 			riskAdminRoute.GET("/limited_users", controller.GetRiskLimitedUsers)
 			riskAdminRoute.POST("/unlimit", controller.BatchUnlimitRiskUsers)
 		}
+		// Discord 注册分组：保存前用 Bot Token 验证某用户将被分配的用户组
+		discordAdminRoute := apiRouter.Group("/discord")
+		discordAdminRoute.Use(middleware.AdminAuth(), middleware.CriticalRateLimit())
+		{
+			discordAdminRoute.POST("/preview_role_group", controller.PreviewDiscordRoleGroup)
+		}
 		// 模型反馈：登录用户提交，管理员查看/处理
 		modelFeedbackRoute := apiRouter.Group("/model_feedback")
 		{
