@@ -3,25 +3,25 @@ package dto
 import "strings"
 
 type ChannelSettings struct {
-	ForceFormat               bool           `json:"force_format,omitempty"`
-	ThinkingToContent         bool           `json:"thinking_to_content,omitempty"`
-	HideUpstreamInfo          bool           `json:"hide_upstream_info,omitempty"`
-	MaxConcurrency            int            `json:"max_concurrency,omitempty"`
-	MaxRpm                    int            `json:"max_rpm,omitempty"`                   // 渠道级每分钟请求上限（滑动窗口），0 表示不限制
-	MaxInputTokens            int            `json:"max_input_tokens,omitempty"`          // 单次请求的最大输入 token 数（未在分组表中命中的分组使用），0 表示不限制
-	MaxInputTokensByGroup     map[string]int `json:"max_input_tokens_by_group,omitempty"` // 按分组覆盖最大输入 token 数，键为分组名；命中则优先于 MaxInputTokens，值为 0 表示该分组不限制
-	Proxy                     string         `json:"proxy"`
-	KeyProxies                map[int]string `json:"key_proxies,omitempty"` // 多密钥渠道下按 key 索引单独指定代理；命中则覆盖渠道级 Proxy，用于让每把 key 走不同出口 IP
-	PassThroughBodyEnabled    bool           `json:"pass_through_body_enabled,omitempty"`
-	SystemPrompt              string         `json:"system_prompt,omitempty"`
-	SystemPromptOverride      bool           `json:"system_prompt_override,omitempty"`
-	KiroCreditSim             bool           `json:"kiro_credit_sim,omitempty"`              // Kiro 额度模拟：按官方 credits 规则估算每个请求的额度消耗（写入日志 other），并按 KiroCreditLimit 做月度额度熔断
-	KiroTokensPerCredit       int            `json:"kiro_tokens_per_credit,omitempty"`       // 模拟基线：Auto(1.0x) 每 1 credit 对应的 token 总数；0 使用默认值 50000
-	KiroCreditLimit           int            `json:"kiro_credit_limit,omitempty"`            // 模拟的 Kiro 月度 credits 总额（档位 credits × 数量）；按自然月重置，耗尽后该渠道返回 503 所有账号已用尽；0 表示不熔断仅记录
-	KiroCreditUsedInitial     int            `json:"kiro_credit_used_initial,omitempty"`     // 号池期初已用 credits：判定按"当月日志累计+期初已用"，长期生效，可在号池面板手动校准（配合测试模拟号池起始状态）
-	KiroPlanTemplate          string         `json:"kiro_plan_template,omitempty"`           // 套餐档位模板：pro(1000)/pro_plus(2000)/pro_max(5000)/power(10000)/custom，便于按档位×数量快速计算额度
-	KiroPlanCount             int            `json:"kiro_plan_count,omitempty"`              // 套餐档位数量
-	ClampInflatedPromptTokens bool           `json:"clamp_inflated_prompt_tokens,omitempty"` // 上游用量兜底：prompt_tokens 超过本地估算 1.3 倍时改用本地估算值计费，缓存字段按比例缩放
+	ForceFormat            bool           `json:"force_format,omitempty"`
+	ThinkingToContent      bool           `json:"thinking_to_content,omitempty"`
+	HideUpstreamInfo       bool           `json:"hide_upstream_info,omitempty"`
+	MaxConcurrency         int            `json:"max_concurrency,omitempty"`
+	MaxRpm                 int            `json:"max_rpm,omitempty"`                   // 渠道级每分钟请求上限（滑动窗口），0 表示不限制
+	MaxInputTokens         int            `json:"max_input_tokens,omitempty"`          // 单次请求的最大输入 token 数（未在分组表中命中的分组使用），0 表示不限制
+	MaxInputTokensByGroup  map[string]int `json:"max_input_tokens_by_group,omitempty"` // 按分组覆盖最大输入 token 数，键为分组名；命中则优先于 MaxInputTokens，值为 0 表示该分组不限制
+	Proxy                  string         `json:"proxy"`
+	KeyProxies             map[int]string `json:"key_proxies,omitempty"` // 多密钥渠道下按 key 索引单独指定代理；命中则覆盖渠道级 Proxy，用于让每把 key 走不同出口 IP
+	PassThroughBodyEnabled bool           `json:"pass_through_body_enabled,omitempty"`
+	SystemPrompt           string         `json:"system_prompt,omitempty"`
+	SystemPromptOverride   bool           `json:"system_prompt_override,omitempty"`
+	KiroCreditSim          bool           `json:"kiro_credit_sim,omitempty"`          // Kiro 额度模拟：按官方 credits 规则估算每个请求的额度消耗（写入日志 other），并按 KiroCreditLimit 做月度额度熔断
+	KiroTokensPerCredit    int            `json:"kiro_tokens_per_credit,omitempty"`   // 模拟基线：Auto(1.0x) 每 1 credit 对应的 token 总数；0 使用默认值 50000
+	KiroCreditLimit        int            `json:"kiro_credit_limit,omitempty"`        // 模拟的 Kiro 月度 credits 总额（档位 credits × 数量）；按自然月重置，耗尽后该渠道返回 503 所有账号已用尽；0 表示不熔断仅记录
+	KiroCreditUsedInitial  int            `json:"kiro_credit_used_initial,omitempty"` // 号池期初已用 credits：判定按"当月日志累计+期初已用"，长期生效，可在号池面板手动校准（配合测试模拟号池起始状态）
+	KiroPlanTemplate       string         `json:"kiro_plan_template,omitempty"`       // 套餐档位模板：pro(1000)/pro_plus(2000)/pro_max(5000)/power(10000)/custom，便于按档位×数量快速计算额度
+	KiroPlanCount          int            `json:"kiro_plan_count,omitempty"`          // 套餐档位数量
+	LocalEstimateBilling   bool           `json:"local_estimate_billing,omitempty"`   // 按本地估算计费：忽略上游 prompt/cache 字段，输入 token 一律用本地估算值，缓存字段清零
 }
 
 // GetEffectiveProxy 返回指定 key 索引实际生效的代理地址。

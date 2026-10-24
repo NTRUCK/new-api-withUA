@@ -55,10 +55,10 @@ type textQuotaSummary struct {
 	AudioInputPrice          float64
 	ImageGenerationCallPrice float64
 	ToolCallSurchargeQuota   decimal.Decimal
-	// UpstreamPromptTokens 记录兜底前的上游 prompt_tokens，便于日志排查；
-	// PromptTokenClamped 表示本次计费已用本地估算替换虚高的上游值。
+	// UpstreamPromptTokens 记录上游原始 prompt_tokens，便于日志排查；
+	// LocalEstimateBilled 表示本次计费已改为本地估算值。
 	UpstreamPromptTokens int
-	PromptTokenClamped   bool
+	LocalEstimateBilled  bool
 }
 
 func cacheWriteTokensTotal(summary textQuotaSummary) int {
@@ -186,7 +186,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		}
 	}
 
-	summary.UpstreamPromptTokens, summary.PromptTokenClamped = clampInflatedPromptTokens(relayInfo, usage)
+	summary.UpstreamPromptTokens, summary.LocalEstimateBilled = applyLocalEstimateBilling(relayInfo, usage)
 	summary.PromptTokens = usage.PromptTokens
 	summary.CompletionTokens = usage.CompletionTokens
 	summary.TotalTokens = usage.PromptTokens + usage.CompletionTokens
@@ -314,42 +314,27 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	return summary
 }
 
-// promptTokenClampRatio 上游 prompt_tokens 相对本地估算的容忍倍数。
-// 超过该倍数视为上游统计异常（如缓存读/写被重复累加），用本地估算值计费。
-const promptTokenClampRatio = 1.3
-
-// clampInflatedPromptTokens 在渠道开启「上游用量兜底」时，把明显虚高的上游
-// prompt_tokens 回退为本地估算值，并把缓存字段按同一比例缩放，保留缓存折扣结构。
-// 返回兜底前的上游值以及是否发生了替换。
-func clampInflatedPromptTokens(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) (int, bool) {
-	if usage == nil || relayInfo == nil || !relayInfo.ChannelSetting.ClampInflatedPromptTokens {
+// applyLocalEstimateBilling 在渠道开启「按本地估算计费」时，忽略上游返回的
+// prompt/cache 用量，统一改用本地对请求的估算值计费，缓存字段清零。
+// 上游（尤其是反代渠道）的缓存多为模拟值、口径不稳定，不适合作为计费依据。
+// 返回上游原始 prompt_tokens 以及是否发生了替换。
+func applyLocalEstimateBilling(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) (int, bool) {
+	if usage == nil || relayInfo == nil || !relayInfo.ChannelSetting.LocalEstimateBilling {
 		return 0, false
 	}
 	upstreamPromptTokens := usage.PromptTokens
 	estimate := relayInfo.GetEstimatePromptTokens()
-	if upstreamPromptTokens <= 0 || estimate <= 0 {
+	if estimate <= 0 {
 		return upstreamPromptTokens, false
 	}
-	if float64(upstreamPromptTokens) <= float64(estimate)*promptTokenClampRatio {
-		return upstreamPromptTokens, false
-	}
-
-	scale := float64(estimate) / float64(upstreamPromptTokens)
-	usage.PromptTokensDetails.CachedTokens = scaleTokenCount(usage.PromptTokensDetails.CachedTokens, scale)
-	usage.PromptTokensDetails.CachedCreationTokens = scaleTokenCount(usage.PromptTokensDetails.CachedCreationTokens, scale)
-	usage.ClaudeCacheCreation5mTokens = scaleTokenCount(usage.ClaudeCacheCreation5mTokens, scale)
-	usage.ClaudeCacheCreation1hTokens = scaleTokenCount(usage.ClaudeCacheCreation1hTokens, scale)
 	usage.PromptTokens = estimate
 	usage.InputTokens = estimate
 	usage.TotalTokens = estimate + usage.CompletionTokens
+	usage.PromptTokensDetails.CachedTokens = 0
+	usage.PromptTokensDetails.CachedCreationTokens = 0
+	usage.ClaudeCacheCreation5mTokens = 0
+	usage.ClaudeCacheCreation1hTokens = 0
 	return upstreamPromptTokens, true
-}
-
-func scaleTokenCount(value int, scale float64) int {
-	if value <= 0 {
-		return value
-	}
-	return int(float64(value) * scale)
 }
 
 func usageSemanticFromUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) string {
@@ -461,9 +446,9 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	} else {
 		other = GenerateTextOtherInfo(ctx, relayInfo, summary.ModelRatio, summary.GroupRatio, summary.CompletionRatio, summary.CacheTokens, summary.CacheRatio, summary.ModelPrice, relayInfo.PriceData.GroupRatioInfo.GroupSpecialRatio)
 	}
-	// 上游用量兜底：记录被替换的虚高值，便于事后核对
-	if summary.PromptTokenClamped {
-		other["prompt_token_clamped"] = true
+	// 按本地估算计费：记录上游原值，便于事后核对
+	if summary.LocalEstimateBilled {
+		other["prompt_token_mode"] = "local_estimate"
 		other["upstream_prompt_tokens"] = summary.UpstreamPromptTokens
 	}
 	// Kiro 额度模拟：按官方 credits 规则估算消耗并记录（仅观测，不影响计费）

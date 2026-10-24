@@ -1,4 +1,4 @@
-/*
+﻿/*
 Copyright (C) 2025 QuantumNous
 
 This program is free software: you can redistribute it and/or modify
@@ -243,7 +243,7 @@ const EditChannelModal = (props) => {
     kiro_credit_used_initial: 0,
     kiro_plan_template: '',
     kiro_plan_count: 0,
-    clamp_inflated_prompt_tokens: false,
+    local_estimate_billing: false,
     settings: '',
     // 仅 Vertex: 密钥格式（存入 settings.vertex_key_type）
     vertex_key_type: 'json',
@@ -576,7 +576,7 @@ const EditChannelModal = (props) => {
     kiro_credit_used_initial: 0,
     kiro_plan_template: '',
     kiro_plan_count: 0,
-    clamp_inflated_prompt_tokens: false,
+    local_estimate_billing: false,
   });
   const showApiConfigCard = true; // 控制是否显示 API 配置卡片
   const getInitValues = () => ({ ...originInputs });
@@ -991,8 +991,8 @@ const EditChannelModal = (props) => {
           data.kiro_plan_count = Number(parsedSettings.kiro_plan_count) || 0;
           data.kiro_credit_used_initial =
             Number(parsedSettings.kiro_credit_used_initial) || 0;
-          data.clamp_inflated_prompt_tokens =
-            parsedSettings.clamp_inflated_prompt_tokens === true;
+          data.local_estimate_billing =
+            parsedSettings.local_estimate_billing === true;
         } catch (error) {
           console.error('解析渠道设置失败:', error);
           data.force_format = false;
@@ -1012,7 +1012,7 @@ const EditChannelModal = (props) => {
           data.kiro_plan_template = '';
           data.kiro_plan_count = 0;
           data.kiro_credit_used_initial = 0;
-          data.clamp_inflated_prompt_tokens = false;
+          data.local_estimate_billing = false;
         }
       } else {
         data.force_format = false;
@@ -1032,7 +1032,7 @@ const EditChannelModal = (props) => {
         data.kiro_plan_template = '';
         data.kiro_plan_count = 0;
         data.kiro_credit_used_initial = 0;
-        data.clamp_inflated_prompt_tokens = false;
+        data.local_estimate_billing = false;
       }
 
       if (data.settings) {
@@ -1192,7 +1192,7 @@ const EditChannelModal = (props) => {
         data.claude_beta_query ||
         data.system_prompt_override ||
         data.kiro_credit_sim ||
-        data.clamp_inflated_prompt_tokens ||
+        data.local_estimate_billing ||
         (Number(data.kiro_credit_limit) || 0) > 0;
       if (hasAdvancedValues) {
         setAdvancedSettingsOpen(true);
@@ -1583,7 +1583,7 @@ const EditChannelModal = (props) => {
       kiro_credit_used_initial: 0,
       kiro_plan_template: '',
       kiro_plan_count: 0,
-      clamp_inflated_prompt_tokens: false,
+      local_estimate_billing: false,
     });
     // 重置密钥模式状态
     setKeyMode('append');
@@ -1980,8 +1980,7 @@ const EditChannelModal = (props) => {
       kiro_plan_count: Number(localInputs.kiro_plan_count) || 0,
       kiro_credit_used_initial:
         Number(localInputs.kiro_credit_used_initial) || 0,
-      clamp_inflated_prompt_tokens:
-        localInputs.clamp_inflated_prompt_tokens === true,
+      local_estimate_billing: localInputs.local_estimate_billing === true,
     };
     localInputs.setting = JSON.stringify(channelExtraSettings);
 
@@ -2074,7 +2073,7 @@ const EditChannelModal = (props) => {
     delete localInputs.kiro_plan_template;
     delete localInputs.kiro_plan_count;
     delete localInputs.kiro_credit_used_initial;
-    delete localInputs.clamp_inflated_prompt_tokens;
+    delete localInputs.local_estimate_billing;
     delete localInputs.is_enterprise_account;
     // 顶层的 vertex_key_type 不应发送给后端
     delete localInputs.vertex_key_type;
@@ -3122,18 +3121,18 @@ const EditChannelModal = (props) => {
                     />
                   )}
                   <Form.Switch
-                    field='clamp_inflated_prompt_tokens'
-                    label={t('上游用量兜底')}
+                    field='local_estimate_billing'
+                    label={t('按本地估算计费')}
                     checkedText={t('开')}
                     uncheckedText={t('关')}
                     onChange={(value) =>
                       handleChannelSettingsChange(
-                        'clamp_inflated_prompt_tokens',
+                        'local_estimate_billing',
                         value,
                       )
                     }
                     extraText={t(
-                      '开启后，上游返回的输入 token 超过本地估算 1.3 倍时改用本地估算值计费，缓存字段按同比例缩放；正常请求与缓存折扣不受影响，适合会重复累加缓存的中转渠道',
+                      '开启后忽略上游返回的输入 token，按本地对请求的估算值计费，缓存字段清零；适合缓存由反代模拟、口径不稳定的中转渠道',
                     )}
                   />
                   <Form.Switch

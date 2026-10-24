@@ -4508,7 +4508,7 @@
     "暂无被限速的用户": "No rate-limited users",
     "搜索 UID 或用户名": "Search UID or username",
     "仅在非豁免分组中累计真实代码执行（tool_call_id 闭环），达到阈值后对该用户全局限速 24 小时：每分钟 1 次、并发 1。解除后立即恢复原有限制。": "Only genuine code executions (closed tool_call_id loops) in non-exempt groups are counted. Once the threshold is reached, the user is globally rate limited for 24 hours: 1 request per minute, concurrency 1. Removing the limit restores the original limits immediately.",
-    "上游用量兜底": "Upstream usage fallback",
-    "开启后，上游返回的输入 token 超过本地估算 1.3 倍时改用本地估算值计费，缓存字段按同比例缩放；正常请求与缓存折扣不受影响，适合会重复累加缓存的中转渠道": "When enabled, if the upstream input tokens exceed 1.3x the local estimate, billing uses the local estimate instead and cache fields are scaled proportionally. Normal requests and cache discounts are unaffected. Suitable for relay channels that accumulate cached tokens."
+    "按本地估算计费": "Bill by local estimate",
+    "开启后忽略上游返回的输入 token，按本地对请求的估算值计费，缓存字段清零；适合缓存由反代模拟、口径不稳定的中转渠道": "When enabled, upstream input tokens are ignored and billing uses the local estimate of the request; cache fields are cleared. Suitable for relay channels whose caching is simulated and unstable."
   }
 }
