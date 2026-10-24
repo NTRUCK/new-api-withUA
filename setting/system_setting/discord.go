@@ -40,6 +40,14 @@ func (g *DiscordGuildRuleGroups) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// DiscordRoleGroupRule 身份组到用户组的映射：新用户注册时按命中的最高优先级规则定组。
+type DiscordRoleGroupRule struct {
+	GuildId  string `json:"guild_id"` // Discord 服务器 ID
+	RoleId   string `json:"role_id"`  // 身份组 ID；为空表示该服务器任意成员
+	Group    string `json:"group"`    // 目标用户组
+	Priority int    `json:"priority"` // 优先级，数字越大越优先
+}
+
 type DiscordSettings struct {
 	Enabled      bool   `json:"enabled"`
 	ClientId     string `json:"client_id"`
@@ -54,11 +62,15 @@ type DiscordSettings struct {
 	// 服务器准入（多服务器）：配置后优先生效，忽略上方单服务器配置。
 	// 每个组内的规则须全部满足，组之间按 GuildRulesMatch 决定任一/全部。
 	GuildRules      DiscordGuildRuleGroups `json:"guild_rules"`       // 服务器+身份组准入组列表
-	GuildRulesMatch string                `json:"guild_rules_match"` // any=满足任一组 / all=全部组均需满足
+	GuildRulesMatch string                 `json:"guild_rules_match"` // any=满足任一组 / all=全部组均需满足
 	// 邀请码专属准入：配置后，新用户注册只能通过 Discord OAuth 完成，
 	// 且必须通过其中规则（叠加在全局服务器准入之上）。为空则不启用。
 	AffGuildRules      DiscordGuildRuleGroups `json:"aff_guild_rules"`       // 邀请注册专属的服务器+身份组准入组
 	AffGuildRulesMatch string                 `json:"aff_guild_rules_match"` // any=满足任一组 / all=全部组均需满足
+	// 注册分组：仅在新用户注册时按 Discord 身份组分配用户组，
+	// 多条命中取 Priority 最大者；启用后未命中任何规则将拒绝注册。
+	RoleGroupEnabled bool                   `json:"role_group_enabled"` // 是否启用注册时按身份组分配用户组
+	RoleGroupRules   []DiscordRoleGroupRule `json:"role_group_rules"`   // 身份组 -> 用户组映射
 }
 
 // 默认配置
@@ -81,6 +93,18 @@ func (s *DiscordSettings) GetGuildRules() DiscordGuildRuleGroups {
 // GetAffGuildRules 返回邀请码专属的服务器准入组（过滤掉未填服务器 ID 的条目与空组）
 func (s *DiscordSettings) GetAffGuildRules() DiscordGuildRuleGroups {
 	return filterGuildRuleGroups(s.AffGuildRules)
+}
+
+// GetRoleGroupRules 返回有效的身份组映射（过滤掉未填服务器 ID 或目标用户组的条目）
+func (s *DiscordSettings) GetRoleGroupRules() []DiscordRoleGroupRule {
+	valid := make([]DiscordRoleGroupRule, 0, len(s.RoleGroupRules))
+	for _, rule := range s.RoleGroupRules {
+		if strings.TrimSpace(rule.GuildId) == "" || strings.TrimSpace(rule.Group) == "" {
+			continue
+		}
+		valid = append(valid, rule)
+	}
+	return valid
 }
 
 func filterGuildRuleGroups(groups []DiscordGuildRuleGroup) DiscordGuildRuleGroups {

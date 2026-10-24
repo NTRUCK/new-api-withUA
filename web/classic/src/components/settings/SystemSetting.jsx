@@ -97,6 +97,60 @@ const guildRuleGroupsToText = (raw) => {
     .join('\n');
 };
 
+// 注册分组规则：每行「服务器ID,身份组ID,用户组,优先级」。
+// 身份组ID 可留空（表示该服务器任意成员），优先级可省略（默认 0）。返回 [{guild_id, role_id, group, priority}]。
+const parseRoleGroupRules = (text) => {
+  const lines = (text || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  return lines.map((line) => {
+    const [guildId, roleId, group, priority] = line
+      .split(/[,，]/)
+      .map((s) => (s || '').trim());
+    if (!/^\d+$/.test(guildId || '')) {
+      throw new Error('invalid role group rule');
+    }
+    if (roleId && !/^\d+$/.test(roleId)) {
+      throw new Error('invalid role group rule');
+    }
+    if (!group) {
+      throw new Error('invalid role group rule');
+    }
+    let priorityValue = 0;
+    if (priority) {
+      if (!/^-?\d+$/.test(priority)) {
+        throw new Error('invalid role group rule');
+      }
+      priorityValue = parseInt(priority, 10);
+    }
+    return {
+      guild_id: guildId,
+      role_id: roleId || '',
+      group,
+      priority: priorityValue,
+    };
+  });
+};
+
+// 后端存储的注册分组规则 → 文本框内容
+const roleGroupRulesToText = (raw) => {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return '';
+  }
+  return raw
+    .filter((rule) => rule && rule.guild_id && rule.group)
+    .map((rule) =>
+      [
+        rule.guild_id,
+        rule.role_id || '',
+        rule.group,
+        rule.priority ? String(rule.priority) : '',
+      ].join(','),
+    )
+    .join('\n');
+};
+
 const SystemSetting = () => {
   const { t } = useTranslation();
   let [inputs, setInputs] = useState({
@@ -118,6 +172,8 @@ const SystemSetting = () => {
     'discord.guild_rules_match': 'any',
     'discord.aff_guild_rules_match': 'any',
     'discord.register_limit_whitelist': '',
+    'discord.role_group_enabled': '',
+    'discord.role_group_rules': '',
     'oidc.enabled': '',
     'oidc.client_id': '',
     'oidc.client_secret': '',
@@ -279,6 +335,7 @@ const SystemSetting = () => {
           case 'discord.enabled':
           case 'discord.guild_gating':
           case 'discord.require_role':
+          case 'discord.role_group_enabled':
           case 'oidc.enabled':
           case 'passkey.enabled':
           case 'passkey.allow_insecure_origin':
@@ -312,6 +369,16 @@ const SystemSetting = () => {
             break;
           case 'discord.guild_rules_match':
             item.value = item.value === 'all' ? 'all' : 'any';
+            break;
+          case 'discord.role_group_rules':
+            // 注册分组 JSON → 每行「服务器ID,身份组ID,用户组,优先级」
+            try {
+              item.value = roleGroupRulesToText(
+                item.value ? JSON.parse(item.value) : [],
+              );
+            } catch (e) {
+              item.value = '';
+            }
             break;
           case 'discord.aff_guild_rules_match':
             item.value = item.value === 'all' ? 'all' : 'any';
@@ -733,6 +800,35 @@ const SystemSetting = () => {
       options.push({
         key: 'discord.register_limit_whitelist',
         value: inputs['discord.register_limit_whitelist'],
+      });
+    }
+
+    if (
+      originInputs['discord.role_group_enabled'] !==
+      inputs['discord.role_group_enabled']
+    ) {
+      options.push({
+        key: 'discord.role_group_enabled',
+        value: String(inputs['discord.role_group_enabled']),
+      });
+    }
+    // 注册分组映射：TextArea 文本 → JSON 数组
+    if (
+      originInputs['discord.role_group_rules'] !==
+      inputs['discord.role_group_rules']
+    ) {
+      let rules;
+      try {
+        rules = parseRoleGroupRules(inputs['discord.role_group_rules']);
+      } catch (e) {
+        showError(
+          t('注册分组规则格式有误：每行应为「服务器ID,身份组ID,用户组,优先级」，身份组与优先级可省略'),
+        );
+        return;
+      }
+      options.push({
+        key: 'discord.role_group_rules',
+        value: JSON.stringify(rules),
       });
     }
 
@@ -1946,6 +2042,33 @@ const SystemSetting = () => {
                     extraText={t('一行一个 Discord 用户数字 ID，仅在达到注册用户数上限时放行；其他注册和服务器准入限制仍然生效')}
                     placeholder={'123456789012345678\n987654321098765432'}
                     autosize={{ minRows: 4, maxRows: 10 }}
+                    style={{ fontFamily: 'JetBrains Mono, Consolas' }}
+                  />
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Switch
+                        field="['discord.role_group_enabled']"
+                        label={t('注册时按身份组分配用户组')}
+                        onChange={(value) => {
+                          setInputs({
+                            ...inputs,
+                            'discord.role_group_enabled': value,
+                          });
+                        }}
+                      />
+                    </Col>
+                  </Row>
+                  <Form.TextArea
+                    field="['discord.role_group_rules']"
+                    label={t('身份组 → 用户组映射')}
+                    extraText={t(
+                      '仅对新用户注册生效：每行「服务器ID,身份组ID,用户组,优先级」，身份组可省略（省略表示该服务器任意成员），优先级可省略（默认 0）。同一用户命中多条规则时取优先级数字最大者。启用后未命中任何规则将拒绝注册。需 OAuth 授权范围包含 guilds.members.read。',
+                    )}
+                    placeholder={'1134557553011998840,1335363403870502912,vip,10\n1134557553011998840,,default,0'}
+                    autosize={{ minRows: 4, maxRows: 10 }}
+                    disabled={!inputs['discord.role_group_enabled']}
                     style={{ fontFamily: 'JetBrains Mono, Consolas' }}
                   />
                   <Form.RadioGroup

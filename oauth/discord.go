@@ -334,6 +334,54 @@ func CheckAffGuildAccess(c *gin.Context, token *OAuthToken) error {
 	return nil
 }
 
+// ResolveRegisterGroup 按身份组映射解析新用户注册时应分配的用户组。
+// 命中多条规则时取 Priority 最大者（并列取配置顺序靠前者）；未命中返回空字符串。
+// 依赖 access token 具备 guilds.members.read scope。
+func ResolveRegisterGroup(c *gin.Context, token *OAuthToken) (string, error) {
+	settings := system_setting.GetDiscordSettings()
+	if !settings.RoleGroupEnabled {
+		return "", nil
+	}
+	rules := settings.GetRoleGroupRules()
+	if len(rules) == 0 {
+		return "", nil
+	}
+
+	ctx := c.Request.Context()
+	// 同一服务器只请求一次成员信息，member 为 nil 表示不是该服务器成员
+	memberCache := make(map[string]*discordGuildMember)
+	bestGroup := ""
+	bestPriority := 0
+	found := false
+
+	for _, rule := range rules {
+		member, ok := memberCache[rule.GuildId]
+		if !ok {
+			m, err := fetchGuildMember(ctx, token.AccessToken, rule.GuildId)
+			if err != nil {
+				return "", err
+			}
+			memberCache[rule.GuildId] = m
+			member = m
+		}
+		if member == nil {
+			continue
+		}
+		roleId := strings.TrimSpace(rule.RoleId)
+		if roleId != "" && !member.hasRole(roleId) {
+			continue
+		}
+		if !found || rule.Priority > bestPriority {
+			bestGroup = strings.TrimSpace(rule.Group)
+			bestPriority = rule.Priority
+			found = true
+		}
+	}
+
+	logger.LogDebug(ctx, "[OAuth-Discord] ResolveRegisterGroup: matched=%v, group=%s, priority=%d", found, bestGroup, bestPriority)
+	return bestGroup, nil
+}
+
 func (p *DiscordProvider) FillUserByProviderID(user *model.User, providerUserID string) error {
 	user.DiscordId = providerUserID
 	return user.FillUserByDiscordId()

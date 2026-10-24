@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -127,8 +128,26 @@ func HandleOAuth(c *gin.Context) {
 		}
 	}
 
+	// 6.7 注册分组：新用户注册时按 Discord 身份组分配用户组，
+	// 命中多条取优先级最高者；启用后未命中任何规则则拒绝注册。
+	registerGroup := ""
+	if provider.GetName() == "Discord" &&
+		system_setting.GetDiscordSettings().RoleGroupEnabled &&
+		!provider.IsUserIDTaken(oauthUser.ProviderUserID) {
+		group, err := oauth.ResolveRegisterGroup(c, token)
+		if err != nil {
+			handleOAuthError(c, err)
+			return
+		}
+		if group == "" || !ratio_setting.ContainsGroupRatio(group) {
+			common.ApiErrorI18n(c, i18n.MsgOAuthDiscordRoleGroupNotMatched)
+			return
+		}
+		registerGroup = group
+	}
+
 	// 7. Find or create user
-	user, err := findOrCreateOAuthUser(c, provider, oauthUser, session)
+	user, err := findOrCreateOAuthUser(c, provider, oauthUser, session, registerGroup)
 	if err != nil {
 		switch e := err.(type) {
 		case *OAuthUserDeletedError:
@@ -233,7 +252,7 @@ func handleOAuthBind(c *gin.Context, provider oauth.Provider) {
 }
 
 // findOrCreateOAuthUser finds existing user or creates new user
-func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *oauth.OAuthUser, session sessions.Session) (*model.User, error) {
+func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *oauth.OAuthUser, session sessions.Session, registerGroup string) (*model.User, error) {
 	user := &model.User{}
 
 	// Check if user already exists with new ID
@@ -316,6 +335,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 	user.Role = common.RoleCommonUser
 	user.Status = common.UserStatusEnabled
+	if registerGroup != "" {
+		user.Group = registerGroup
+	}
 	if provider.GetName() == "Discord" {
 		applyDiscordOAuthProfile(user, oauthUser)
 	}

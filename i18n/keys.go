@@ -336,6 +336,8 @@ const (
 	MsgOAuthDiscordMissingRole    = "oauth.discord_missing_role"
 	// MsgOAuthDiscordGuildRulesNotSatisfied 多服务器准入（任一模式）下所有准入组均未满足
 	MsgOAuthDiscordGuildRulesNotSatisfied = "oauth.discord_guild_rules_not_satisfied"
+	// MsgOAuthDiscordRoleGroupNotMatched 启用注册分组后，用户未命中任何身份组映射规则
+	MsgOAuthDiscordRoleGroupNotMatched = "oauth.discord_role_group_not_matched"
 )
 
 // Model layer error messages (for translation in controller)
