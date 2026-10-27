@@ -4509,6 +4509,12 @@
     "搜索 UID 或用户名": "Search UID or username",
     "仅在非豁免分组中累计真实代码执行（tool_call_id 闭环），达到阈值后对该用户全局限速 24 小时：每分钟 1 次、并发 1。解除后立即恢复原有限制。": "Only genuine code executions (closed tool_call_id loops) in non-exempt groups are counted. Once the threshold is reached, the user is globally rate limited for 24 hours: 1 request per minute, concurrency 1. Removing the limit restores the original limits immediately.",
     "按本地估算计费": "Bill by local estimate",
-    "开启后忽略上游返回的输入 token，按本地对请求的估算值计费，缓存字段清零；适合缓存由反代模拟、口径不稳定的中转渠道": "When enabled, upstream input tokens are ignored and billing uses the local estimate of the request; cache fields are cleared. Suitable for relay channels whose caching is simulated and unstable."
+    "开启后忽略上游返回的输入 token，按本地对请求的估算值计费，缓存字段清零；适合缓存由反代模拟、口径不稳定的中转渠道": "When enabled, upstream input tokens are ignored and billing uses the local estimate of the request; cache fields are cleared. Suitable for relay channels whose caching is simulated and unstable.",
+    "查看完整密钥": "View full key",
+    "请输入登录密码": "Enter your login password",
+    "密钥属于高敏感数据，请输入当前账号的登录密码进行二次验证。验证通过后明文仅在本次弹窗中可见。": "Channel keys are highly sensitive. Enter your account login password to verify. Once verified, the plaintext key is shown only in this dialog.",
+    "密码错误": "Incorrect password",
+    "密码错误，无法查看完整密钥": "Incorrect password, unable to view the full key",
+    "验证成功，已显示完整密钥": "Verified, full keys are now shown"
   }
 }

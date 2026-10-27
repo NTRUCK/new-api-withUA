@@ -59,6 +59,17 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			discordAdminRoute.POST("/preview_role_group", controller.PreviewDiscordRoleGroup)
 		}
+		// 注册审核：申请人自助查询进度无需登录，其余接口登录后由 handler 校验审核权限
+		apiRouter.GET("/user_review/status", middleware.CriticalRateLimit(), controller.GetUserReviewStatus)
+		userReviewRoute := apiRouter.Group("/user_review")
+		userReviewRoute.Use(middleware.UserAuth())
+		{
+			userReviewRoute.GET("/summary", controller.GetUserReviewSummary)
+			userReviewRoute.GET("", controller.GetUserReviews)
+			userReviewRoute.POST("/:id/approve", middleware.CriticalRateLimit(), controller.ApproveUserReview)
+			userReviewRoute.POST("/:id/reject", middleware.CriticalRateLimit(), controller.RejectUserReview)
+			userReviewRoute.GET("/:id/discord", controller.GetUserReviewDiscord)
+		}
 		// 模型反馈：登录用户提交，管理员查看/处理
 		modelFeedbackRoute := apiRouter.Group("/model_feedback")
 		{

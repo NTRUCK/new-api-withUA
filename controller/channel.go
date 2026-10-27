@@ -1333,6 +1333,9 @@ type MultiKeyManageRequest struct {
 	PageSize  int    `json:"page_size,omitempty"` // for get_key_status pagination
 	Status    *int   `json:"status,omitempty"`    // for get_key_status filtering: 1=enabled, 2=manual_disabled, 3=auto_disabled, nil=all
 	Proxy     string `json:"proxy,omitempty"`     // for set_key_proxy: 该 key 专属代理地址，空字符串表示清除（回退渠道级代理）
+	// Password 查看完整密钥所需的二次验证密码（当前登录用户的登录密码）。
+	// 留空时接口只返回 key_preview，不返回明文密钥。
+	Password string `json:"password,omitempty"`
 }
 
 // MultiKeyStatusResponse represents the response for key status query
@@ -1355,7 +1358,7 @@ type KeyStatus struct {
 	Reason       string              `json:"reason,omitempty"`
 	DisabledCode string              `json:"disabled_code,omitempty"` // 禁用类型标识，如 quota_exhausted
 	ErrorLog     []model.KeyErrorLog `json:"error_log,omitempty"`     // 该密钥最近的报错历史（前端按时间倒序展示）
-	Key          string              `json:"key,omitempty"`           // 完整密钥内容，供管理员比对密钥库、排除失效密钥（管理员专用接口）
+	Key          string              `json:"key,omitempty"`           // 完整密钥内容，仅当请求携带并通过二次密码验证时返回
 	Proxy        string              `json:"proxy,omitempty"`         // 该密钥专属代理地址（每 key 独立出口 IP）
 	KeyPreview   string              `json:"key_preview"`             // first 10 chars of key for identification
 }
@@ -1392,6 +1395,30 @@ func ManageMultiKeys(c *gin.Context) {
 
 	switch request.Action {
 	case "get_key_status":
+		// 明文密钥是高敏感数据：只有携带当前登录用户的登录密码并通过校验时才返回完整 key，
+		// 否则仅返回 key_preview，避免管理员会话被劫持后一次性拖走全部密钥。
+		allowPlainKey := false
+		if request.Password != "" {
+			operator := &model.User{Id: c.GetInt("id")}
+			if err := operator.FillUserById(); err != nil {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": "获取当前用户信息失败",
+				})
+				return
+			}
+			if operator.Password == "" ||
+				!common.ValidatePasswordAndHash(request.Password, operator.Password) {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": "密码错误，无法查看完整密钥",
+					"code":    "INVALID_PASSWORD",
+				})
+				return
+			}
+			allowPlainKey = true
+		}
+
 		keys := channel.GetKeys()
 
 		// Default pagination parameters
@@ -1463,6 +1490,12 @@ func ManageMultiKeys(c *gin.Context) {
 				keyProxy = channelSetting.KeyProxies[i]
 			}
 
+			// 未通过二次密码验证时不返回明文密钥，只保留预览
+			plainKey := ""
+			if allowPlainKey {
+				plainKey = key
+			}
+
 			allKeyStatusList = append(allKeyStatusList, KeyStatus{
 				Index:        i,
 				Status:       status,
@@ -1470,7 +1503,7 @@ func ManageMultiKeys(c *gin.Context) {
 				Reason:       reason,
 				DisabledCode: disabledCode,
 				ErrorLog:     errorLog,
-				Key:          key,
+				Key:          plainKey,
 				Proxy:        keyProxy,
 				KeyPreview:   keyPreview,
 			})

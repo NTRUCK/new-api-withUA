@@ -42,6 +42,7 @@ import {
   IllustrationNoResult,
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
+import { IconLock } from '@douyinfe/semi-icons';
 import {
   API,
   showError,
@@ -71,6 +72,12 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState(null); // null=all, 1=enabled, 2=manual_disabled, 3=auto_disabled
+
+  // 明文密钥二次验证：通过后密码仅保存在内存中，用于后续翻页/刷新时继续取明文
+  const [plainKeyPassword, setPlainKeyPassword] = useState('');
+  const [keyPasswordVisible, setKeyPasswordVisible] = useState(false);
+  const [keyPasswordInput, setKeyPasswordInput] = useState('');
+  const [keyPasswordLoading, setKeyPasswordLoading] = useState(false);
 
   // Key test states: index -> { success, time, message }
   const [testResults, setTestResults] = useState({});
@@ -150,6 +157,11 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
         requestData.status = status;
       }
 
+      // 已通过二次验证时带上密码，后端才会返回明文密钥
+      if (plainKeyPassword) {
+        requestData.password = plainKeyPassword;
+      }
+
       const res = await API.post('/api/channel/multi_key/manage', requestData);
 
       if (res.data.success) {
@@ -164,6 +176,10 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
         setEnabledCount(data.enabled_count || 0);
         setManualDisabledCount(data.manual_disabled_count || 0);
         setAutoDisabledCount(data.auto_disabled_count || 0);
+      } else if (res.data.code === 'INVALID_PASSWORD') {
+        // 密码失效（可能已被修改），丢弃缓存并提示重新验证
+        setPlainKeyPassword('');
+        showError(res.data.message || t('密码错误，无法查看完整密钥'));
       } else {
         showError(res.data.message);
       }
@@ -172,6 +188,51 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
       showError(t('获取密钥状态失败'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 提交二次密码验证，成功后立即用返回结果刷新列表（含明文密钥）
+  const handleVerifyKeyPassword = async () => {
+    const pwd = keyPasswordInput;
+    if (!pwd) {
+      showError(t('请输入登录密码'));
+      return;
+    }
+    setKeyPasswordLoading(true);
+    try {
+      const requestData = {
+        channel_id: channel.id,
+        action: 'get_key_status',
+        page: currentPage,
+        page_size: pageSize,
+        password: pwd,
+      };
+      if (statusFilter !== null) {
+        requestData.status = statusFilter;
+      }
+      const res = await API.post('/api/channel/multi_key/manage', requestData);
+      if (res.data.success) {
+        const data = res.data.data;
+        setKeyStatusList(data.keys || []);
+        setTotal(data.total || 0);
+        setCurrentPage(data.page || 1);
+        setPageSize(data.page_size || 10);
+        setTotalPages(data.total_pages || 0);
+        setEnabledCount(data.enabled_count || 0);
+        setManualDisabledCount(data.manual_disabled_count || 0);
+        setAutoDisabledCount(data.auto_disabled_count || 0);
+        setPlainKeyPassword(pwd);
+        setKeyPasswordVisible(false);
+        setKeyPasswordInput('');
+        showSuccess(t('验证成功，已显示完整密钥'));
+      } else {
+        showError(res.data.message || t('密码错误'));
+      }
+    } catch (error) {
+      console.error(error);
+      showError(t('验证失败'));
+    } finally {
+      setKeyPasswordLoading(false);
     }
   };
 
@@ -488,19 +549,36 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
     {
       title: t('密钥'),
       dataIndex: 'key',
-      render: (key) => {
-        if (!key) {
-          return <Text type='quaternary'>-</Text>;
+      render: (key, record) => {
+        // 未通过二次密码验证时后端不返回明文，只展示预览并提供验证入口
+        if (key) {
+          return (
+            <Text
+              code
+              copyable={{ content: key }}
+              ellipsis={{ showTooltip: true }}
+              style={{ fontSize: '12px', maxWidth: 220 }}
+            >
+              {key}
+            </Text>
+          );
         }
         return (
-          <Text
-            code
-            copyable={{ content: key }}
-            ellipsis={{ showTooltip: true }}
-            style={{ fontSize: '12px', maxWidth: 220 }}
-          >
-            {key}
-          </Text>
+          <Space spacing={4}>
+            <Text type='quaternary' style={{ fontSize: '12px' }}>
+              {record?.key_preview || '-'}
+            </Text>
+            <Button
+              size='small'
+              theme='borderless'
+              onClick={() => {
+                setKeyPasswordInput('');
+                setKeyPasswordVisible(true);
+              }}
+            >
+              {t('查看')}
+            </Button>
+          </Space>
         );
       },
     },
@@ -743,7 +821,13 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
         </Space>
       }
       visible={visible}
-      onCancel={onCancel}
+      onCancel={() => {
+        // 关闭时丢弃已缓存的验证密码，下次打开需重新验证
+        setPlainKeyPassword('');
+        setKeyPasswordVisible(false);
+        setKeyPasswordInput('');
+        onCancel && onCancel();
+      }}
       width={Math.min(1500, Math.max(1000, window.innerWidth - 120))}
       bodyStyle={{
         maxHeight: 'calc(100vh - 160px)',
@@ -1077,6 +1161,52 @@ const MultiKeyManageModal = ({ visible, onCancel, channel, onRefresh }) => {
           </Spin>
         </div>
       </div>
+      <Modal
+        title={t('查看完整密钥')}
+        visible={keyPasswordVisible}
+        onCancel={() => {
+          setKeyPasswordVisible(false);
+          setKeyPasswordInput('');
+        }}
+        footer={
+          <Space>
+            <Button
+              onClick={() => {
+                setKeyPasswordVisible(false);
+                setKeyPasswordInput('');
+              }}
+            >
+              {t('取消')}
+            </Button>
+            <Button
+              type='primary'
+              loading={keyPasswordLoading}
+              onClick={handleVerifyKeyPassword}
+            >
+              {t('确认')}
+            </Button>
+          </Space>
+        }
+        width={420}
+        zIndex={1200}
+      >
+        <div className='flex flex-col gap-3'>
+          <Text type='tertiary' size='small'>
+            {t(
+              '密钥属于高敏感数据，请输入当前账号的登录密码进行二次验证。验证通过后明文仅在本次弹窗中可见。',
+            )}
+          </Text>
+          <Input
+            mode='password'
+            prefix={<IconLock />}
+            placeholder={t('请输入登录密码')}
+            value={keyPasswordInput}
+            onChange={setKeyPasswordInput}
+            onEnterPress={handleVerifyKeyPassword}
+            autoFocus
+          />
+        </div>
+      </Modal>
     </Modal>
   );
 };
