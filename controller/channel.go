@@ -71,6 +71,78 @@ func clearChannelInfo(channel *model.Channel) {
 	}
 }
 
+// remapMultiKeyIndexState 按密钥内容把旧索引上的多密钥状态迁移到新索引。
+// 多密钥的启用状态、禁用原因/类型/时间、报错历史以及 key 专属代理都以索引为键，
+// 密钥增删或覆盖后索引会变化，必须按密钥内容重新对齐，否则状态会错挂到其他密钥上。
+func remapMultiKeyIndexState(channel *model.Channel, oldKeys []string) {
+	newKeys := channel.GetKeys()
+
+	// 相同密钥内容在旧列表中的所有索引，用于一对多去重时按顺序取用
+	oldIndexByKey := make(map[string][]int, len(oldKeys))
+	for i, key := range oldKeys {
+		normalized := strings.TrimSpace(key)
+		if normalized == "" {
+			continue
+		}
+		oldIndexByKey[normalized] = append(oldIndexByKey[normalized], i)
+	}
+
+	statusList := make(map[int]int)
+	disabledReason := make(map[int]string)
+	disabledCode := make(map[int]string)
+	disabledTime := make(map[int]int64)
+	errorLog := make(map[int][]model.KeyErrorLog)
+	proxies := make(map[int]string)
+	used := make(map[string]int, len(oldKeys))
+
+	setting := channel.GetSetting()
+	for newIdx, key := range newKeys {
+		normalized := strings.TrimSpace(key)
+		candidates := oldIndexByKey[normalized]
+		pos := used[normalized]
+		if pos >= len(candidates) {
+			continue
+		}
+		used[normalized] = pos + 1
+		oldIdx := candidates[pos]
+
+		if v, ok := channel.ChannelInfo.MultiKeyStatusList[oldIdx]; ok {
+			statusList[newIdx] = v
+		}
+		if v, ok := channel.ChannelInfo.MultiKeyDisabledReason[oldIdx]; ok {
+			disabledReason[newIdx] = v
+		}
+		if v, ok := channel.ChannelInfo.MultiKeyDisabledCode[oldIdx]; ok {
+			disabledCode[newIdx] = v
+		}
+		if v, ok := channel.ChannelInfo.MultiKeyDisabledTime[oldIdx]; ok {
+			disabledTime[newIdx] = v
+		}
+		if v, ok := channel.ChannelInfo.MultiKeyErrorLog[oldIdx]; ok {
+			errorLog[newIdx] = v
+		}
+		if v, ok := setting.KeyProxies[oldIdx]; ok {
+			proxies[newIdx] = v
+		}
+	}
+
+	channel.ChannelInfo.MultiKeyStatusList = statusList
+	channel.ChannelInfo.MultiKeyDisabledReason = disabledReason
+	channel.ChannelInfo.MultiKeyDisabledCode = disabledCode
+	channel.ChannelInfo.MultiKeyDisabledTime = disabledTime
+	channel.ChannelInfo.MultiKeyErrorLog = errorLog
+	if channel.ChannelInfo.MultiKeyPollingIndex >= len(newKeys) {
+		channel.ChannelInfo.MultiKeyPollingIndex = 0
+	}
+
+	// key 专属代理同样以索引为键，必须与上面的状态一起按密钥内容迁移，
+	// 否则移位后旧代理会落到别的密钥上
+	if len(setting.KeyProxies) > 0 {
+		setting.KeyProxies = proxies
+		channel.SetSetting(setting)
+	}
+}
+
 func applyChannelStatusFilter(query *gorm.DB, statusFilter int) *gorm.DB {
 	if statusFilter == common.ChannelStatusEnabled {
 		return query.Where("status = ?", common.ChannelStatusEnabled)
@@ -1065,9 +1137,16 @@ func UpdateChannel(c *gin.Context) {
 
 				allKeys := append(existingKeys, dedupedNewKeys...)
 				channel.Key = strings.Join(allKeys, "\n")
+				remapMultiKeyIndexState(&channel.Channel, originChannel.GetKeys())
 			}
 		case "replace":
-			// 覆盖模式：直接使用新密钥（默认行为，不需要特殊处理）
+			// 覆盖模式：逐索引比对新旧密钥。内容发生变化的索引必须丢弃历史状态，
+			// 否则旧密钥的禁用原因、报错历史会挂到新密钥的相同索引上。
+			// 未传新密钥时不做任何清理，避免误删仍然有效的状态。
+			if strings.TrimSpace(channel.Key) == "" {
+				break
+			}
+			remapMultiKeyIndexState(&channel.Channel, originChannel.GetKeys())
 		}
 	}
 	err = channel.Update()
