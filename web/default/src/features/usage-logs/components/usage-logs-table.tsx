@@ -67,6 +67,12 @@ const STICKY_COLUMN_WIDTHS: Record<string, number> = {
 const ADMIN_STICKY_COLUMNS = ['created_at', 'channel', 'user']
 const STICKY_SHADOW = 'shadow-[2px_0_4px_-2px_rgba(0,0,0,0.18)]'
 
+/**
+ * 非固定列的最小宽度（px）。
+ * 不设下限时表格会被压缩到容器宽度，列内容挤在一起且不会出现横向滚动。
+ */
+const NON_STICKY_COLUMN_MIN_WIDTH = 120
+
 function deserializeLogTypeFilter(value: unknown): unknown[] {
   const values = Array.isArray(value) ? value : value ? [value] : []
   return values.filter((item) => String(item) !== LOG_TYPE_ALL_VALUE)
@@ -220,7 +226,9 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       tableHeaderClassName='bg-muted sticky top-0 z-10'
       getHeaderProps={(columnId) => {
         const layout = stickyLayout[columnId]
-        if (!layout) return undefined
+        if (!layout) {
+          return { style: { minWidth: NON_STICKY_COLUMN_MIN_WIDTH } }
+        }
         return {
           className: cn(
             'sticky z-30 bg-muted',
@@ -278,7 +286,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
                           width: layout.width,
                           minWidth: layout.width,
                         }
-                      : undefined
+                      : { minWidth: NON_STICKY_COLUMN_MIN_WIDTH }
                   }
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
