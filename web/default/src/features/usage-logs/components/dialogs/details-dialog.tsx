@@ -418,8 +418,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
     !!other?.expr_b64
   const hasAudioTokens = other?.ws || other?.audio
   const showTiming = isTimingLogType(props.log.type)
-  const showAdminIp =
-    !!props.log.ip && (showTiming || (props.isAdmin && isTopup))
+  const showAdminIp = props.isAdmin && !!props.log.ip
   const adminInfo = other?.admin_info
   const topupAuditFields =
     isTopup && props.isAdmin && adminInfo
