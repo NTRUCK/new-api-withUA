@@ -56,6 +56,17 @@ const logTypeRowTint: Record<number, string> = {
   [LOG_TYPE_ENUM.REFUND]: 'bg-blue-50/30 dark:bg-blue-950/15',
 }
 
+/** 左侧固定列宽度（px），必须与单元格实际宽度一致，否则横向滚动时偏移会错位。 */
+const STICKY_COLUMN_WIDTHS: Record<string, number> = {
+  created_at: 140,
+  channel: 72,
+  user: 160,
+}
+
+/** 管理员视图固定「时间 / 渠道 / 用户」三列；普通用户只有「时间」列。 */
+const ADMIN_STICKY_COLUMNS = ['created_at', 'channel', 'user']
+const STICKY_SHADOW = 'shadow-[2px_0_4px_-2px_rgba(0,0,0,0.18)]'
+
 function deserializeLogTypeFilter(value: unknown): unknown[] {
   const values = Array.isArray(value) ? value : value ? [value] : []
   return values.filter((item) => String(item) !== LOG_TYPE_ALL_VALUE)
@@ -176,6 +187,20 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
 
   const isCommon = logCategory === 'common'
 
+  // 固定左侧列：横向滚动查看其余列时，时间 / 渠道 / 用户保持可见。
+  // 按当前可见列累加偏移，用户隐藏固定列后不会出现空隙。
+  const stickyColumnIds = isAdmin ? ADMIN_STICKY_COLUMNS : ['created_at']
+  const stickyLayout: Record<string, { left: number; width: number }> = {}
+  let stickyOffset = 0
+  for (const column of table.getVisibleLeafColumns()) {
+    if (!stickyColumnIds.includes(column.id)) continue
+    const width = STICKY_COLUMN_WIDTHS[column.id] ?? 0
+    stickyLayout[column.id] = { left: stickyOffset, width }
+    stickyOffset += width
+  }
+  const visibleStickyIds = stickyColumnIds.filter((id) => stickyLayout[id])
+  const lastStickyId = visibleStickyIds[visibleStickyIds.length - 1]
+
   return (
     <DataTablePage
       table={table}
@@ -189,9 +214,25 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       skeletonKeyPrefix='usage-log-skeleton'
       tableClassName={cn(
         'overflow-x-auto',
+        '[&_[data-slot=table]]:min-w-max',
         '[&_[data-slot=table]]:text-[13px] [&_[data-slot=table]_td]:text-[13px] [&_[data-slot=table]_td_*]:text-[13px] [&_[data-slot=table]_th]:text-[13px] [&_[data-slot=table]_th_*]:text-[13px]'
       )}
-      tableHeaderClassName='bg-muted/30 sticky top-0 z-10'
+      tableHeaderClassName='bg-muted sticky top-0 z-10'
+      getHeaderProps={(columnId) => {
+        const layout = stickyLayout[columnId]
+        if (!layout) return undefined
+        return {
+          className: cn(
+            'sticky z-30 bg-muted',
+            columnId === lastStickyId && STICKY_SHADOW
+          ),
+          style: {
+            left: layout.left,
+            width: layout.width,
+            minWidth: layout.width,
+          },
+        }
+      }}
       mobile={
         <UsageLogsMobileList
           table={table}
@@ -214,12 +255,36 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
           isCommon && logType != null ? (logTypeRowTint[logType] ?? '') : ''
 
         return (
-          <TableRow key={row.id} className={cn('transition-colors', tintClass)}>
-            {row.getVisibleCells().map((cell) => (
-              <TableCell key={cell.id} className={isCommon ? 'py-2' : 'py-3.5'}>
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </TableCell>
-            ))}
+          <TableRow
+            key={row.id}
+            className={cn('bg-card transition-colors', tintClass)}
+          >
+            {row.getVisibleCells().map((cell) => {
+              const layout = stickyLayout[cell.column.id]
+              return (
+                <TableCell
+                  key={cell.id}
+                  className={cn(
+                    isCommon ? 'py-2' : 'py-3.5',
+                    layout && 'sticky z-20 bg-inherit',
+                    layout &&
+                      cell.column.id === lastStickyId &&
+                      STICKY_SHADOW
+                  )}
+                  style={
+                    layout
+                      ? {
+                          left: layout.left,
+                          width: layout.width,
+                          minWidth: layout.width,
+                        }
+                      : undefined
+                  }
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              )
+            })}
           </TableRow>
         )
       }}

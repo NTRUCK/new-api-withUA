@@ -192,6 +192,14 @@ export type DataTablePageProps<TData> = {
    * Useful for sticky headers (`'sticky top-0 z-10 bg-muted/30'`) on long lists.
    */
   tableHeaderClassName?: string
+
+  /**
+   * Per-column header props resolver. Use for frozen columns
+   * (sticky positioning + explicit width) without touching every page.
+   */
+  getHeaderProps?: (
+    columnId: string
+  ) => { className?: string; style?: React.CSSProperties } | undefined
 }
 
 /**
@@ -312,24 +320,29 @@ function renderDesktop<TData>(
         <TableHeader className={props.tableHeaderClassName}>
           {props.table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead
-                  key={header.id}
-                  colSpan={header.colSpan}
-                  style={
-                    props.applyHeaderSize
-                      ? { width: header.getSize() }
-                      : undefined
-                  }
-                >
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                </TableHead>
-              ))}
+              {headerGroup.headers.map((header) => {
+                const headerProps = props.getHeaderProps?.(header.column.id)
+                return (
+                  <TableHead
+                    key={header.id}
+                    colSpan={header.colSpan}
+                    className={headerProps?.className}
+                    style={
+                      headerProps?.style ??
+                      (props.applyHeaderSize
+                        ? { width: header.getSize() }
+                        : undefined)
+                    }
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                )
+              })}
             </TableRow>
           ))}
         </TableHeader>
