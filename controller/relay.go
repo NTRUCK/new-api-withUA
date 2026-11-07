@@ -246,11 +246,18 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		// 渠道级最大输入 token 限制：分组表优先，未命中的分组回退到渠道统一上限。
 		// 超限直接拒绝，不重试其他渠道、不封禁渠道。
+		// 判定值按该渠道历史「上游实际 / 本地估算」比值校准，贴近上游真实 token 数。
 		channelSetting := channel.GetSetting()
 		if maxInput := channelSetting.GetMaxInputTokens(relayInfo.UsingGroup); maxInput > 0 {
-			if promptTokens := relayInfo.GetEstimatePromptTokens(); promptTokens > maxInput {
+			promptTokens := relayInfo.GetEstimatePromptTokens()
+			judgeTokens := service.CalibrateChannelInputTokens(channel.Id, promptTokens)
+			if judgeTokens > maxInput {
+				hint := ""
+				if judgeTokens != promptTokens {
+					hint = fmt.Sprintf("（本地估算 %d，已按上游口径校准）", promptTokens)
+				}
 				newAPIError = types.NewErrorWithStatusCode(
-					fmt.Errorf("输入 token 数 %d 超过渠道 #%d 在分组 %s 的最大输入限制 %d", promptTokens, channel.Id, relayInfo.UsingGroup, maxInput),
+					fmt.Errorf("输入 token 数 %d%s 超过渠道 #%d 在分组 %s 的最大输入限制 %d", judgeTokens, hint, channel.Id, relayInfo.UsingGroup, maxInput),
 					types.ErrorCodeInvalidRequest,
 					http.StatusBadRequest,
 					types.ErrOptionWithSkipRetry(),

@@ -178,6 +178,12 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	}
 	summary.IsClaudeUsageSemantic = summary.UsageSemantic == "anthropic"
 
+	// 采集上游统计值用于渠道输入 token 校准，必须在本地估算计费改写 usage 之前取
+	upstreamPromptForCalibration := 0
+	if usage != nil {
+		upstreamPromptForCalibration = usage.PromptTokens
+	}
+
 	if usage == nil {
 		usage = &dto.Usage{
 			PromptTokens:     relayInfo.GetEstimatePromptTokens(),
@@ -187,6 +193,9 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	}
 
 	summary.UpstreamPromptTokens, summary.LocalEstimateBilled = applyLocalEstimateBilling(relayInfo, usage)
+	if upstreamPromptForCalibration > 0 {
+		ObserveChannelInputCalibration(relayInfo.ChannelId, relayInfo.GetEstimatePromptTokens(), upstreamPromptForCalibration)
+	}
 	summary.PromptTokens = usage.PromptTokens
 	summary.CompletionTokens = usage.CompletionTokens
 	summary.TotalTokens = usage.PromptTokens + usage.CompletionTokens
@@ -450,6 +459,9 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	if summary.LocalEstimateBilled {
 		other["prompt_token_mode"] = "local_estimate"
 		other["upstream_prompt_tokens"] = summary.UpstreamPromptTokens
+	} else if estimate := relayInfo.GetEstimatePromptTokens(); estimate > 0 && estimate != summary.PromptTokens {
+		// 未开启本地估算计费时也记录本地估算值，便于对比上游口径、校准超限判定
+		other["local_estimate_prompt_tokens"] = estimate
 	}
 	// Kiro 额度模拟：按官方 credits 规则估算消耗并记录（仅观测，不影响计费）
 	if usage != nil {
