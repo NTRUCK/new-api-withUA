@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
@@ -27,17 +25,14 @@ func checkCodeExecutionViolation(c *gin.Context, relayInfo *relaycommon.RelayInf
 	if relayInfo == nil || request == nil {
 		return
 	}
-	role := common.GetContextKeyInt(c, constant.ContextKeyUserRole)
-	group := modelDailyLimitGroup(relayInfo)
-	calls := service.DetectCodeExecution(request)
-	common.SysLog(fmt.Sprintf("[code_exec_debug] user=%d group=%s role=%d reqType=%T hits=%d",
-		relayInfo.UserId, group, role, request, len(calls)))
-	if role >= common.RoleAdminUser {
+	if role := common.GetContextKeyInt(c, constant.ContextKeyUserRole); role >= common.RoleAdminUser {
 		return
 	}
+	group := modelDailyLimitGroup(relayInfo)
 	if operation_setting.IsCodeExecRateLimitExemptGroup(group) {
 		return
 	}
+	calls := service.DetectCodeExecution(request)
 	if len(calls) == 0 {
 		return
 	}
