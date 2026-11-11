@@ -4515,6 +4515,10 @@
     "密钥属于高敏感数据，请输入当前账号的登录密码进行二次验证。验证通过后明文仅在本次弹窗中可见。": "Channel keys are highly sensitive. Enter your account login password to verify. Once verified, the plaintext key is shown only in this dialog.",
     "密码错误": "Incorrect password",
     "密码错误，无法查看完整密钥": "Incorrect password, unable to view the full key",
-    "验证成功，已显示完整密钥": "Verified, full keys are now shown"
+    "验证成功，已显示完整密钥": "Verified, full keys are now shown",
+    "任一命中": "Any role",
+    "全部需要": "All roles",
+    "任意成员，可输入身份组 ID": "Any member, or enter role IDs",
+    "身份组 ID 必须为纯数字": "Role IDs must be numeric"
   }
 }

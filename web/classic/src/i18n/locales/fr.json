@@ -4356,6 +4356,10 @@
     "搜索 UID 或用户名": "Rechercher un UID ou un nom d'utilisateur",
     "仅在非豁免分组中累计真实代码执行（tool_call_id 闭环），达到阈值后对该用户全局限速 24 小时：每分钟 1 次、并发 1。解除后立即恢复原有限制。": "Seules les exécutions de code réelles (boucle tool_call_id fermée) dans les groupes non exemptés sont comptées. Une fois le seuil atteint, l'utilisateur est limité globalement pendant 24 heures : 1 requête par minute, concurrence 1. La suppression de la limite rétablit immédiatement les limites d'origine.",
     "按本地估算计费": "Facturer selon l'estimation locale",
-    "开启后忽略上游返回的输入 token，按本地对请求的估算值计费，缓存字段清零；适合缓存由反代模拟、口径不稳定的中转渠道": "Si activé, les tokens d'entrée renvoyés par l'amont sont ignorés et la facturation utilise l'estimation locale de la requête ; les champs de cache sont remis à zéro. Convient aux canaux relais dont le cache est simulé et instable."
+    "开启后忽略上游返回的输入 token，按本地对请求的估算值计费，缓存字段清零；适合缓存由反代模拟、口径不稳定的中转渠道": "Si activé, les tokens d'entrée renvoyés par l'amont sont ignorés et la facturation utilise l'estimation locale de la requête ; les champs de cache sont remis à zéro. Convient aux canaux relais dont le cache est simulé et instable.",
+    "任一命中": "Au moins un",
+    "全部需要": "Tous requis",
+    "任意成员，可输入身份组 ID": "Tout membre ou saisir des ID de rôle",
+    "身份组 ID 必须为纯数字": "Les ID de rôle doivent être numériques"
   }
 }

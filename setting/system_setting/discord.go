@@ -42,10 +42,35 @@ func (g *DiscordGuildRuleGroups) UnmarshalJSON(data []byte) error {
 
 // DiscordRoleGroupRule 身份组到用户组的映射：新用户注册时按命中的最高优先级规则定组。
 type DiscordRoleGroupRule struct {
-	GuildId  string `json:"guild_id"` // Discord 服务器 ID
-	RoleId   string `json:"role_id"`  // 身份组 ID；为空表示该服务器任意成员
-	Group    string `json:"group"`    // 目标用户组
-	Priority int    `json:"priority"` // 优先级，数字越大越优先
+	GuildId   string   `json:"guild_id"`             // Discord 服务器 ID
+	RoleId    string   `json:"role_id"`              // 兼容旧配置：单个身份组 ID；为空表示该服务器任意成员
+	RoleIds   []string `json:"role_ids,omitempty"`   // 多个身份组 ID，与 RoleId 合并去重
+	RoleMatch string   `json:"role_match,omitempty"` // any=任一命中 / all=全部需要；默认 any
+	Group     string   `json:"group"`                // 目标用户组
+	Priority  int      `json:"priority"`             // 优先级，数字越大越优先
+}
+
+// EffectiveRoleIds 返回去空白、去重后的身份组列表（同时兼容旧版 RoleId）。
+func (r DiscordRoleGroupRule) EffectiveRoleIds() []string {
+	ids := make([]string, 0, len(r.RoleIds)+1)
+	seen := make(map[string]struct{}, len(r.RoleIds)+1)
+	for _, raw := range append([]string{r.RoleId}, r.RoleIds...) {
+		id := strings.TrimSpace(raw)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// IsRoleMatchAll 是否要求持有全部身份组（默认任一命中即可）。
+func (r DiscordRoleGroupRule) IsRoleMatchAll() bool {
+	return strings.TrimSpace(r.RoleMatch) == "all"
 }
 
 type DiscordSettings struct {

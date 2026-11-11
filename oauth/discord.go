@@ -172,6 +172,29 @@ type discordGuildMember struct {
 	Code int `json:"code"`
 }
 
+// matchDiscordRuleRoles 判断成员是否满足规则要求的身份组：
+// 未配置身份组视为任意成员；RoleMatch=all 时须全部持有，否则任一持有即可。
+func matchDiscordRuleRoles(member *discordGuildMember, rule system_setting.DiscordRoleGroupRule) bool {
+	roleIds := rule.EffectiveRoleIds()
+	if len(roleIds) == 0 {
+		return true
+	}
+	if rule.IsRoleMatchAll() {
+		for _, roleId := range roleIds {
+			if !member.hasRole(roleId) {
+				return false
+			}
+		}
+		return true
+	}
+	for _, roleId := range roleIds {
+		if member.hasRole(roleId) {
+			return true
+		}
+	}
+	return false
+}
+
 // hasRole 判断成员是否持有指定身份组
 func (m *discordGuildMember) hasRole(roleId string) bool {
 	for _, r := range m.Roles {
@@ -367,8 +390,7 @@ func ResolveRegisterGroup(c *gin.Context, token *OAuthToken) (string, error) {
 		if member == nil {
 			continue
 		}
-		roleId := strings.TrimSpace(rule.RoleId)
-		if roleId != "" && !member.hasRole(roleId) {
+		if !matchDiscordRuleRoles(member, rule) {
 			continue
 		}
 		if !found || rule.Priority > bestPriority {

@@ -4867,6 +4867,10 @@
     "搜索 UID 或用户名": "Tìm UID hoặc tên người dùng",
     "仅在非豁免分组中累计真实代码执行（tool_call_id 闭环），达到阈值后对该用户全局限速 24 小时：每分钟 1 次、并发 1。解除后立即恢复原有限制。": "Chỉ tính các lần thực thi mã thực sự (vòng lặp tool_call_id khép kín) trong các nhóm không được miễn trừ. Khi đạt ngưỡng, người dùng bị giới hạn toàn cục trong 24 giờ: 1 yêu cầu mỗi phút, đồng thời 1. Sau khi gỡ, giới hạn ban đầu được khôi phục ngay lập tức.",
     "按本地估算计费": "Tính phí theo ước tính cục bộ",
-    "开启后忽略上游返回的输入 token，按本地对请求的估算值计费，缓存字段清零；适合缓存由反代模拟、口径不稳定的中转渠道": "Khi bật, token đầu vào do phía trên trả về sẽ bị bỏ qua và tính phí theo ước tính cục bộ của yêu cầu; các trường bộ nhớ đệm được đặt về 0. Phù hợp với kênh trung chuyển có bộ nhớ đệm mô phỏng và không ổn định."
+    "开启后忽略上游返回的输入 token，按本地对请求的估算值计费，缓存字段清零；适合缓存由反代模拟、口径不稳定的中转渠道": "Khi bật, token đầu vào do phía trên trả về sẽ bị bỏ qua và tính phí theo ước tính cục bộ của yêu cầu; các trường bộ nhớ đệm được đặt về 0. Phù hợp với kênh trung chuyển có bộ nhớ đệm mô phỏng và không ổn định.",
+    "任一命中": "Khớp bất kỳ",
+    "全部需要": "Yêu cầu tất cả",
+    "任意成员，可输入身份组 ID": "Thành viên bất kỳ hoặc nhập ID vai trò",
+    "身份组 ID 必须为纯数字": "ID vai trò phải là số"
   }
 }

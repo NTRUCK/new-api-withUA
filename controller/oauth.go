@@ -464,6 +464,8 @@ func PreviewDiscordRoleGroup(c *gin.Context) {
 		}
 		rule.GuildId = guildId
 		rule.RoleId = strings.TrimSpace(rule.RoleId)
+		rule.RoleIds = rule.EffectiveRoleIds()
+		rule.RoleId = ""
 		rule.Group = group
 		rules = append(rules, rule)
 		if _, ok := seen[guildId]; !ok {
@@ -496,7 +498,7 @@ func PreviewDiscordRoleGroup(c *gin.Context) {
 		if membership == nil || !membership.InGuild {
 			continue
 		}
-		if rule.RoleId != "" && !hasDiscordRole(membership.Roles, rule.RoleId) {
+		if !matchPreviewRuleRoles(membership.Roles, rule) {
 			continue
 		}
 		if matchedIndex == -1 || rule.Priority > matchedPriority {
@@ -511,6 +513,28 @@ func PreviewDiscordRoleGroup(c *gin.Context) {
 		"matched_group":      matchedGroup,
 		"matched_rule_index": matchedIndex,
 	})
+}
+
+// matchPreviewRuleRoles 按规则的任一/全部语义判断用户身份组是否满足要求。
+func matchPreviewRuleRoles(roles []service.DiscordRoleInfo, rule system_setting.DiscordRoleGroupRule) bool {
+	roleIds := rule.EffectiveRoleIds()
+	if len(roleIds) == 0 {
+		return true
+	}
+	if rule.IsRoleMatchAll() {
+		for _, roleId := range roleIds {
+			if !hasDiscordRole(roles, roleId) {
+				return false
+			}
+		}
+		return true
+	}
+	for _, roleId := range roleIds {
+		if hasDiscordRole(roles, roleId) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasDiscordRole(roles []service.DiscordRoleInfo, roleId string) bool {

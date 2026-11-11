@@ -74,9 +74,7 @@ const parseGuildRuleGroups = (text) => {
     }
     groups.get(groupNo).push({ guild_id: guildId, role_id: roleId || '' });
   }
-  return [...groups.keys()]
-    .sort((a, b) => a - b)
-    .map((no) => groups.get(no));
+  return [...groups.keys()].sort((a, b) => a - b).map((no) => groups.get(no));
 };
 
 // 后端存储的准入组 → 文本框内容（兼容历史平铺格式，此时每条规则单独成组）
@@ -118,6 +116,23 @@ const DISCORD_GUILDS = [
 
 const discordGuildById = (guildId) =>
   DISCORD_GUILDS.find((guild) => guild.id === guildId);
+
+// 规范化注册分组规则：兼容旧版单个 role_id，统一为 role_ids 数组 + role_match
+const normalizeRoleGroupRule = (rule = {}) => {
+  const merged = [
+    ...(Array.isArray(rule.role_ids) ? rule.role_ids : []),
+    rule.role_id,
+  ]
+    .map((id) => (typeof id === 'string' ? id.trim() : ''))
+    .filter(Boolean);
+  return {
+    ...rule,
+    role_id: '',
+    role_ids: Array.from(new Set(merged)),
+    role_match: rule.role_match === 'all' ? 'all' : 'any',
+    priority: Number(rule.priority) || 0,
+  };
+};
 
 const SystemSetting = () => {
   const { t } = useTranslation();
@@ -356,6 +371,7 @@ const SystemSetting = () => {
             if (!Array.isArray(parsedRules)) {
               parsedRules = [];
             }
+            parsedRules = parsedRules.map(normalizeRoleGroupRule);
             setRoleGroupRules(parsedRules);
             item.value = JSON.stringify(parsedRules);
             break;
@@ -699,7 +715,14 @@ const SystemSetting = () => {
   const addRoleGroupRule = () => {
     setRoleGroupRules([
       ...roleGroupRules,
-      { guild_id: DISCORD_GUILDS[0].id, role_id: '', group: '', priority: 0 },
+      {
+        guild_id: DISCORD_GUILDS[0].id,
+        role_id: '',
+        role_ids: [],
+        role_match: 'any',
+        group: '',
+        priority: 0,
+      },
     ]);
   };
 
@@ -757,7 +780,9 @@ const SystemSetting = () => {
         value: inputs['discord.client_secret'],
       });
     }
-    if (originInputs['discord.guild_gating'] !== inputs['discord.guild_gating']) {
+    if (
+      originInputs['discord.guild_gating'] !== inputs['discord.guild_gating']
+    ) {
       options.push({
         key: 'discord.guild_gating',
         value: String(inputs['discord.guild_gating']),
@@ -769,7 +794,9 @@ const SystemSetting = () => {
         value: inputs['discord.guild_id'],
       });
     }
-    if (originInputs['discord.require_role'] !== inputs['discord.require_role']) {
+    if (
+      originInputs['discord.require_role'] !== inputs['discord.require_role']
+    ) {
       options.push({
         key: 'discord.require_role',
         value: String(inputs['discord.require_role']),
@@ -788,7 +815,9 @@ const SystemSetting = () => {
         groups = parseGuildRuleGroups(inputs['discord.guild_rules']);
       } catch (e) {
         showError(
-          t('多服务器规则格式有误：每行应为「组号: 服务器ID」或「组号: 服务器ID,身份组ID」，且 ID 为纯数字'),
+          t(
+            '多服务器规则格式有误：每行应为「组号: 服务器ID」或「组号: 服务器ID,身份组ID」，且 ID 为纯数字',
+          ),
         );
         return;
       }
@@ -807,7 +836,9 @@ const SystemSetting = () => {
         groups = parseGuildRuleGroups(inputs['discord.aff_guild_rules']);
       } catch (e) {
         showError(
-          t('邀请注册专属规则格式有误：每行应为「组号: 服务器ID」或「组号: 服务器ID,身份组ID」，且 ID 为纯数字'),
+          t(
+            '邀请注册专属规则格式有误：每行应为「组号: 服务器ID」或「组号: 服务器ID,身份组ID」，且 ID 为纯数字',
+          ),
         );
         return;
       }
@@ -854,9 +885,16 @@ const SystemSetting = () => {
       });
     }
     // 注册分组映射：结构化规则 → JSON，保存前校验每条规则完整
-    const nextRoleGroupRules = roleGroupRules.filter(
-      (rule) => rule.guild_id && rule.group,
+    const nextRoleGroupRules = roleGroupRules
+      .filter((rule) => rule.guild_id && rule.group)
+      .map(normalizeRoleGroupRule);
+    const invalidRoleId = nextRoleGroupRules.some((rule) =>
+      (rule.role_ids || []).some((id) => !/^\d+$/.test(id)),
     );
+    if (invalidRoleId) {
+      showError(t('身份组 ID 必须为纯数字'));
+      return;
+    }
     const nextRoleGroupRulesJson = JSON.stringify(nextRoleGroupRules);
     if (originInputs['discord.role_group_rules'] !== nextRoleGroupRulesJson) {
       if (roleGroupRules.some((rule) => !rule.guild_id || !rule.group)) {
@@ -2066,7 +2104,9 @@ const SystemSetting = () => {
                         extraText={t(
                           '每行一条规则，行首以组号标记所属组：「组号: 服务器ID」或「组号: 服务器ID,身份组ID」（身份组可省略，省略则仅要求加入该服务器）。同一组内的规则须全部满足。填写后优先生效，忽略上方单服务器配置。',
                         )}
-                        placeholder={'1: 1134557553011998840,1335363403870502912\n1: 987654321098765432\n2: 111111111111111111,222222222222222222'}
+                        placeholder={
+                          '1: 1134557553011998840,1335363403870502912\n1: 987654321098765432\n2: 111111111111111111,222222222222222222'
+                        }
                         autosize={{ minRows: 4, maxRows: 10 }}
                         disabled={!inputs['discord.guild_gating']}
                         style={{ fontFamily: 'JetBrains Mono, Consolas' }}
@@ -2076,7 +2116,9 @@ const SystemSetting = () => {
                   <Form.TextArea
                     field="['discord.register_limit_whitelist']"
                     label={t('满员注册 Discord ID 白名单')}
-                    extraText={t('一行一个 Discord 用户数字 ID，仅在达到注册用户数上限时放行；其他注册和服务器准入限制仍然生效')}
+                    extraText={t(
+                      '一行一个 Discord 用户数字 ID，仅在达到注册用户数上限时放行；其他注册和服务器准入限制仍然生效',
+                    )}
                     placeholder={'123456789012345678\n987654321098765432'}
                     autosize={{ minRows: 4, maxRows: 10 }}
                     style={{ fontFamily: 'JetBrains Mono, Consolas' }}
@@ -2120,16 +2162,19 @@ const SystemSetting = () => {
                           paddingRight: 32,
                         }}
                       >
-                        <Text type='tertiary' size='small' style={{ flex: 28 }}>
+                        <Text type='tertiary' size='small' style={{ flex: 22 }}>
                           {t('服务器')}
                         </Text>
-                        <Text type='tertiary' size='small' style={{ flex: 30 }}>
+                        <Text type='tertiary' size='small' style={{ flex: 34 }}>
                           {t('身份组')}
                         </Text>
-                        <Text type='tertiary' size='small' style={{ flex: 28 }}>
+                        <Text type='tertiary' size='small' style={{ flex: 12 }}>
+                          {t('匹配方式')}
+                        </Text>
+                        <Text type='tertiary' size='small' style={{ flex: 22 }}>
                           {t('用户组')}
                         </Text>
-                        <Text type='tertiary' size='small' style={{ flex: 14 }}>
+                        <Text type='tertiary' size='small' style={{ flex: 10 }}>
                           {t('权重')}
                         </Text>
                       </div>
@@ -2154,28 +2199,40 @@ const SystemSetting = () => {
                             onChange={(value) =>
                               updateRoleGroupRule(index, {
                                 guild_id: value,
-                                role_id: '',
+                                role_ids: [],
                               })
                             }
-                            style={{ flex: 28 }}
+                            style={{ flex: 22 }}
                           />
                           <Select
                             size='small'
-                            value={rule.role_id || ''}
-                            placeholder={t('任意成员')}
+                            multiple
+                            filter
+                            allowCreate
+                            value={rule.role_ids || []}
+                            placeholder={t('任意成员，可输入身份组 ID')}
+                            optionList={(
+                              discordGuildById(rule.guild_id)?.roles || []
+                            ).map((role) => ({
+                              value: role.id,
+                              label: role.name,
+                            }))}
+                            onChange={(value) =>
+                              updateRoleGroupRule(index, { role_ids: value })
+                            }
+                            style={{ flex: 34 }}
+                          />
+                          <Select
+                            size='small'
+                            value={rule.role_match === 'all' ? 'all' : 'any'}
                             optionList={[
-                              { value: '', label: t('任意成员') },
-                              ...(
-                                discordGuildById(rule.guild_id)?.roles || []
-                              ).map((role) => ({
-                                value: role.id,
-                                label: role.name,
-                              })),
+                              { value: 'any', label: t('任一命中') },
+                              { value: 'all', label: t('全部需要') },
                             ]}
                             onChange={(value) =>
-                              updateRoleGroupRule(index, { role_id: value })
+                              updateRoleGroupRule(index, { role_match: value })
                             }
-                            style={{ flex: 30 }}
+                            style={{ flex: 12 }}
                           />
                           <Select
                             size='small'
@@ -2189,7 +2246,7 @@ const SystemSetting = () => {
                             onChange={(value) =>
                               updateRoleGroupRule(index, { group: value })
                             }
-                            style={{ flex: 28 }}
+                            style={{ flex: 22 }}
                           />
                           <InputNumber
                             size='small'
@@ -2200,7 +2257,7 @@ const SystemSetting = () => {
                                 priority: Number(value) || 0,
                               })
                             }
-                            style={{ flex: 14 }}
+                            style={{ flex: 10 }}
                           />
                           <Popconfirm
                             title={t('确认移除？')}
@@ -2267,12 +2324,9 @@ const SystemSetting = () => {
                               >
                                 <Tag
                                   size='small'
-                                  color={
-                                    membership.in_guild ? 'green' : 'grey'
-                                  }
+                                  color={membership.in_guild ? 'green' : 'grey'}
                                 >
-                                  {membership.guild_name ||
-                                    membership.guild_id}
+                                  {membership.guild_name || membership.guild_id}
                                 </Tag>
                                 <Text size='small' style={{ marginLeft: 6 }}>
                                   {membership.in_guild
@@ -2325,7 +2379,9 @@ const SystemSetting = () => {
                     extraText={t(
                       '开启邀请码注册后生效：新用户仅可通过 Discord 注册，且需按上方匹配方式通过规则组（叠加在上方服务器准入之上）。每行一条规则，行首以组号标记所属组：「组号: 服务器ID」或「组号: 服务器ID,身份组ID」。留空则不启用。',
                     )}
-                    placeholder={'1: 1134557553011998840,1335363403870502912\n1: 987654321098765432\n2: 111111111111111111,222222222222222222'}
+                    placeholder={
+                      '1: 1134557553011998840,1335363403870502912\n1: 987654321098765432\n2: 111111111111111111,222222222222222222'
+                    }
                     autosize={{ minRows: 4, maxRows: 10 }}
                     style={{ fontFamily: 'JetBrains Mono, Consolas' }}
                   />
