@@ -107,9 +107,25 @@ func HandleOAuth(c *gin.Context) {
 		return
 	}
 
+	// 提前解析邀请码与注册身份，供准入校验与审计日志复用
+	registerGroup := ""
+	isInviteRegister := false
+	affCode := ""
+	if aff := session.Get("aff"); aff != nil {
+		if code, ok := aff.(string); ok && strings.TrimSpace(code) != "" {
+			isInviteRegister = true
+			affCode = code
+		}
+	}
+	isNewDiscordUser := provider.GetName() == "Discord" && !provider.IsUserIDTaken(oauthUser.ProviderUserID)
+
 	// 6.5 Discord 服务器准入校验（每次登录/注册都执行）
 	if provider.GetName() == "Discord" {
 		if err := oauth.CheckGuildAccess(c, token); err != nil {
+			recordDiscordRegisterAudit(c, token, oauthUser, 0, "guild_access", false, err.Error(), map[string]any{
+				"aff_code":        affCode,
+				"invite_register": isInviteRegister,
+			}, isNewDiscordUser)
 			handleOAuthError(c, err)
 			return
 		}
@@ -124,6 +140,10 @@ func HandleOAuth(c *gin.Context) {
 			return
 		}
 		if err := oauth.CheckAffGuildAccess(c, token); err != nil {
+			recordDiscordRegisterAudit(c, token, oauthUser, 0, "aff_guild_access", false, err.Error(), map[string]any{
+				"aff_code":        affCode,
+				"invite_register": true,
+			}, isNewDiscordUser)
 			handleOAuthError(c, err)
 			return
 		}
@@ -131,23 +151,25 @@ func HandleOAuth(c *gin.Context) {
 
 	// 6.7 注册分组：仅普通注册（不带邀请码）生效，带邀请码的注册仍分配默认用户组。
 	// 命中多条取优先级最高者；启用后未命中任何规则则拒绝注册。
-	registerGroup := ""
-	isInviteRegister := false
-	if aff := session.Get("aff"); aff != nil {
-		if affCode, ok := aff.(string); ok && strings.TrimSpace(affCode) != "" {
-			isInviteRegister = true
-		}
-	}
 	if provider.GetName() == "Discord" &&
 		system_setting.GetDiscordSettings().RoleGroupEnabled &&
 		!isInviteRegister &&
 		!provider.IsUserIDTaken(oauthUser.ProviderUserID) {
 		group, err := oauth.ResolveRegisterGroup(c, token)
 		if err != nil {
+			recordDiscordRegisterAudit(c, token, oauthUser, 0, "role_group", false, err.Error(), map[string]any{
+				"aff_code":        affCode,
+				"invite_register": isInviteRegister,
+			}, isNewDiscordUser)
 			handleOAuthError(c, err)
 			return
 		}
 		if group == "" || !ratio_setting.ContainsGroupRatio(group) {
+			recordDiscordRegisterAudit(c, token, oauthUser, 0, "role_group", false, "未命中任何注册分组规则", map[string]any{
+				"aff_code":        affCode,
+				"invite_register": isInviteRegister,
+				"matched_group":   group,
+			}, isNewDiscordUser)
 			common.ApiErrorI18n(c, i18n.MsgOAuthDiscordRoleGroupNotMatched)
 			return
 		}
@@ -157,6 +179,11 @@ func HandleOAuth(c *gin.Context) {
 	// 7. Find or create user
 	user, err := findOrCreateOAuthUser(c, provider, oauthUser, session, registerGroup)
 	if err != nil {
+		recordDiscordRegisterAudit(c, token, oauthUser, 0, "create_user", false, err.Error(), map[string]any{
+			"aff_code":        affCode,
+			"invite_register": isInviteRegister,
+			"register_group":  registerGroup,
+		}, isNewDiscordUser)
 		switch e := err.(type) {
 		case *OAuthUserDeletedError:
 			common.ApiErrorI18n(c, i18n.MsgOAuthUserDeleted)
@@ -169,6 +196,13 @@ func HandleOAuth(c *gin.Context) {
 		}
 		return
 	}
+
+	// 注册成功：仅对新用户记录，老用户登录不落审计日志
+	recordDiscordRegisterAudit(c, token, oauthUser, user.Id, "completed", true, "", map[string]any{
+		"aff_code":        affCode,
+		"invite_register": isInviteRegister,
+		"register_group":  registerGroup,
+	}, isNewDiscordUser)
 
 	// 8. Check user status
 	if user.Status != common.UserStatusEnabled {
@@ -566,6 +600,37 @@ type OAuthAffCodeError struct {
 
 func (e *OAuthAffCodeError) Error() string {
 	return "invitation code check failed"
+}
+
+// recordDiscordRegisterAudit 记录 Discord 注册审计日志：content 为简要结果，
+// 详细的服务器成员与身份组信息写入 admin_info（仅管理员可见），
+// 便于排查「缺少身份组 / 邀请准入失败 / 分组未命中」等问题。
+func recordDiscordRegisterAudit(c *gin.Context, token *oauth.OAuthToken, oauthUser *oauth.OAuthUser,
+	userId int, stage string, success bool, message string, extra map[string]any, enabled bool) {
+	if !enabled || oauthUser == nil {
+		return
+	}
+	adminInfo := map[string]any{
+		"provider":         "Discord",
+		"stage":            stage,
+		"success":          success,
+		"message":          message,
+		"discord_id":       oauthUser.ProviderUserID,
+		"discord_username": oauthUser.Username,
+		"guilds":           oauth.DiagnoseGuildMembership(c, token, oauth.ConfiguredGuildIds()),
+		"server_ip":        common.GetIp(),
+	}
+	for k, v := range extra {
+		adminInfo[k] = v
+	}
+	content := "Discord 注册失败：" + oauthUser.Username
+	if success {
+		content = "Discord 注册成功：" + oauthUser.Username
+	}
+	if message != "" {
+		content += "（" + message + "）"
+	}
+	model.RecordLogWithAdminInfo(userId, model.LogTypeSystem, content, adminInfo)
 }
 
 // handleOAuthError handles OAuth errors and returns translated message

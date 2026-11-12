@@ -404,6 +404,78 @@ func ResolveRegisterGroup(c *gin.Context, token *OAuthToken) (string, error) {
 	return bestGroup, nil
 }
 
+// DiscordGuildDiagnosis 描述用户在单个 Discord 服务器中的成员状态，用于注册排查。
+type DiscordGuildDiagnosis struct {
+	GuildId  string   `json:"guild_id"`
+	IsMember bool     `json:"is_member"`
+	Roles    []string `json:"roles,omitempty"`
+	Error    string   `json:"error,omitempty"`
+}
+
+// ConfiguredGuildIds 返回准入与注册分组配置中涉及的所有 Discord 服务器 ID（去重）。
+func ConfiguredGuildIds() []string {
+	settings := system_setting.GetDiscordSettings()
+	ids := make([]string, 0, 8)
+	seen := make(map[string]struct{}, 8)
+	appendId := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return
+		}
+		if _, ok := seen[id]; ok {
+			return
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	appendId(settings.GuildId)
+	for _, group := range settings.GetGuildRules() {
+		for _, rule := range group {
+			appendId(rule.GuildId)
+		}
+	}
+	for _, group := range settings.GetAffGuildRules() {
+		for _, rule := range group {
+			appendId(rule.GuildId)
+		}
+	}
+	for _, rule := range settings.GetRoleGroupRules() {
+		appendId(rule.GuildId)
+	}
+	return ids
+}
+
+// DiagnoseGuildMembership 拉取用户在指定服务器中的成员与身份组信息，
+// 用于注册被拒时记录详细原因（非成员、缺少身份组、接口报错等）。
+func DiagnoseGuildMembership(c *gin.Context, token *OAuthToken, guildIds []string) []DiscordGuildDiagnosis {
+	ctx := c.Request.Context()
+	result := make([]DiscordGuildDiagnosis, 0, len(guildIds))
+	seen := make(map[string]struct{}, len(guildIds))
+	for _, raw := range guildIds {
+		guildId := strings.TrimSpace(raw)
+		if guildId == "" {
+			continue
+		}
+		if _, ok := seen[guildId]; ok {
+			continue
+		}
+		seen[guildId] = struct{}{}
+		item := DiscordGuildDiagnosis{GuildId: guildId}
+		member, err := fetchGuildMember(ctx, token.AccessToken, guildId)
+		if err != nil {
+			item.Error = err.Error()
+			result = append(result, item)
+			continue
+		}
+		if member != nil {
+			item.IsMember = true
+			item.Roles = member.Roles
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
 func (p *DiscordProvider) FillUserByProviderID(user *model.User, providerUserID string) error {
 	user.DiscordId = providerUserID
 	return user.FillUserByDiscordId()
